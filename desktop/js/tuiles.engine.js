@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.57.1';
+  var VERSION = '1.59.0';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -653,11 +653,61 @@
       this.timers.push(setInterval(function () { self.resync(); }, Math.max(5, num(self.data.poll, 0)) * 1000));
     }
     this.timers.push(setInterval(function () { self.tiles.forEach(function (a) { self.markAge(a); }); }, 60000));
+    if (!this.opts.edit) this.setupHomeReturn();
   }
+
+  /** Retour à la page d'accueil sans bouton : glisser depuis le bord gauche, et / ou retour automatique après inactivité. */
+  Page.prototype.setupHomeReturn = function () {
+    var self = this, nav = this.data.nav || {}, dev = this.data.device === 'mobile' ? 'mobile' : 'tablette';
+    var hp = String(((nav.homePages || {})[dev]) || ''), cur = String(this.data.id || '');
+    if (hp && hp === cur) return;                       // déjà sur l'accueil
+    var idle = num(nav.idleHome, 0);
+    if (!nav.swipeHome && !(idle > 0)) return;
+    var go = function () { if (self.destroyed) return; if (hp) self.navigate({ target: 'page', page: hp }); else self.navigate({ target: 'home' }); };
+    var offs = this.homeOffs = [];
+    var on = function (target, ev, fn, opt) { target.addEventListener(ev, fn, opt); offs.push(function () { target.removeEventListener(ev, fn, opt); }); };
+    if (nav.swipeHome) {
+      var st = null, hint = null;
+      var clear = function () { st = null; if (hint && hint.parentNode) hint.parentNode.removeChild(hint); hint = null; };
+      on(document, 'touchstart', function (e) {
+        var t = e.touches[0];
+        if (e.touches.length !== 1 || t.clientX > 28) return;
+        st = { x: t.clientX, y: t.clientY, at: Date.now() };
+      }, { passive: true });
+      on(document, 'touchmove', function (e) {
+        if (!st) return;
+        var t = e.touches[0], dx = t.clientX - st.x, dy = Math.abs(t.clientY - st.y);
+        if (dy > 70) { clear(); return; }
+        if (dx > 12) {
+          if (!hint) { hint = el('div', 'tl-swipe-home', iconHtml('svg:home')); hint.style.top = Math.max(10, st.y - 30) + 'px'; document.body.appendChild(hint); }
+          var k = Math.min(1, dx / 110);
+          hint.style.transform = 'translateX(' + Math.round(-60 + 80 * k) + 'px)';
+          hint.classList.toggle('tl-swipe-ok', k >= 1);
+        }
+      }, { passive: true });
+      on(document, 'touchend', function (e) {
+        if (!st) return;
+        var t = e.changedTouches[0], dx = t.clientX - st.x, dy = Math.abs(t.clientY - st.y), quick = Date.now() - st.at < 1200;
+        clear();
+        if (dx > 110 && dy < 70 && quick) go();
+      }, { passive: true });
+      on(document, 'touchcancel', clear, { passive: true });
+    }
+    if (idle > 0) {
+      var last = Date.now();
+      var bump = function () { last = Date.now(); };
+      ['pointerdown', 'touchstart', 'keydown', 'wheel'].forEach(function (ev) { on(document, ev, bump, { passive: true }); });
+      this.timers.push(setInterval(function () {
+        if (document.querySelector('.tl-modal-ov, .tl-lb')) { bump(); return; }  // fenêtre ou caméra ouverte : on attend
+        if (Date.now() - last >= idle * 60000) { bump(); go(); }
+      }, 10000));
+    }
+  };
 
   Page.prototype.destroy = function () {
     this.destroyed = true;
     Hub.remove(this);
+    (this.homeOffs || []).forEach(function (f) { f(); });
     root.removeEventListener('resize', this.onResize);
     this.timers.forEach(function (t) { clearInterval(t); clearTimeout(t); });
     this.tiles.forEach(function (a) { if (a.waiting) clearTimeout(a.waiting.timer); if (a.closePopup) a.closePopup(); });
@@ -5055,6 +5105,26 @@
       var r = evalRules(rulesFor(t, p.presets), value);
       icons.style.color = color(r && r.color ? r.color : t.color, '#ffffff');
     };
+  };
+
+  /* ---- Double lien : 2 images / icônes, 2 destinations dans une même tuile ---- */
+  R.lien2 = function (p, t, api) {
+    api.el.classList.add('tl-l2-tile');
+    var box = el('div', 'tl-l2 tl-l2-' + (t.l2Dir === 'dessus' ? 'col' : 'row') + (t.l2Sep === false || t.l2Sep === '0' ? '' : ' tl-l2-sep'));
+    ['a', 'b'].forEach(function (k) {
+      var img = t[k + 'Img'], ico = t[k + 'Icon'], lab = t[k + 'Label'];
+      var half = el('div', 'tl-l2-half' + (isSet(img) ? ' tl-l2-hasimg' : ''));
+      var vis = isSet(img) ? '<img class="tl-l2-img tl-fit-' + (t.l2Fit === 'cover' ? 'cover' : 'contain') + '" src="' + esc(img) + '" alt="">' :
+        '<div class="tl-l2-ico">' + iconHtml(ico || (k === 'a' ? 'fas fa-arrow-left' : 'fas fa-arrow-right')) + '</div>';
+      half.innerHTML = vis + (isSet(lab) ? '<div class="tl-l2-lab tl-fit">' + esc(lab) + '</div>' : '');
+      var c = color(t[k + 'Color'], '');
+      if (c) half.style.color = c;
+      box.appendChild(half);
+      var dest = { target: t[k + 'Target'] || 'page', page: t[k + 'Page'], url: t[k + 'Url'], newTab: t[k + 'NewTab'] };
+      p.press(half, function () { p.navigate(dest); });
+    });
+    api.body.appendChild(box);
+    return function () {};
   };
 
   /* ---- Image ---- */

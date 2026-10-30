@@ -49,6 +49,7 @@
     }],
     ['Page', {
       lien: 'Lien / navigation',
+      lien2: 'Double lien (2 images ou icônes, 2 destinations)',
       horloge: 'Date / heure du jour',
       soleil: 'Soleil (lever, coucher, hauteur)',
       separateur: 'Barre de séparation',
@@ -211,6 +212,23 @@
       { k: 'countVal', l: 'Valeur comptée', ph: '1', show: function (t) { return t.cmdList && t.cmdList.length; } },
       { k: 'cmdBadge', l: 'Ou : badge = valeur d\'une info', f: 'cmd', filter: C_INFO, show: function (t) { return !(t.cmdList && t.cmdList.length); } },
       { k: 'hideZero', l: 'Masquer le badge à 0', f: 'check' }, { k: 'thresholds', l: 'Couleur de l\'icône selon le compteur', f: 'thresholds' }],
+    lien2: [{ k: 'l2Dir', l: 'Disposition', f: 'sel', o: { '': 'Côte à côte', dessus: 'L\'un au-dessus de l\'autre' } }, { k: 'l2Sep', l: 'Trait de séparation', f: 'sel', o: { '': 'Oui', '0': 'Non' }, keep: true }, { k: 'l2Fit', l: 'Images', f: 'sel', o: { '': 'Entières', cover: 'Remplir la moitié (rognées)' } },
+      { k: 'aLabel', l: 'Lien 1 : texte', ph: 'ex. Salon' },
+      { k: 'aTarget', l: 'Lien 1 : ouvre', f: 'sel', o: { page: 'Une page Tuiles', home: 'L\'accueil', url: 'Une adresse (Design, dashboard…)', index: 'La liste des pages' }, keep: true },
+      { k: 'aPage', l: 'Lien 1 : page', f: 'page', show: function (t) { return !t.aTarget || t.aTarget === 'page'; } },
+      { k: 'aUrl', l: 'Lien 1 : adresse', ph: 'index.php?v=d&p=plan&plan_id=1', show: function (t) { return t.aTarget === 'url'; } },
+      { k: 'aNewTab', l: 'Lien 1 : nouvel onglet', f: 'check', show: function (t) { return t.aTarget === 'url'; } },
+      { k: 'aImg', l: 'Lien 1 : image (adresse)', ph: 'plugins/…/photo.jpg', help: 'Une image (photo, logo). Vide = l\'icône ci-dessous.' },
+      { k: 'aIcon', l: 'Lien 1 : icône', f: 'icon', show: function (t) { return !t.aImg; } },
+      { k: 'aColor', l: 'Lien 1 : couleur', f: 'color', ph: '#ffffff' },
+      { k: 'bLabel', l: 'Lien 2 : texte', ph: 'ex. Salon' },
+      { k: 'bTarget', l: 'Lien 2 : ouvre', f: 'sel', o: { page: 'Une page Tuiles', home: 'L\'accueil', url: 'Une adresse (Design, dashboard…)', index: 'La liste des pages' }, keep: true },
+      { k: 'bPage', l: 'Lien 2 : page', f: 'page', show: function (t) { return !t.bTarget || t.bTarget === 'page'; } },
+      { k: 'bUrl', l: 'Lien 2 : adresse', ph: 'index.php?v=d&p=plan&plan_id=1', show: function (t) { return t.bTarget === 'url'; } },
+      { k: 'bNewTab', l: 'Lien 2 : nouvel onglet', f: 'check', show: function (t) { return t.bTarget === 'url'; } },
+      { k: 'bImg', l: 'Lien 2 : image (adresse)', ph: 'plugins/…/photo.jpg', help: 'Une image (photo, logo). Vide = l\'icône ci-dessous.' },
+      { k: 'bIcon', l: 'Lien 2 : icône', f: 'icon', show: function (t) { return !t.bImg; } },
+      { k: 'bColor', l: 'Lien 2 : couleur', f: 'color', ph: '#ffffff' }],
     image: [{ k: 'img', l: 'Adresse de l\'image', ph: 'plugins/…/logo.png' }, { k: 'fit', l: 'Ajustement', f: 'sel', o: { contain: 'Entière', cover: 'Remplir' } },
       { k: 'url', l: 'Lien au clic (option)' }],
     vide: [],
@@ -421,12 +439,12 @@
       { k: 'details', l: 'Courbe au clic sur le ballon', f: 'sel', o: { '': 'Non', clic: 'Oui' } }],
     camera: [{ k: 'frigateUrl', l: 'Adresse de Frigate', ph: 'http://192.168.1.x:5000', help: 'Port 5000 (API interne de Frigate, sans authentification).' },
       { k: 'frigateCam', l: 'Nom de la caméra', ph: 'ex. portail', help: 'Le nom tel que dans la configuration de Frigate.' },
-      { k: 'frigateMode', l: 'Mode', f: 'sel', o: { mjpeg: 'Flux vidéo MJPEG', snapshot: 'Capture rafraîchie (léger)', go2rtc: 'Direct go2rtc (WebRTC, le plus fluide)' }, keep: true },
+      { k: 'frigateMode', l: 'Mode', f: 'sel', o: { rapide: 'Images rapides (le plus fiable, conseillé)', mjpeg: 'Flux vidéo MJPEG de Frigate', go2rtc: 'Flux go2rtc (MJPEG, port 1984)', snapshot: 'Capture lente (toutes les N s)' }, keep: true, help: 'Images rapides : captures enchaînées, rien ne reste ouvert, fonctionne avec plusieurs caméras sur la même page et à distance. Un navigateur ne garde que 6 flux ouverts vers une même adresse : au-delà, les flux MJPEG se figent.' },
       { k: 'camProxy', l: 'Via Jeedom (accès à distance)', f: 'check', help: 'Le serveur Jeedom récupère l\'image et la renvoie : la caméra est visible partout où Jeedom l\'est, sans ouvrir Frigate à l\'extérieur. Un flux vidéo se met en pause après 60 s (appui pour relancer). Le mode go2rtc passe alors en MJPEG. Enregistrez la page pour l\'activer (l\'éditeur affiche la caméra en direct).' },
-      { k: 'frigateFps', l: 'Images par seconde', f: 'num', ph: '5', show: function (t) { return !t.frigateMode || t.frigateMode === 'mjpeg' || (t.frigateMode === 'go2rtc' && t.camProxy); } },
+      { k: 'frigateFps', l: 'Images par seconde', f: 'num', phFn: function (t) { return t.frigateMode === 'rapide' ? '3' : '5'; }, show: function (t) { return !t.frigateMode || t.frigateMode === 'mjpeg' || t.frigateMode === 'rapide' || (t.frigateMode === 'go2rtc' && t.camProxy); } },
       { k: 'frigateH', l: 'Hauteur de l\'image (px)', f: 'num', ph: '720', show: function (t) { return t.frigateMode !== 'go2rtc' || t.camProxy; } },
       { k: 'camRefresh', l: 'Rafraîchir toutes les (s)', f: 'num', ph: '5', show: function (t) { return t.frigateMode === 'snapshot'; } },
-      { k: 'go2rtcUrl', l: 'Adresse go2rtc', ph: 'auto : même IP, port 1984', show: function (t) { return t.frigateMode === 'go2rtc' && !t.camProxy; }, help: 'Le port 1984 de go2rtc doit être accessible depuis le navigateur.' },
+      { k: 'go2rtcUrl', l: 'Adresse go2rtc', ph: 'auto : même IP, port 1984', show: function (t) { return t.frigateMode === 'go2rtc' && !t.camProxy; }, help: 'Le port 1984 de go2rtc doit être accessible depuis le navigateur. Le nom de la caméra doit être celui du flux dans go2rtc.' },
       { k: 'cmdRec', l: 'Info enregistrement (binaire)', f: 'cmd', filter: C_INFO, help: 'Pastille REC rouge quand l\'enregistrement est actif.' },
       { k: 'cmdRecOn', l: 'Action activer l\'enregistrement (option)', f: 'cmd', filter: C_ACTION, help: 'Avec les actions, un appui sur la pastille bascule l\'état.' },
       { k: 'cmdRecOff', l: 'Action désactiver l\'enregistrement (option)', f: 'cmd', filter: C_ACTION },
@@ -917,6 +935,13 @@
       var syncHome = function () { homeBox.toggle(hm.is(':checked')); };
       hm.on('change', syncHome);
       syncHome();
+      var back = $('<div class="tl-ed-navhome"></div>');
+      var sw = $('<input type="checkbox">').prop('checked', !!nav.swipeHome).on('change', function () { nav.swipeHome = sw.is(':checked'); });
+      back.append($('<label class="tl-ed-inline"></label>').append(sw).append(' Glisser du bord gauche vers la droite → page d\'accueil'));
+      var idl = $('<input type="number" min="0" max="240" step="1" class="form-control input-sm" style="width:70px" placeholder="0">').val(nav.idleHome > 0 ? nav.idleHome : '').on('input', function () { nav.idleHome = parseFloat($(this).val()) || 0; });
+      back.append($('<label class="tl-ed-inline"></label>').text('Retour automatique à l\'accueil après ').append(idl).append(' min sans toucher (vide = jamais)'));
+      back.append('<div class="tl-ed-hint">Aucun bouton à l\'écran : le geste et le retour automatique ramènent à la page d\'accueil choisie ci-dessus pour l\'appareil (sinon à l\'accueil du plugin). Rien ne se passe sur la page d\'accueil elle-même ni dans l\'éditeur.</div>');
+      body.append($('<div class="tl-ed-navopt"><b>Retour à l\'accueil sans bouton :</b></div>')).append(back);
       body.append('<div class="tl-ed-hint">Glissez les lignes pour changer l\'ordre. Chaque page n\'affiche que les onglets de son appareil (tablette ou mobile). Une page peut masquer la barre dans ses réglages (Style → Onglets).</div>');
       var list = $('<div class="tl-ed-navlist"></div>');
       body.append(list);
@@ -954,7 +979,7 @@
       T.ui.modal({
         title: 'Barre d\'onglets (toutes les pages)', body: body[0], wide: true,
         buttons: [{ label: 'Annuler' }, { label: 'Enregistrer', primary: true, click: function (close) {
-          var payload = { enabled: nav.devices.pc || nav.devices.tablette || nav.devices.mobile, devices: nav.devices, home: hm.is(':checked'), homePages: nav.homePages, size: nav.size || 100, homeLabel: nav.homeLabel || '', homeIcon: nav.homeIcon || '', items: items.map(function (it) { return { id: it.id, label: it.label || '', icon: it.icon || '', show: !!it.show }; }) };
+          var payload = { enabled: nav.devices.pc || nav.devices.tablette || nav.devices.mobile, devices: nav.devices, home: hm.is(':checked'), homePages: nav.homePages, size: nav.size || 100, homeLabel: nav.homeLabel || '', homeIcon: nav.homeIcon || '', swipeHome: !!nav.swipeHome, idleHome: nav.idleHome || 0, items: items.map(function (it) { return { id: it.id, label: it.label || '', icon: it.icon || '', show: !!it.show }; }) };
           T.ajax('saveNav', { nav: payload }).then(function (saved) {
             E.nav = saved;
             toast('Barre d\'onglets enregistrée');
@@ -1855,12 +1880,13 @@
       case 'reveilplan': return Object.assign(base, { title: 'Planning', w: 2.5, h: 2 });
       case 'soleil': return Object.assign(base, { w: 1.5, h: 1 });
       case 'separateur': return Object.assign(base, { title: '', hideTitle: true, w: 0.25, h: 2 });
-      case 'camera': return Object.assign(base, { frigateMode: 'mjpeg', camLive: true, camZoom: true, w: 2, h: 1.5 });
+      case 'camera': return Object.assign(base, { frigateMode: 'rapide', camLive: true, camZoom: true, w: 2, h: 1.5 });
       case 'widget': return Object.assign(base, { w: 2, h: 2 });
       case 'web': return Object.assign(base, { w: 2, h: 2 });
       case 'bouton': return Object.assign(base, { behavior: 'impulsion' });
       case 'ouvrant': return Object.assign(base, { kind: 'fenetre', openValue: '1' });
       case 'select': return Object.assign(base, { display: 'popup' });
+      case 'lien2': return Object.assign(base, { title: '', hideTitle: true, aTarget: 'page', bTarget: 'page', aLabel: 'Lien 1', bLabel: 'Lien 2', w: 2, h: 1 });
       case 'lien': return Object.assign(base, { title: 'Accueil', target: 'home', icon: 'svg:home', titleColor: '#ffffff' });
       case 'horloge': return Object.assign(base, { title: '', hideTitle: true, w: 2, h: 0.5, format: 'date', align: 'gauche' });
       case 'texte': return Object.assign(base, { title: '', hideTitle: true, w: 2, h: 0.5, template: '{1}°C | {2}%' });

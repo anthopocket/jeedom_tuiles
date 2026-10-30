@@ -1498,3 +1498,23 @@ body.tl-kiosk #div_pageContainer { padding-top: 0 !important; margin-top: 0 !imp
 .tl-bp-gifts span.tl-bp-sanc.tl-bp-ok { display: inline; }
 .tl-bp-shake { animation: tlBpShake .5s; }
 @keyframes tlBpShake { 20%, 60% { transform: translateX(-4px); } 40%, 80% { transform: translateX(4px); } }
+
+/* ---------- Retour à l'accueil par glissement ---------- */
+.tl-swipe-home { position: fixed; left: 0; z-index: 99999; width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(30,34,40,.92); color: #c9d1d9; box-shadow: 0 4px 16px rgba(0,0,0,.5); transform: translateX(-60px); transition: background .15s, color .15s; pointer-events: none; }
+.tl-swipe-home svg { width: 28px; height: 28px; }
+.tl-swipe-home.tl-swipe-ok { background: #1f6feb; color: #fff; }
+
+/* ---------- Double lien ---------- */
+.tl-l2 { width: 100%; height: 100%; display: flex; gap: 0; container-type: size; }
+.tl-l2-col { flex-direction: column; }
+.tl-l2-half { flex: 1 1 0; min-width: 0; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 4px; border-radius: 10px; color: #fff; cursor: pointer; position: relative; transition: background .15s, transform .1s; }
+.tl-l2-half:active { transform: scale(.97); background: rgba(255,255,255,.06); }
+.tl-l2-sep.tl-l2-row .tl-l2-half + .tl-l2-half::before { content: ''; position: absolute; left: 0; top: 15%; bottom: 15%; width: 1px; background: rgba(255,255,255,.15); }
+.tl-l2-sep.tl-l2-col .tl-l2-half + .tl-l2-half::before { content: ''; position: absolute; top: 0; left: 15%; right: 15%; height: 1px; background: rgba(255,255,255,.15); }
+.tl-l2-ico { flex: 1 1 auto; min-height: 0; width: 100%; display: flex; align-items: center; justify-content: center; font-size: min(42cqh, 30cqw); }
+.tl-l2-col .tl-l2-ico { font-size: min(22cqh, 50cqw); }
+.tl-l2-ico .tl-svg, .tl-l2-ico .tl-img { width: 1em; height: 1em; }
+.tl-l2-img { flex: 1 1 auto; min-height: 0; width: 100%; object-fit: contain; border-radius: 8px; }
+.tl-l2-img.tl-fit-cover { object-fit: cover; }
+.tl-l2-lab { flex: none; max-width: 100%; font-weight: 700; font-size: max(11px, min(12cqh, 7cqw)); white-space: nowrap; text-align: center; }
+.tl-l2-col .tl-l2-lab { font-size: max(11px, min(7cqh, 12cqw)); }

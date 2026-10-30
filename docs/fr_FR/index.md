@@ -86,6 +86,15 @@ Le bouton **Réglages de la page** (barre de l'éditeur) déplie les lignes Desi
 
 Sur les tuiles **Volet**, **Bouton**, **Éclairage**, **Éclairage variateur** et **Caméra**, dès qu'une commande est choisie (par exemple l'info position d'un volet), les autres commandes vides sont cherchées dans le **même équipement** : monter, descendre, stop, position pour un volet ; on / off pour un bouton ou un éclairage ; variation pour un variateur ; pour une caméra (plugin Frigate) : infos et actions enregistrement / détection, commandes PTZ (haut, bas, gauche, droite, zoom, origine, stop), positions prédéfinies (presets) et nom de la caméra. La recherche utilise le type générique Jeedom, sinon le nom de la commande (monter / descendre / stop, on / off…). Les commandes déjà choisies ne sont jamais remplacées ; un message liste celles qui ont été reprises.
 
+## Retour à l'accueil sans bouton
+
+Dans « Régler la barre d'onglets… » (commun à toutes les pages) :
+
+- **Glisser du bord gauche vers la droite** : sur tablette, un balayage depuis le bord gauche de l'écran ramène à la page d'accueil. Une petite maison suit le doigt et devient bleue quand le geste est assez long.
+- **Retour automatique à l'accueil après N minutes** sans toucher l'écran (vide = jamais). Pas de retour tant qu'une fenêtre ou une caméra en plein écran est ouverte.
+
+La page d'accueil est celle choisie pour l'appareil (sinon l'accueil du plugin). Rien n'apparaît à l'écran et rien ne se passe sur la page d'accueil elle-même ni dans l'éditeur.
+
 ## Types de tuiles
 
 | Type | Usage |
@@ -102,6 +111,7 @@ Sur les tuiles **Volet**, **Bouton**, **Éclairage**, **Éclairage variateur** e
 | Texte avec valeurs | modèle libre `{1}°C \| {2}%` |
 | Date / heure du jour | « jeudi 22 octobre », heure, etc. |
 | Lien | navigation vers une page, l'accueil, un Design ; compteur (ex. nombre d'ouvrants ouverts) |
+| Double lien | deux moitiés cliquables dans une même tuile (côte à côte ou l'une au-dessus de l'autre), chacune avec son texte, son image ou son icône, sa couleur et sa destination (page, accueil, adresse) |
 | Envoi de date, Saisie | envoie une date ou une valeur à une commande message ou slider |
 | Image, Vide | logo, réserve |
 
