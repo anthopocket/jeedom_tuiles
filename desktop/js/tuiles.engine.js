@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.50.2';
+  var VERSION = '1.53.1';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -261,6 +261,10 @@
     'fenetre2-l': '<rect x="21" y="13" width="58" height="74" rx="2" ' + S + ' stroke-width="6"/><path d="M50 15 V85" ' + S + ' stroke-width="6"/><path d="M56 44 V56" ' + S + ' stroke-width="4"/><path d="M21 13 L6 22 V78 L21 87 Z" fill="currentColor" opacity=".35"/><path d="M21 13 L6 22 V78 L21 87" ' + S + ' stroke-width="6"/>',
     'fenetre2-r': '<rect x="21" y="13" width="58" height="74" rx="2" ' + S + ' stroke-width="6"/><path d="M50 15 V85" ' + S + ' stroke-width="6"/><path d="M44 44 V56" ' + S + ' stroke-width="4"/><path d="M79 13 L94 22 V78 L79 87 Z" fill="currentColor" opacity=".35"/><path d="M79 13 L94 22 V78 L79 87" ' + S + ' stroke-width="6"/>',
     'fenetre2-lr': '<rect x="21" y="13" width="58" height="74" rx="2" ' + S + ' stroke-width="6"/><path d="M21 13 L6 22 V78 L21 87 Z M79 13 L94 22 V78 L79 87 Z" fill="currentColor" opacity=".35"/><path d="M21 13 L6 22 V78 L21 87 M79 13 L94 22 V78 L79 87" ' + S + ' stroke-width="6"/>',
+    // hublot (fenêtre ronde à croisillons) : battant qui pivote à gauche
+    'hublot': '<circle cx="50" cy="50" r="40" ' + S + ' stroke-width="7"/><path d="M50 12 V88 M12 50 H88" ' + S + ' stroke-width="6"/>',
+    'hublot-open': '<circle cx="60" cy="50" r="34" fill="currentColor" opacity=".14"/><circle cx="60" cy="50" r="34" ' + S + ' stroke-width="6"/>' +
+      '<ellipse cx="17" cy="50" rx="11" ry="34" style="fill:var(--tl-tile,#000)"/><ellipse cx="17" cy="50" rx="11" ry="34" ' + S + ' stroke-width="6"/><path d="M17 17 V83 M6.5 50 H27.5" ' + S + ' stroke-width="4"/>',
     'portail': '<rect x="10" y="16" width="11" height="72" rx="1" fill="currentColor"/><rect x="79" y="16" width="11" height="72" rx="1" fill="currentColor"/><path d="M23 28 H77 M23 76 H77 M32 28 V76 M41 28 V76 M50 28 V76 M59 28 V76 M68 28 V76" ' + S + ' stroke-width="4"/>',
     'portail-open': '<rect x="10" y="16" width="11" height="72" rx="1" fill="currentColor"/><rect x="79" y="16" width="11" height="72" rx="1" fill="currentColor"/>',
     'garage': '<path d="M8 30 L50 12 L92 30" ' + S + ' stroke-width="6"/><path d="M16 30 V90 M84 30 V90" ' + S + ' stroke-width="6"/><rect x="22" y="36" width="56" height="54" fill="currentColor"/><path d="M22 47 H78 M22 58 H78 M22 69 H78 M22 80 H78" stroke="#000" stroke-width="3" opacity=".45"/>',
@@ -885,6 +889,7 @@
       hooks.appendChild(hook);
     });
     this.applyGrids();
+    this.autoHeight();
     this.scale();
     this.refit();
     if (!this.opts.edit) this.setupDynamic();
@@ -1034,7 +1039,47 @@
       this.pageEl.style.width = this.fixed ? g.width + 'px' : '';
       this.pageEl.style.height = this.fixed && g.height > 0 ? g.height + 'px' : '';
     }
-    if (fromResize) { this.applyGrids(); this.scale(); this.refit(); this.fillHeight(); }
+    if (fromResize) { this.applyGrids(); this.autoHeight(); this.scale(); this.refit(); this.fillHeight(); }
+  };
+
+  /** Hauteur auto : réduit la hauteur des cases pour que toutes les rangées tiennent dans l'écran
+   *  (ou dans la hauteur du design), au lieu d'être coupées en bas. Jamais plus haut que la case de base. */
+  Page.prototype.autoHeight = function () {
+    var self = this, raw = (this.data.layout && this.data.layout.grid) || {};
+    if (this.mobile || raw.autoH === false || raw.autoH === '0' || raw.autoH === 0) return;
+    var g = this.grid(), pad = g.pad, avail;
+    if (this.fixed) {
+      if (!(g.height > 0) || !this.pageEl) return;
+      avail = this.pageEl.clientHeight - 2 * pad;
+    } else {
+      if (this.opts.edit) return;
+      var top = this.root.getBoundingClientRect().top;
+      avail = root.innerHeight - Math.max(0, top) - 2;
+    }
+    // hors grilles : marges de page, onglets, rangées… (design en px : dans la page ; sinon : toute la racine)
+    var outer = this.fixed ? function () { return 0; } : function (z) { return self.root.offsetHeight - z.offsetHeight; };
+    if (!(avail > 80)) return;
+    // design en px (ex. tablette 1920 × 1200) : les rangées remplissent exactement la hauteur du design (plus hautes ou plus basses) ;
+    // écran libre : seulement réduites si ça déborde
+    var base = this.fixed ? this.cellW * 2.5 : (g.cellH > 0 ? g.cellH : this.cellW);
+    var zones = [this.mainEl, this.sideEl].filter(Boolean);
+    for (var pass = 0; pass < 3; pass++) {
+      var hNow = this.cellH, best = base;
+      zones.forEach(function (z) {
+        var gridsH = 0;
+        self.grids.forEach(function (gr) { if (gr.parentNode === z) gridsH += gr.offsetHeight; });
+        if (!gridsH) return;
+        var other = z.offsetHeight - gridsH + outer(z);
+        best = Math.min(best, (avail - other) * (hNow + g.gap) / gridsH - g.gap);
+      });
+      best = Math.max(30, Math.floor(best * 10) / 10);
+      if (Math.abs(best - hNow) < 0.5) break;
+      this.cellH = best;
+      var st = this.root.style;
+      st.setProperty('--tl-uh', ((best + g.gap) / 12) + 'px');
+      st.setProperty('--tl-s', Math.min(this.cellW, best) + 'px');
+    }
+    this.root.classList.add('tl-autoh');
   };
 
   Page.prototype.applyGrids = function () {

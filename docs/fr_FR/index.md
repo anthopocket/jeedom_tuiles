@@ -21,6 +21,8 @@ Plugins › Organisation › Tuiles › **Ajouter une page**. L'onglet **Page** 
 
 ### Réglages de la page
 
+**Hauteur auto (tout tient à l'écran)** (ligne Grille, activée par défaut) : avec un format en px (ex. tablette 1920 × 1200), les rangées **remplissent exactement la hauteur du design**, plus hautes s'il y a peu de rangées, plus basses s'il y en a beaucoup, sans jamais être coupées ; « Adapter à l'écran » met ensuite le tout à la taille de la tablette. Sans format en px, la hauteur des cases est seulement réduite pour que tout tienne dans l'écran. Elle se recalcule à chaque changement de taille d'écran ou d'orientation, quel que soit le nombre de colonnes ; les textes suivent. Sans format en px, les cases ne deviennent jamais plus hautes que la hauteur réglée. Sans effet sur mobile (la page défile).
+
 - **Design** :
   - **Appareil** : Tablette ou Mobile. La liste « Mes pages » classe les pages par appareil.
   - **Format** : tailles courantes selon l'appareil (Galaxy S24 FE 384 × 832, iPhone 390 × 844, tablette 1280 × 800…). Remplit largeur et hauteur et active « Adapter à l'écran ». Une page Mobile sans taille s'adapte toute seule à la largeur du téléphone avec le nombre de colonnes choisi.
@@ -80,13 +82,17 @@ Le bouton **Réglages de la page** (barre de l'éditeur) déplie les lignes Desi
 
 **Textes** : une taille commune pour toute la page — **Noms**, **Textes / valeurs** et **Icônes / logos** (en px). Elle s'applique à toutes les tuiles qui n'ont pas leur propre taille (dans une tuile, le champ affiche « page : 22 »). Le bouton **Appliquer à toutes les tuiles** retire les tailles propres des tuiles pour que la page décide partout.
 
+## Remplissage automatique des commandes
+
+Sur les tuiles **Volet**, **Bouton**, **Éclairage** et **Éclairage variateur**, dès qu'une commande est choisie (par exemple l'info position d'un volet), les autres commandes vides sont cherchées dans le **même équipement** : monter, descendre, stop, position pour un volet ; on / off pour un bouton ou un éclairage ; variation pour un variateur. La recherche utilise le type générique Jeedom, sinon le nom de la commande (monter / descendre / stop, on / off…). Les commandes déjà choisies ne sont jamais remplacées ; un message liste celles qui ont été reprises.
+
 ## Types de tuiles
 
 | Type | Usage |
 |---|---|
 | Valeur | nombre ou texte, unité, décimales, libellés, plage plausible, format de date |
 | Icône d'état | icône qui change de couleur ou d'image selon l'info |
-| Ouvrant | porte, fenêtre, fenêtre 2 vantaux, baie, portail, garage, volet ; dessin ouvert/fermé, action ouvrir/fermer intégrée. Baie et fenêtre 2 vantaux : 2 contacts possibles (vantail gauche + droit) → fermé, ouvert à gauche, à droite ou les deux |
+| Ouvrant | porte, fenêtre, fenêtre 2 vantaux, hublot (fenêtre ronde), baie, portail, garage, volet ; dessin ouvert/fermé, action ouvrir/fermer intégrée. Baie et fenêtre 2 vantaux : 2 contacts possibles (vantail gauche + droit) → fermé, ouvert à gauche, à droite ou les deux |
 | Bouton | les 6 cas : impulsion, On seul, toggle, On/Off selon l'état, 2 boutons, avec ou sans retour |
 | Slider | min / max / pas en auto : lus sur la commande action, sinon sur l'info liée (l'éditeur affiche la plage trouvée), **suivie en direct** si le plugin la change (ex. hOn selon le programme) ; envoi au relâchement, boutons + / −, vertical |
 | Liste / select | par défaut la tuile est fermée et affiche le choix actuel ; au clic, la liste s'ouvre par-dessus la page avec une hauteur maxi réglable (px) et une recherche au-delà de 10 choix. Autres affichages : liste dans la tuile, menu déroulant, boutons |

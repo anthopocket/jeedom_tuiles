@@ -73,7 +73,7 @@
       ['svg:stop-circle', 'Stop rond'], ['svg:up', 'Haut'], ['svg:down', 'Bas'], ['svg:plus', 'Plus'], ['svg:minus', 'Moins'], ['svg:refresh', 'Cycle']]],
     ['États', [['svg:check-circle', 'OK rond'], ['svg:check', 'OK'], ['svg:cross', 'Erreur'], ['svg:flag', 'Drapeau'], ['svg:bulb', 'Ampoule'],
       ['svg:drop', 'Goutte'], ['svg:thermo', 'Thermomètre'], ['svg:home', 'Accueil']]],
-    ['Ouvrants (fermé / ouvert)', [['svg:porte', 'Porte'], ['svg:porte-open', 'Porte ouverte'], ['svg:fenetre', 'Fenêtre'], ['svg:fenetre-open', 'Fenêtre ouverte'],
+    ['Ouvrants (fermé / ouvert)', [['svg:porte', 'Porte'], ['svg:porte-open', 'Porte ouverte'], ['svg:fenetre', 'Fenêtre'], ['svg:fenetre-open', 'Fenêtre ouverte'], ['svg:hublot', 'Hublot'], ['svg:hublot-open', 'Hublot ouvert'],
       ['svg:baie', 'Baie'], ['svg:baie-open', 'Baie ouverte'], ['svg:portail', 'Portail'], ['svg:portail-open', 'Portail ouvert'],
       ['svg:garage', 'Garage'], ['svg:garage-open', 'Garage ouvert'], ['svg:volet', 'Volet'], ['svg:volet-open', 'Volet ouvert']]]
   ];
@@ -125,7 +125,7 @@
       { k: 'labelOn', l: 'Texte état 1 (option)', ph: 'ex. Marche' }, { k: 'labelOff', l: 'Texte état 0 (option)', ph: 'ex. Arrêt' },
       { k: 'thresholds', l: 'Couleurs selon la valeur (option, remplace état 1 / 0)', f: 'thresholds', help: 'Pour une info à plusieurs valeurs (ex. état général 1 à 4)' },
       { k: 'cmdOn', l: 'Action au clic (option)', f: 'cmd', filter: C_ACTION }, F.confirm],
-    ouvrant: [{ k: 'kind', l: 'Dessin', f: 'sel', o: { porte: 'Porte', fenetre: 'Fenêtre', fenetre2: 'Fenêtre 2 vantaux', baie: 'Baie coulissante', portail: 'Portail', garage: 'Garage', volet: 'Volet' } },
+    ouvrant: [{ k: 'kind', l: 'Dessin', f: 'sel', o: { porte: 'Porte', fenetre: 'Fenêtre', fenetre2: 'Fenêtre 2 vantaux', hublot: 'Hublot (fenêtre ronde)', baie: 'Baie coulissante', portail: 'Portail', garage: 'Garage', volet: 'Volet' } },
       { k: 'cmdInfo', l: 'Info', f: 'cmd', filter: C_INFO, show: function (t) { return !(t.kind === 'baie' || t.kind === 'fenetre2'); } },
       { k: 'cmdInfo', l: 'Info vantail gauche', f: 'cmd', filter: C_INFO, show: function (t) { return t.kind === 'baie' || t.kind === 'fenetre2'; } },
       { k: 'cmdInfo2', l: 'Info vantail droit (option)', f: 'cmd', filter: C_INFO, help: 'Second contact : la tuile montre ouvert à gauche, à droite ou les deux. Vide = un seul contact pour toute la baie / fenêtre.', show: function (t) { return t.kind === 'baie' || t.kind === 'fenetre2'; } },
@@ -821,6 +821,9 @@
     var dense = $('<input type="checkbox">').prop('checked', g.dense !== false);
     dense.on('change', function () { g.dense = dense.is(':checked'); modified(); renderPreview(); });
     line2.append($('<label class="tl-ed-inline" title="Les petites tuiles comblent les trous automatiquement"></label>').append(dense).append(' Remplissage auto'));
+    var autoH = $('<input type="checkbox">').prop('checked', g.autoH !== false);
+    autoH.on('change', function () { if (autoH.is(':checked')) delete g.autoH; else g.autoH = false; modified(); renderPreview(); });
+    line2.append($('<label class="tl-ed-inline tl-ed-onlydesk" title="Réduit la hauteur des cases pour que toutes les tuiles tiennent dans l\'écran (ou dans la hauteur du design), au lieu d\'être coupées en bas. Jamais plus haut que la case réglée. Sans effet sur mobile (la page défile)."></label>').append(autoH).append(' Hauteur auto (tout tient à l\'écran)'));
     var icon = $('<input type="text" class="form-control input-sm" style="width:130px">').val(g.icon || '');
     icon.on('change', function () { g.icon = icon.val(); modified(); });
     line2.append($('<label class="tl-ed-inline" title="Icône de la page dans la liste des pages"></label>').text('Icône ').append(icon));
@@ -1070,7 +1073,7 @@
     if (f.help) label.append(' <i class="fas fa-question-circle tl-ed-q" title="' + esc(f.help) + '"></i>');
     var val = getPath(obj, f.k);
     var ctrl;
-    var set = function (v) { setPath(obj, f.k, v); onChange(f); if (f.after) f.after(obj); };
+    var set = function (v) { setPath(obj, f.k, v); onChange(f); if (f.after) f.after(obj); if (f.f === 'cmd' && v) autoFill(obj, f); };
     switch (f.f) {
       case 'check':
         ctrl = $('<input type="checkbox">').prop('checked', !!val).on('change', function () {
@@ -1495,6 +1498,65 @@
   ];
   var HIK_MAP = [['cmdEtat', 'etat_appel'], ['cmdRing', 'sonnerie'], ['cmdTalk', 'en_communication'], ['cmdOnline', 'en_ligne'], ['cmdEvent', 'dernier_evenement'],
     ['cmdTalkUrl', 'lien_parler'], ['cmdAnswer', 'decrocher'], ['cmdHangup', 'raccrocher'], ['cmdReject', 'refuser'], ['cmdOpen', 'ouvrir_porte']];
+  /* ---------- remplissage automatique des commandes d'un même équipement ----------
+   * Dès qu'une commande est choisie sur un volet, un bouton ou un éclairage, les autres
+   * commandes vides sont cherchées dans le même équipement (type générique Jeedom, sinon nom). */
+  var AUTO = {
+    volet: [
+      ['cmdInfo', 'info', /^FLAP_STATE/, /position|etat|state|niveau|level/],
+      ['cmdStop', 'action', /^FLAP_STOP/, /stop/],
+      ['cmdSlider', 'slider', /^FLAP_SLIDER/, /position|slider|niveau|level|consigne/],
+      ['cmdUp', 'action', /^FLAP_UP/, /(^|[^a-z])(up|monte\w*|haut|ouvr\w*|open\w*)([^a-z]|$)/],
+      ['cmdDown', 'action', /^FLAP_DOWN/, /(^|[^a-z])(down|descen\w*|bas|ferm\w*|clos\w*)([^a-z]|$)/]],
+    bouton: [
+      ['cmdInfo', 'info', /_STATE$/, /etat|state|statut|status/],
+      ['cmdOn', 'action', /_ON$/, /(^|[^a-z])(on|allum\w*|marche|ouvr\w*|start)([^a-z]|$)/],
+      ['cmdOff', 'action', /_OFF$/, /(^|[^a-z])(off|etein\w*|arret\w*|ferm\w*|stop)([^a-z]|$)/]],
+    lumiere: [
+      ['cmdState', 'info', /^LIGHT_STATE|_STATE$/, /etat|state|statut|status/],
+      ['cmdOn', 'action', /_ON$/, /(^|[^a-z])(on|allum\w*)([^a-z]|$)/],
+      ['cmdOff', 'action', /_OFF$/, /(^|[^a-z])(off|etein\w*)([^a-z]|$)/]],
+    variateur: [
+      ['cmdState', 'info', /^LIGHT_STATE$|^ENERGY_STATE$/, /etat|state|statut|status/],
+      ['cmdOn', 'action', /_ON$/, /(^|[^a-z])(on|allum\w*)([^a-z]|$)/],
+      ['cmdOff', 'action', /_OFF$/, /(^|[^a-z])(off|etein\w*)([^a-z]|$)/],
+      ['cmdSlider', 'slider', /SLIDER$/, /luminosit|intensit|brightness|niveau|level|dim/]]
+  };
+  function autoFill(obj, f) {
+    var map = AUTO[obj && obj.type];
+    var src = cleanIdE(getPath(obj, f.k));
+    if (!map || !src || !map.some(function (m) { return m[0] === f.k; })) return;
+    var empty = map.filter(function (m) { return m[0] !== f.k && !cleanIdE(obj[m[0]]); });
+    if (!empty.length) return;
+    ensureMetas([src]).then(function () {
+      var meta = E.cmds[src];
+      if (!meta || !meta.eqId) return null;
+      return T.ajax('eqCmds', { id: meta.eqId });
+    }).then(function (r) {
+      if (!r || !r.cmds) return;
+      var used = {}, got = [];
+      map.forEach(function (m) { if (cleanIdE(obj[m[0]])) used[String(obj[m[0]])] = true; });
+      var ok = function (c, kind) { return kind === 'info' ? c.type === 'info' : (c.type === 'action' && (kind === 'slider' ? c.subType === 'slider' : c.subType !== 'slider')); };
+      empty.forEach(function (m) {
+        var cands = r.cmds.filter(function (c) { return !used[String(c.id)] && ok(c, m[1]); });
+        var c = cands.filter(function (x) { return x.generic && m[2].test(x.generic); })[0] ||
+          cands.filter(function (x) { return m[3].test(normName(x.name + ' ' + (x.logicalId || ''))); })[0];
+        // info : celle liée aux actions (valeur de retour), sinon la seule info numérique / binaire
+        if (!c && m[1] === 'info') {
+          var linked = r.cmds.filter(function (x) { return x.type === 'action' && x.value; }).map(function (x) { return String(x.value).replace(/#/g, ''); })[0];
+          c = cands.filter(function (x) { return String(x.id) === linked; })[0];
+        }
+        if (c) { obj[m[0]] = String(c.id); used[String(c.id)] = true; got.push(c.name); }
+      });
+      if (got.length) {
+        toast('Commandes reprises de l\'équipement : ' + got.join(', '));
+        modified();
+        return ensureMetas(map.map(function (m) { return obj[m[0]]; })).then(function () { onTileChange({ f: 'sel' }); });
+      }
+    }).catch(function () { /* remplissage facultatif */ });
+  }
+  function cleanIdE(v) { return String(isSet(v) ? v : '').replace(/#/g, '').trim(); }
+
   function fillHik(obj, eqId) {
     return T.ajax('eqCmds', { id: eqId }).then(function (r) {
       var cmds = (r && r.cmds) || [], ids = [];
