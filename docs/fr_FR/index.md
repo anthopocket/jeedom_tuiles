@@ -19,7 +19,11 @@ Pages de tuiles simples et génériques, dans l'esprit des Designs : un fond som
 
 Plugins › Organisation › Tuiles › **Ajouter une page**. L'onglet **Page** contient l'éditeur avec l'aperçu en direct.
 
-### Réglages de la page
+### Plusieurs infos (lignes) : présentation
+
+Par défaut en **tableau** : libellés alignés à gauche, valeurs et boutons alignés à droite, un fin trait entre les lignes, sous-titres en petites capitales. Le réglage « Présentation : centrée » remet l'ancienne présentation « libellé : valeur » centrée.
+
+## Réglages de la page
 
 **Hauteur auto (tout tient à l'écran)** (ligne Grille, activée par défaut) : avec un format en px (ex. tablette 1920 × 1200), les rangées **remplissent exactement la hauteur du design**, plus hautes s'il y a peu de rangées, plus basses s'il y en a beaucoup, sans jamais être coupées ; « Adapter à l'écran » met ensuite le tout à la taille de la tablette. Sans format en px, la hauteur des cases est seulement réduite pour que tout tienne dans l'écran. Elle se recalcule à chaque changement de taille d'écran ou d'orientation, quel que soit le nombre de colonnes ; les textes suivent. Sans format en px, les cases ne deviennent jamais plus hautes que la hauteur réglée. Sans effet sur mobile (la page défile).
 
@@ -94,6 +98,10 @@ Dans « Régler la barre d'onglets… » (commun à toutes les pages) :
 - **Retour automatique à l'accueil après N minutes** sans toucher l'écran (vide = jamais). Pas de retour tant qu'une fenêtre ou une caméra en plein écran est ouverte.
 
 La page d'accueil est celle choisie pour l'appareil (sinon l'accueil du plugin). Rien n'apparaît à l'écran et rien ne se passe sur la page d'accueil elle-même ni dans l'éditeur.
+
+## Importer une page en JSON
+
+Bouton **JSON** de l'éditeur : collez une page puis « Appliquer ». Les commandes peuvent s'écrire avec leur nom Jeedom, `#[Objet][Équipement][Commande]#`, et les équipements (alarme, interphone, VigiEau, réveil, bons points) `#[Objet][Équipement]#` : ils sont convertis en id, puis les commandes manquantes sont complétées depuis l'équipement (comme dans l'éditeur). Les noms introuvables sont listés ; leurs cases restent vides.
 
 ## Types de tuiles
 

@@ -192,7 +192,7 @@
       { k: 'thresholds', l: 'Couleurs selon la valeur', f: 'thresholds', help: 'Jusqu\'à 10 lignes. Un nombre = à partir de cette valeur ; un texte = si égal. Remplace les couleurs par défaut.' }],
     jauge: [F.info, { k: 'style', l: 'Style', f: 'sel', o: { cuve: 'Cuve', barre: 'Barre', anneau: 'Anneau' } },
       { k: 'gMin', l: 'Min', f: 'num', ph: 'auto (0)' }, { k: 'gMax', l: 'Max', f: 'num', ph: 'auto (100)' }, F.unit, F.decimals, F.th, { k: 'details', l: 'Courbe et détails', f: 'sel', o: { '': 'Non', clic: 'Au clic (appui long si la tuile a une action)', long: 'Appui long seulement' }, help: 'Fenêtre avec la courbe 24 h / 7 j / 30 j, min / moyenne / max et la dernière mise à jour. La commande doit être historisée.' }],
-    lignes: [{ k: 'lines', l: 'Lignes', f: 'lines' }],
+    lignes: [{ k: 'lnAlign', l: 'Présentation', f: 'sel', o: { '': 'Tableau : libellés à gauche, valeurs alignées à droite', centre: 'Centrée (libellé : valeur)' } }, { k: 'lines', l: 'Lignes', f: 'lines' }],
     texte: [{ k: 'template', l: 'Texte', f: 'area', ph: '{1}°C | {2}%', help: '{1} à {4} sont remplacés par les infos ci-dessous' },
       { k: 'cmdV1', l: 'Info {1}', f: 'cmd', filter: C_INFO }, { k: 'cmdV2', l: 'Info {2}', f: 'cmd', filter: C_INFO },
       { k: 'cmdV3', l: 'Info {3}', f: 'cmd', filter: C_INFO }, { k: 'cmdV4', l: 'Info {4}', f: 'cmd', filter: C_INFO },

@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.61.1';
+  var VERSION = '1.62.0';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -5005,7 +5005,9 @@
 
   /* ---- Lignes ---- */
   R.lignes = function (p, t, api) {
-    var box = el('div', 'tl-lines tl-fitbox');
+    // tableau (par défaut) : libellés à gauche, valeurs / boutons alignés à droite ; « centré » : ancienne présentation
+    var table = t.lnAlign !== 'centre';
+    var box = el('div', 'tl-lines tl-fitbox' + (table ? ' tl-lines-table' : ''));
     api.body.appendChild(box);
     var rows = (t.lines || []).map(function (l) {
       var kind = l.kind || 'value';
@@ -5015,7 +5017,7 @@
         r.textContent = l.label || '';
         r.style.color = color(l.color, 'info');
       } else {
-        var lab = el('span', 'tl-lab', l.label ? esc(l.label) + '&nbsp;:&nbsp;' : '');
+        var lab = el('span', 'tl-lab', l.label ? esc(l.label) + (table ? '' : '&nbsp;:&nbsp;') : '');
         r.appendChild(lab);
         if (kind === 'button') {
           row.btn = makeBtn('rond');

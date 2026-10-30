@@ -366,6 +366,13 @@
 }
 .tl-line { white-space: nowrap; display: flex; align-items: center; justify-content: center; gap: .1em; line-height: 1.25; }
 .tl-line-title { font-size: 1.05em; }
+/* présentation en tableau : libellés à gauche, valeurs et boutons alignés à droite */
+.tl-lines-table { align-items: stretch; justify-content: space-evenly; padding: 0 .35em; font-size: calc(var(--tl-s) * .12); }
+.tl-lines-table .tl-line { justify-content: space-between; gap: .6em; padding: .08em 0; border-bottom: 1px solid rgba(255,255,255,.06); }
+.tl-lines-table .tl-line:last-child { border-bottom: 0; }
+.tl-lines-table .tl-lab { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: left; opacity: .85; }
+.tl-lines-table .tl-lv, .tl-lines-table .tl-mini, .tl-lines-table .tl-mini-ico { flex: none; margin-left: auto; text-align: right; font-weight: 700; font-variant-numeric: tabular-nums; }
+.tl-lines-table .tl-line-title { justify-content: flex-start; border-bottom: 0; padding-top: .25em; font-size: .78em; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .tl-text {
   width: 100%;
   height: 100%;
