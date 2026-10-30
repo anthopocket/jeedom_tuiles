@@ -1,0 +1,1806 @@
+/* Tuiles — éditeur de page (page de configuration du plugin) */
+(function () {
+  'use strict';
+  var T = window.Tuiles, U = T.util;
+  var isSet = U.isSet, esc = U.esc, cleanId = U.cleanId;
+
+  /* ================================================================== */
+  /*  Catalogue                                                          */
+  /* ================================================================== */
+
+  var FUNCS = [
+    ['Afficher une info', {
+      valeur: 'Info numérique / texte',
+      icone: 'Info icône (binaire ou états : prêt / en cours / terminé)',
+      ouvrant: 'Info ouvrant (porte, fenêtre, portail, garage)',
+      jauge: 'Info jauge (cuve, barre, anneau)',
+      lignes: 'Plusieurs infos (lignes)',
+      texte: 'Texte avec infos',
+      messages: 'Messages / alertes (texte d\'une info)',
+      puissance: 'Carte puissance (valeur + anneau + courbe)',
+      batteries: 'Batteries (piles des équipements)',
+      reseau: 'Réseau (plugin Network)',
+      demons: 'Démons et dépendances des plugins',
+      zones: 'Zones d\'alarme (Risco)',
+      vigieau: 'VigiEau (restrictions d\'eau)'
+    }],
+    ['Commander', {
+      bouton: 'Bouton',
+      slider: 'Slider',
+      select: 'Select / liste',
+      volet: 'Volet',
+      saisie: 'Saisie texte / nombre',
+      date: 'Envoi date / heure',
+      lumiere: 'Éclairage on / off',
+      variateur: 'Éclairage variateur (on / off + variation)',
+      interphone: 'Interphone (plugin hikinterphone)',
+      bonspoints: 'Bons Points (plugin bonsPoints)',
+      thermostat: 'Thermostat',
+      alarme: 'Alarme : partition (Risco)',
+      reveil: 'Réveil (plugin Réveils)',
+      reveils: 'Liste des réveils (plugin Réveils)',
+      reveilplan: 'Planning d\'un réveil (plugin Réveils)',
+      chauffeeau: 'Chauffe-eau'
+    }],
+    ['Intégrer', {
+      widget: 'Widget Jeedom (équipement)',
+      camera: 'Caméra Frigate',
+      web: 'Page web'
+    }],
+    ['Page', {
+      lien: 'Lien / navigation',
+      horloge: 'Date / heure du jour',
+      soleil: 'Soleil (lever, coucher, hauteur)',
+      separateur: 'Barre de séparation',
+      image: 'Image',
+      vide: 'Vide / réserve'
+    }]
+  ];
+  var TYPES = {};
+  FUNCS.forEach(function (g) { Object.keys(g[1]).forEach(function (k) { TYPES[k] = g[1][k]; }); });
+  TYPES.rangee = 'Nouvelle rangée';
+  // tailles en cases (grille en douzièmes) ; l'ordre d'affichage suit ce tableau
+  var SIZE_LIST = [
+    [0.25, '¼'], [1 / 3, '⅓'], [0.5, '½'], [2 / 3, '⅔'], [0.75, '¾'], [1, '1'],
+    [1.25, '1¼'], [4 / 3, '1⅓'], [1.5, '1½'], [5 / 3, '1⅔'], [1.75, '1¾'], [2, '2'],
+    [2.25, '2¼'], [7 / 3, '2⅓'], [2.5, '2½'], [8 / 3, '2⅔'], [2.75, '2¾'], [3, '3'],
+    [3.5, '3½'], [4, '4'], [4.5, '4½'], [5, '5'], [6, '6'], [7, '7'], [8, '8'], [10, '10'], [12, '12']];
+  var SIZES = {};
+  SIZE_LIST.forEach(function (x) { SIZES[x[0].toFixed(4)] = x[1]; });
+  var TARGETS = { value: 'La valeur / l\'icône', bg: 'Le fond de la tuile', title: 'Le nom' };
+  var ICON_GROUPS = [
+    ['Boutons', [['svg:play', 'Lecture'], ['svg:stop', 'Stop'], ['svg:pause', 'Pause'], ['svg:power', 'Marche'], ['svg:play-circle', 'Lecture rond'],
+      ['svg:stop-circle', 'Stop rond'], ['svg:up', 'Haut'], ['svg:down', 'Bas'], ['svg:plus', 'Plus'], ['svg:minus', 'Moins'], ['svg:refresh', 'Cycle']]],
+    ['États', [['svg:check-circle', 'OK rond'], ['svg:check', 'OK'], ['svg:cross', 'Erreur'], ['svg:flag', 'Drapeau'], ['svg:bulb', 'Ampoule'],
+      ['svg:drop', 'Goutte'], ['svg:thermo', 'Thermomètre'], ['svg:home', 'Accueil']]],
+    ['Ouvrants (fermé / ouvert)', [['svg:porte', 'Porte'], ['svg:porte-open', 'Porte ouverte'], ['svg:fenetre', 'Fenêtre'], ['svg:fenetre-open', 'Fenêtre ouverte'],
+      ['svg:baie', 'Baie'], ['svg:baie-open', 'Baie ouverte'], ['svg:portail', 'Portail'], ['svg:portail-open', 'Portail ouvert'],
+      ['svg:garage', 'Garage'], ['svg:garage-open', 'Garage ouvert'], ['svg:volet', 'Volet'], ['svg:volet-open', 'Volet ouvert']]]
+  ];
+
+  var C_INFO = { type: 'info' }, C_ACTION = { type: 'action' };
+  var BTN_KINDS = { impulsion: 'Sans retour (impulsion)', on: 'On seul, avec retour d\'état', toggle: 'Toggle, avec retour d\'état', onoff: 'On / Off, avec retour d\'état', split: '2 boutons On et Off, sans retour' };
+  function btnKind(t) {
+    var k = t.behavior || 'auto';
+    if (k === 'single') k = t.cmdInfo ? 'on' : 'impulsion';
+    if (k === 'auto' || !BTN_KINDS[k]) k = (t.cmdOn && t.cmdOff) ? (t.cmdInfo ? 'onoff' : 'split') : (t.cmdInfo ? 'toggle' : 'impulsion');
+    return k;
+  }
+  function kindIs() {
+    var list = Array.prototype.slice.call(arguments);
+    return function (t) { return list.indexOf(btnKind(t)) >= 0; };
+  }
+
+  var F = {
+    iconAnim: { k: 'iconAnim', l: 'Icône animée : bouge', f: 'sel', o: { '': 'Quand la tuile est active (en marche)', toujours: 'Toujours', jamais: 'Jamais (figée)' }, help: 'Dans l\'éditeur, l\'icône bouge toujours pour l\'aperçu.', show: function (t) { return hasAnimIcon(t); } },
+    animSpeed: { k: 'animSpeed', l: 'Icône animée : vitesse', f: 'sel', o: { '': 'Normale', lent: 'Lente', rapide: 'Rapide' }, show: function (t) { return hasAnimIcon(t); } },
+    info: { k: 'cmdInfo', l: 'Info', f: 'cmd', filter: C_INFO },
+    th: { k: 'thresholds', base: 'thBase', l: 'Couleur de la valeur selon la valeur', f: 'thresholds', help: 'Jusqu\'à 10 lignes. Un nombre = à partir de cette valeur (le plus haut seuil atteint gagne). Un texte = si la valeur est égale à ce texte. La couleur s\'applique au texte comme à l\'icône.' },
+    target: { k: 'colorTarget', l: 'Ces couleurs colorent', f: 'sel', o: TARGETS },
+    unit: { k: 'unit', l: 'Unité', ph: 'auto (- = aucune)' },
+    decimals: { k: 'decimals', l: 'Décimales', f: 'num', ph: 'auto' },
+    map: { k: 'map', l: 'Libellés', ph: '0=Fermé;1=Ouvert', help: 'Remplace une valeur par un texte' },
+    min: { k: 'min', l: 'Plage plausible : min', f: 'num', ph: 'aucun', help: 'Hors plage, la tuile affiche « — »' },
+    max: { k: 'max', l: 'Plage plausible : max', f: 'num', ph: 'aucun' },
+    confirm: { k: 'confirm', l: 'Confirmation', ph: 'vide = aucune', help: 'Texte demandé avant d\'exécuter' },
+    wait: { k: 'wait', l: 'Attente du retour (s)', f: 'num', ph: '0 = non', help: 'Clignote jusqu\'au changement de l\'info, rouge si rien après ce délai' },
+    invert: { k: 'invert', l: 'Inverser l\'état', f: 'check' },
+    onValue: { k: 'onValue', l: 'Valeur « actif »', ph: 'auto (1, on, >0…)' }
+  };
+
+  var SCHEMA = {
+    valeur: [F.info, F.unit, F.decimals, F.map, { k: 'dateFmt', l: 'Si c\'est une date', f: 'sel', o: { brut: 'Telle quelle', '2lignes': 'Date + heure sur 2 lignes', heure: 'Heure seule', date: 'Date seule', ilya: '« il y a … »' } },
+      F.min, F.max, F.th, F.target,
+      { k: 'cmdOn', l: 'Action au clic (option)', f: 'cmd', filter: C_ACTION }, F.confirm,
+      { k: 'details', l: 'Courbe et détails', f: 'sel', o: { '': 'Non', clic: 'Au clic (appui long si la tuile a une action)', long: 'Appui long seulement' }, help: 'Fenêtre avec la courbe 24 h / 7 j / 30 j, min / moyenne / max. La commande doit être historisée.' }],
+    icone: [{ k: 'cmdInfo', l: 'Info (binaire ou texte d\'état)', f: 'cmd', filter: C_INFO },
+      { k: 'onValue', l: 'Valeur de l\'état 1', ph: '1', show: function (t) { return !isSet(t.runValues) && !isSet(t.doneValues); } }, F.invert,
+      { k: 'runValues', l: 'Valeurs « en marche » (info texte)', ph: 'En cours;Lavage;Essorage', help: 'Pour une info à plusieurs états (ex. Prêt / En cours / Terminé). Séparées par ; — un mot contenu dans la valeur suffit. L\'icône animée bouge sur ces valeurs.', blurRebuild: true },
+      { k: 'doneValues', l: 'Valeurs « terminé »', ph: 'Terminé;Fini', help: 'Affiche l\'état terminé : couleur, icône et texte dédiés, petite coche sur l\'icône.', blurRebuild: true },
+      { k: 'iconDone', l: 'Icône terminé (option)', f: 'icon', ph: 'même icône', show: function (t) { return isSet(t.doneValues); } },
+      { k: 'colorDone', l: 'Couleur terminé', f: 'color', ph: 'ok', show: function (t) { return isSet(t.doneValues); } },
+      { k: 'labelDone', l: 'Texte terminé (option)', ph: 'ex. Terminé', show: function (t) { return isSet(t.doneValues); } },
+      { k: 'icon', l: 'Icône état 1', f: 'icon', ph: 'svg:check-circle' }, { k: 'iconOff', l: 'Icône état 0', f: 'icon', ph: 'même icône' }, F.iconAnim, F.animSpeed,
+      { k: 'colorOn', l: 'Couleur état 1', f: 'color', ph: 'on' }, { k: 'colorOff', l: 'Couleur état 0', f: 'color', ph: 'neutral' },
+      { k: 'labelOn', l: 'Texte état 1 (option)', ph: 'ex. Marche' }, { k: 'labelOff', l: 'Texte état 0 (option)', ph: 'ex. Arrêt' },
+      { k: 'thresholds', l: 'Couleurs selon la valeur (option, remplace état 1 / 0)', f: 'thresholds', help: 'Pour une info à plusieurs valeurs (ex. état général 1 à 4)' },
+      { k: 'cmdOn', l: 'Action au clic (option)', f: 'cmd', filter: C_ACTION }, F.confirm],
+    ouvrant: [{ k: 'kind', l: 'Dessin', f: 'sel', o: { porte: 'Porte', fenetre: 'Fenêtre', fenetre2: 'Fenêtre 2 vantaux', baie: 'Baie coulissante', portail: 'Portail', garage: 'Garage', volet: 'Volet' } },
+      { k: 'cmdInfo', l: 'Info', f: 'cmd', filter: C_INFO, show: function (t) { return !(t.kind === 'baie' || t.kind === 'fenetre2'); } },
+      { k: 'cmdInfo', l: 'Info vantail gauche', f: 'cmd', filter: C_INFO, show: function (t) { return t.kind === 'baie' || t.kind === 'fenetre2'; } },
+      { k: 'cmdInfo2', l: 'Info vantail droit (option)', f: 'cmd', filter: C_INFO, help: 'Second contact : la tuile montre ouvert à gauche, à droite ou les deux. Vide = un seul contact pour toute la baie / fenêtre.', show: function (t) { return t.kind === 'baie' || t.kind === 'fenetre2'; } },
+      { k: 'openValue', l: 'Valeur « ouvert »', ph: '1' }, F.invert,
+      { k: 'colorOpen', l: 'Couleur ouvert', f: 'color', ph: 'alert' }, { k: 'colorClosed', l: 'Couleur fermé', f: 'color', ph: 'neutral' },
+      { k: 'showState', l: 'Afficher Ouvert / Fermé', f: 'check' },
+      { k: 'cmdOn', l: 'Action ouvrir / basculer', f: 'cmd', filter: C_ACTION }, { k: 'cmdOff', l: 'Action fermer (option)', f: 'cmd', filter: C_ACTION },
+      F.confirm, F.wait,
+      { k: 'thresholds', l: 'Couleurs selon la valeur', f: 'thresholds', help: 'Jusqu\'à 10 lignes. Un nombre = à partir de cette valeur ; un texte = si égal. Remplace les couleurs par défaut.' }],
+    bouton: [
+      { k: 'behavior', l: 'Type de bouton', f: 'sel', o: BTN_KINDS, keep: true },
+      { k: 'cmdOn', l: 'Action', f: 'cmd', filter: C_ACTION, show: kindIs('impulsion') },
+      { k: 'cmdOn', l: 'Action On', f: 'cmd', filter: C_ACTION, show: kindIs('on', 'onoff', 'split') },
+      { k: 'cmdOn', l: 'Action toggle', f: 'cmd', filter: C_ACTION, show: kindIs('toggle') },
+      { k: 'cmdOff', l: 'Action Off', f: 'cmd', filter: C_ACTION, show: kindIs('onoff', 'split') },
+      { k: 'cmdInfo', l: 'Info d\'état (retour)', f: 'cmd', filter: C_INFO, show: kindIs('on', 'toggle', 'onoff') },
+      { k: 'icon', l: 'Icône', f: 'icon', ph: 'svg:play' },
+      { k: 'iconActive', l: 'Icône si actif (option)', f: 'icon', show: kindIs('on', 'toggle', 'onoff') },
+      { k: 'iconOff', l: 'Icône du bouton Off', f: 'icon', ph: 'svg:stop', show: kindIs('split') }, F.iconAnim, F.animSpeed,
+      { k: 'style', l: 'Style', f: 'sel', o: { rond: 'Rond plein', icone: 'Icône seule' } },
+      { k: 'colorNeutral', l: 'Couleur', f: 'color', ph: 'neutral', show: kindIs('impulsion') },
+      { k: 'colorOn', l: 'Couleur actif', f: 'color', ph: 'on', show: kindIs('on', 'toggle', 'onoff', 'split') },
+      { k: 'colorOff', l: 'Couleur inactif', f: 'color', ph: 'off', show: kindIs('on', 'toggle', 'onoff', 'split') },
+      { k: 'onValue', l: 'Valeur « actif »', ph: '1', show: kindIs('on', 'toggle', 'onoff') },
+      { k: 'invert', l: 'Inverser l\'état', f: 'check', show: kindIs('on', 'toggle', 'onoff') },
+      { k: 'disableWhenActive', l: 'Grisé si déjà actif', f: 'check', show: kindIs('on') },
+      { k: 'showState', l: 'Afficher Marche / Arrêt', f: 'check', show: kindIs('on', 'toggle', 'onoff') },
+      { k: 'cmdLong', l: 'Action appui long (option)', f: 'cmd', filter: C_ACTION, show: kindIs('impulsion', 'on', 'toggle', 'onoff') },
+      F.confirm,
+      { k: 'wait', l: 'Attente du retour (s)', f: 'num', ph: '0 = non', show: kindIs('on', 'toggle', 'onoff'), help: 'Clignote jusqu\'au changement de l\'info, rouge si rien après ce délai' },
+      { k: 'thresholds', l: 'Couleurs selon la valeur de l\'info', f: 'thresholds', show: kindIs('on', 'toggle', 'onoff'), help: 'Remplace les couleurs actif / inactif' }],
+    slider: [{ k: 'cmdOn', l: 'Action slider', f: 'cmd', filter: { type: 'action', subType: 'slider' } }, { k: 'cmdInfo', l: 'Info de position (option)', f: 'cmd', filter: C_INFO },
+      { k: 'sStyle', l: 'Style', f: 'sel', o: { '': 'Classique', neon: 'Néon', pilule: 'Pilule (valeur dedans)', segments: 'Segments', arc: 'Molette (arc)' } },
+      { k: 'sColor', l: 'Couleur du slider', f: 'color', ph: '#2f9bff', help: 'Si des « Couleurs selon la valeur » sont réglées, elles prennent le dessus.' },
+      { k: 'sSegs', l: 'Nombre de segments', f: 'num', ph: '12', show: function (t) { return t.sStyle === 'segments'; } },
+      { k: 'sMin', l: 'Min', f: 'num', phFn: function (t) { return 'auto (' + autoRange(t).min + ')'; } },
+      { k: 'sMax', l: 'Max', f: 'num', phFn: function (t) { return 'auto (' + autoRange(t).max + ')'; } },
+      { k: 'sStep', l: 'Pas', f: 'num', phFn: function (t) { return 'auto (' + autoRange(t).step + ')'; } },
+      F.unit, F.decimals, { k: 'orient', l: 'Orientation', f: 'sel', o: { '': 'Horizontale', vertical: 'Verticale' } },
+      { k: 'plusMinus', l: 'Boutons + / −', f: 'check' }, F.th, F.wait, F.confirm],
+    select: [{ k: 'cmdOn', l: 'Action select', f: 'cmd', filter: C_ACTION, help: 'Les options sont lues dans la liste de la commande' },
+      { k: 'options', l: 'Ou : liste de commandes séparées', f: 'options' },
+      { k: 'cmdInfo', l: 'Info de l\'option active (option)', f: 'cmd', filter: C_INFO },
+      { k: 'display', l: 'Affichage', f: 'sel', o: { popup: 'Fermé, liste par-dessus la page au clic', liste: 'Liste dans la tuile', menu: 'Menu déroulant du navigateur', boutons: 'Boutons côte à côte' }, keep: true },
+      { k: 'maxH', l: 'Hauteur maxi de la liste (px)', f: 'num', ph: '400', show: function (t) { return !t.display || t.display === 'popup'; } },
+      { k: 'popW', l: 'Largeur mini de la liste (px)', f: 'num', ph: '260', show: function (t) { return !t.display || t.display === 'popup'; } },
+      { k: 'search', l: 'Recherche', f: 'sel', o: { '': 'Auto (plus de 10 choix)', oui: 'Toujours', non: 'Jamais' }, show: function (t) { return !t.display || t.display === 'popup'; } },
+      { k: 'placeholder', l: 'Texte si rien choisi', ph: '— Choisir —', show: function (t) { return !t.display || t.display === 'popup' || t.display === 'menu'; } },
+      { k: 'cmdClear', l: 'Action « effacer » (option)', f: 'cmd', filter: C_ACTION }, { k: 'clearLabel', l: 'Libellé effacer', ph: 'Effacer la sélection' },
+      { k: 'hide', l: 'Options masquées', ph: 'clé ou libellé, séparés par des virgules' }, { k: 'rename', l: 'Renommer', ph: '1=Coton;2=Synthétique' },
+      F.confirm, F.wait],
+    date: [{ k: 'cmdOn', l: 'Action (message, slider…)', f: 'cmd', filter: C_ACTION }, { k: 'cmdInfo', l: 'Info valeur actuelle (option)', f: 'cmd', filter: C_INFO },
+      { k: 'dmode', l: 'Saisie', f: 'sel', o: { datetime: 'Date et heure', date: 'Date', time: 'Heure' } },
+      { k: 'dformat', l: 'Format envoyé', ph: 'YYYY-MM-DD HH:mm' }, { k: 'msgTitle', l: 'Titre du message (option)' }, F.confirm, F.wait,
+      { k: 'thresholds', l: 'Couleurs selon la valeur', f: 'thresholds', help: 'Jusqu\'à 10 lignes. Un nombre = à partir de cette valeur ; un texte = si égal. Remplace les couleurs par défaut.' }],
+    saisie: [{ k: 'cmdOn', l: 'Action (message, slider…)', f: 'cmd', filter: C_ACTION }, { k: 'cmdInfo', l: 'Info valeur actuelle (option)', f: 'cmd', filter: C_INFO },
+      { k: 'inputType', l: 'Type', f: 'sel', o: { text: 'Texte', number: 'Nombre' } }, { k: 'placeholder', l: 'Texte d\'aide' }, F.unit, { k: 'msgTitle', l: 'Titre du message (option)' }, F.confirm, F.wait,
+      { k: 'thresholds', l: 'Couleurs selon la valeur', f: 'thresholds', help: 'Jusqu\'à 10 lignes. Un nombre = à partir de cette valeur ; un texte = si égal. Remplace les couleurs par défaut.' }],
+    volet: [{ k: 'cmdInfo', l: 'Info position / état', f: 'cmd', filter: C_INFO }, { k: 'cmdUp', l: 'Action monter', f: 'cmd', filter: C_ACTION },
+      { k: 'cmdDown', l: 'Action descendre', f: 'cmd', filter: C_ACTION }, { k: 'cmdStop', l: 'Action stop', f: 'cmd', filter: C_ACTION },
+      { k: 'cmdSlider', l: 'Action position (option)', f: 'cmd', filter: { type: 'action', subType: 'slider' }, help: 'Permet de régler la position en glissant le doigt sur la fenêtre dessinée.' },
+      F.invert, { k: 'closedMax', l: 'Fermé jusqu\'à (%)', f: 'num', ph: '0' }, { k: 'openMin', l: 'Ouvert à partir de (%)', f: 'num', ph: '99' }, F.confirm,
+      { k: 'thresholds', l: 'Couleurs selon la valeur', f: 'thresholds', help: 'Jusqu\'à 10 lignes. Un nombre = à partir de cette valeur ; un texte = si égal. Remplace les couleurs par défaut.' }],
+    jauge: [F.info, { k: 'style', l: 'Style', f: 'sel', o: { cuve: 'Cuve', barre: 'Barre', anneau: 'Anneau' } },
+      { k: 'gMin', l: 'Min', f: 'num', ph: 'auto (0)' }, { k: 'gMax', l: 'Max', f: 'num', ph: 'auto (100)' }, F.unit, F.decimals, F.th, { k: 'details', l: 'Courbe et détails', f: 'sel', o: { '': 'Non', clic: 'Au clic (appui long si la tuile a une action)', long: 'Appui long seulement' }, help: 'Fenêtre avec la courbe 24 h / 7 j / 30 j, min / moyenne / max et la dernière mise à jour. La commande doit être historisée.' }],
+    lignes: [{ k: 'lines', l: 'Lignes', f: 'lines' }],
+    texte: [{ k: 'template', l: 'Texte', f: 'area', ph: '{1}°C | {2}%', help: '{1} à {4} sont remplacés par les infos ci-dessous' },
+      { k: 'cmdV1', l: 'Info {1}', f: 'cmd', filter: C_INFO }, { k: 'cmdV2', l: 'Info {2}', f: 'cmd', filter: C_INFO },
+      { k: 'cmdV3', l: 'Info {3}', f: 'cmd', filter: C_INFO }, { k: 'cmdV4', l: 'Info {4}', f: 'cmd', filter: C_INFO },
+      F.decimals, F.min, F.max,
+      { k: 'align', l: 'Alignement', f: 'sel', o: { '': 'Centré', gauche: 'À gauche' } }, { k: 'color', l: 'Couleur', f: 'color' },
+      { k: 'thresholds', l: 'Couleurs selon {1}', f: 'thresholds' }, { k: 'cmdOn', l: 'Action au clic (option)', f: 'cmd', filter: C_ACTION }],
+    horloge: [{ k: 'format', l: 'Affichage', f: 'sel', o: { date: 'jeudi 22 octobre', complet: 'jeudi 22 octobre 2026', heure: '22:15', dateheure: 'jeudi 22 octobre · 22:15' } },
+      { k: 'align', l: 'Alignement', f: 'sel', o: { '': 'Centré', gauche: 'À gauche' } }, { k: 'color', l: 'Couleur', f: 'color' }],
+    lien: [{ k: 'target', l: 'Ouvre', f: 'sel', o: { home: 'L\'accueil', page: 'Une page Tuiles', url: 'Une adresse (Design, dashboard…)', index: 'La liste des pages' } },
+      { k: 'page', l: 'Page', f: 'page', show: function (t) { return t.target === 'page'; } },
+      { k: 'url', l: 'Adresse', ph: 'index.php?v=d&p=plan&plan_id=1', show: function (t) { return t.target === 'url'; } },
+      { k: 'newTab', l: 'Nouvel onglet', f: 'check', show: function (t) { return t.target === 'url'; } },
+      { k: 'icon', l: 'Icône(s)', f: 'icon', help: 'Plusieurs icônes : séparez par |' }, F.iconAnim, F.animSpeed, { k: 'img', l: 'Ou image (adresse)', ph: 'plugins/…/logo.png' },
+      { k: 'color', l: 'Couleur de l\'icône', f: 'color', ph: '#ffffff' }, { k: 'desc', l: 'Sous-titre (option)' },
+      { k: 'cmdList', l: 'Compteur : nombre de commandes…', f: 'cmdlist' },
+      { k: 'countOp', l: '…dont la valeur est', f: 'sel', o: { '=': '=', '!=': '≠', '>': '>', '>=': '≥', '<': '<', '<=': '≤' }, show: function (t) { return t.cmdList && t.cmdList.length; } },
+      { k: 'countVal', l: 'Valeur comptée', ph: '1', show: function (t) { return t.cmdList && t.cmdList.length; } },
+      { k: 'cmdBadge', l: 'Ou : badge = valeur d\'une info', f: 'cmd', filter: C_INFO, show: function (t) { return !(t.cmdList && t.cmdList.length); } },
+      { k: 'hideZero', l: 'Masquer le badge à 0', f: 'check' }, { k: 'thresholds', l: 'Couleur de l\'icône selon le compteur', f: 'thresholds' }],
+    image: [{ k: 'img', l: 'Adresse de l\'image', ph: 'plugins/…/logo.png' }, { k: 'fit', l: 'Ajustement', f: 'sel', o: { contain: 'Entière', cover: 'Remplir' } },
+      { k: 'url', l: 'Lien au clic (option)' }],
+    vide: [],
+    widget: [{ k: 'eqId', l: 'Équipement', f: 'eq', help: 'Le widget du dashboard de cet équipement est affiché dans la tuile (ex. plugin de flux d\'énergie). Il se met à jour tout seul.' },
+      { k: 'wFit', l: 'Ajustement', f: 'sel', o: { '': 'Adapter à la tuile', cover: 'Remplir la tuile (rogné)', none: 'Taille réelle' } },
+      { k: 'wTransparent', l: 'Fond du widget transparent', f: 'check' },
+      { k: 'wZoom', l: 'Bouton plein écran', f: 'check' }],
+    lumiere: [
+      { k: 'cmdState', l: 'Info état (allumé / éteint)', f: 'cmd', filter: C_INFO, help: 'Retour d\'état : binaire 0/1. Vide sur un variateur = allumé si la luminosité est > 0.' },
+      { k: 'onValue', l: 'Valeur « allumé » (option)', ph: '1', help: 'Si l\'info n\'est pas binaire (ex. ON).' },
+      { k: 'cmdOn', l: 'Action allumer', f: 'cmd', filter: C_ACTION, half: true },
+      { k: 'cmdOff', l: 'Action éteindre', f: 'cmd', filter: C_ACTION, half: true },
+      { k: 'cmdToggle', l: 'Ou action basculer (toggle)', f: 'cmd', filter: C_ACTION },
+      { k: 'liColor', l: 'Couleur de la lumière', f: 'color', help: 'Vide = blanc chaud.' }],
+    variateur: [
+      { k: 'cmdState', l: 'Info état (allumé / éteint)', f: 'cmd', filter: C_INFO, help: 'Retour d\'état : binaire 0/1. Vide sur un variateur = allumé si la luminosité est > 0.' },
+      { k: 'onValue', l: 'Valeur « allumé » (option)', ph: '1', help: 'Si l\'info n\'est pas binaire (ex. ON).' },
+      { k: 'cmdOn', l: 'Action allumer', f: 'cmd', filter: C_ACTION, half: true },
+      { k: 'cmdOff', l: 'Action éteindre', f: 'cmd', filter: C_ACTION, half: true },
+      { k: 'cmdToggle', l: 'Ou action basculer (toggle)', f: 'cmd', filter: C_ACTION },
+      { k: 'cmdSlider', l: 'Action variation (slider)', f: 'cmd', filter: C_ACTION, help: 'Sans actions allumer / éteindre, un appui sur la tuile passe le variateur à 0 ou au dernier niveau.' },
+      { k: 'cmdLevel', l: 'Info luminosité', f: 'cmd', filter: C_INFO, help: 'Vide = l\'info liée à l\'action slider.' },
+      { k: 'liMin', l: 'Mini', f: 'num', ph: 'auto (0)', half: true },
+      { k: 'liMax', l: 'Maxi', f: 'num', ph: 'auto (100)', half: true },
+      { k: 'liStep', l: 'Pas', f: 'num', ph: '1', half: true },
+      { k: 'liColor', l: 'Couleur de la lumière', f: 'color', help: 'Vide = blanc chaud.' }],
+    interphone: [{ k: 'eqId', l: 'Équipement interphone', f: 'eq', pluginRe: /hik/i, help: 'Les commandes du plugin hikinterphone sont retrouvées automatiquement ; vérifiez-les ci-dessous.', onPick: function (t, e) { fillHik(t, e.id).then(function () { onTileChange({ f: 'sel' }); }).catch(fail); } },
+      { k: 'cmdEtat', l: 'Info état appel', f: 'cmd', filter: C_INFO, half: true },
+      { k: 'cmdRing', l: 'Info sonnerie', f: 'cmd', filter: C_INFO, half: true },
+      { k: 'cmdTalk', l: 'Info en communication', f: 'cmd', filter: C_INFO, half: true },
+      { k: 'cmdOnline', l: 'Info en ligne', f: 'cmd', filter: C_INFO, half: true },
+      { k: 'cmdAnswer', l: 'Action décrocher', f: 'cmd', filter: C_ACTION, half: true },
+      { k: 'cmdHangup', l: 'Action raccrocher', f: 'cmd', filter: C_ACTION, half: true },
+      { k: 'cmdReject', l: 'Action refuser', f: 'cmd', filter: C_ACTION, half: true },
+      { k: 'cmdOpen', l: 'Action ouvrir la porte', f: 'cmd', filter: C_ACTION, half: true },
+      { k: 'openLabel', l: 'Texte du bouton porte', ph: 'Ouvrir', half: true },
+      { k: 'doorConfirm', l: 'Confirmer l\'ouverture', f: 'sel', o: { '': 'Oui', '0': 'Non' }, keep: true },
+      { k: 'cmdTalkUrl', l: 'Info lien Parler (two-way audio)', f: 'cmd', filter: C_INFO, help: 'Commande « Lien Parler » du plugin hikinterphone : ajoute un bouton Parler (micro de la tablette).' },
+      { k: 'talkMode', l: 'Parler : mode', f: 'sel', o: { '': 'Appuyer pour parler', free: 'Mains libres' }, keep: true, show: function (t) { return !!t.cmdTalkUrl; } },
+      { k: 'talkOnAnswer', l: 'Décrocher ouvre aussi Parler', f: 'check', show: function (t) { return !!t.cmdTalkUrl; } },
+      { k: 'talkAlways', l: 'Bouton Parler aussi au repos', f: 'check', show: function (t) { return !!t.cmdTalkUrl; } },
+      { k: 'ringPopup', l: 'Fenêtre automatique quand ça sonne', f: 'check', help: 'Sur la tablette, une fenêtre s\'ouvre avec l\'image et les boutons dès qu\'on sonne, et se ferme 4 s après la fin de l\'appel.' },
+      { k: 'cmdEvent', l: 'Info dernier événement (option)', f: 'cmd', filter: C_INFO },
+      { k: 'showEvent', l: 'Afficher le dernier événement', f: 'check' },
+      { k: 'frigateUrl', l: 'Caméra : adresse de Frigate (option)', ph: 'http://192.168.1.x:5000' },
+      { k: 'frigateCam', l: 'Caméra : nom dans Frigate', ph: 'ex. portier' },
+      { k: 'camProxy', l: 'Via Jeedom (accès à distance)', f: 'check', help: 'L\'image passe par Jeedom : visible partout où Jeedom l\'est, sans ouvrir Frigate à l\'extérieur. Enregistrez la page pour l\'activer.' },
+      { k: 'camRefresh', l: 'Image au repos : toutes les (s)', f: 'num', ph: '10', help: 'Pendant un appel, l\'image se rafraîchit chaque seconde.' }],
+    bonspoints: [{ k: 'eqId', l: 'Enfant (équipement bonsPoints)', f: 'eq', pluginRe: /bonspoints/i, help: 'Scores, comportements (boutons) et paliers sont repris automatiquement. Après avoir modifié les comportements ou les paliers dans le plugin, choisissez à nouveau l\'équipement pour les relire.', onPick: function (t, e) { fillBonsPoints(t, e.id).then(function () { onTileChange({ f: 'sel' }); }).catch(fail); } },
+      { k: 'bpStyle', l: 'Format', f: 'sel', o: { grande: 'Grande : chemin des paliers + boutons (parents)', compacte: 'Compacte : anneau (vue enfant)', mini: 'Mini : score + récompenses' }, keep: true },
+      { k: 'bpKidBtns', l: 'Boutons sur la vue compacte', f: 'sel', o: { '': 'Aucun', plus: 'Seulement les « + »', tous: 'Tous' }, keep: true, show: function (t) { return t.bpStyle === 'compacte'; } },
+      { k: 'bpIcons', l: 'Icônes des paliers (dans l\'ordre)', ph: '🍨 🎳 🏉 🎁 ⭐ 🏆', help: 'Un emoji par palier, séparés par un espace, du plus petit au plus grand.' },
+      { k: 'bpSancIcons', l: 'Icônes des sanctions (paliers négatifs)', ph: '⛔', help: 'Un palier à points négatifs est une sanction : déclenchée quand le score descend jusqu\'à ce palier. Un emoji par sanction, de la plus légère à la plus lourde.' },
+      { k: 'bpNeg', l: 'Zone rouge jusqu\'à', f: 'num', ph: '-10', help: 'Bas de la barre / de l\'anneau quand le score est négatif.' },
+      { k: 'bpCols', l: 'Colonnes de boutons', f: 'num', ph: '3', show: function (t) { return !t.bpStyle || t.bpStyle === 'grande' || t.bpStyle === 'compacte'; } },
+      { k: 'bpUndoConfirm', l: 'Confirmer « Annuler »', f: 'check' },
+      { k: 'cmdScore', l: 'Info score semaine', f: 'cmd', filter: C_INFO, half: true },
+      { k: 'cmdPrev', l: 'Info semaine précédente', f: 'cmd', filter: C_INFO, half: true },
+      { k: 'cmdTotal', l: 'Info score total', f: 'cmd', filter: C_INFO, half: true },
+      { k: 'cmdLast', l: 'Info dernier événement', f: 'cmd', filter: C_INFO, half: true },
+      { k: 'cmdActif', l: 'Info suivi actif (garde)', f: 'cmd', filter: C_INFO, half: true },
+      { k: 'cmdUndo', l: 'Action annuler le dernier', f: 'cmd', filter: C_ACTION, half: true }],
+    thermostat: [{ k: 'cmdTemp', l: 'Température mesurée', f: 'cmd', filter: C_INFO },
+      { k: 'cmdSet', l: 'Action consigne (slider)', f: 'cmd', filter: C_ACTION, help: 'Commande action de type slider qui règle la consigne.' },
+      { k: 'cmdSetInfo', l: 'Info consigne', f: 'cmd', filter: C_INFO, help: 'Vide = l\'info liée à l\'action consigne.' },
+      { k: 'thKind', l: 'Type', f: 'sel', o: { chauffage: 'Chauffage (orange)', clim: 'Climatisation (bleu)', auto: 'Pompe à chaleur / auto (vert)' }, keep: true },
+      { k: 'thMin', l: 'Consigne mini', f: 'num', ph: 'auto (5)', half: true },
+      { k: 'thMax', l: 'Consigne maxi', f: 'num', ph: 'auto (30)', half: true },
+      { k: 'thStep', l: 'Pas', f: 'num', ph: '0.5', half: true },
+      { k: 'cmdState', l: 'Info en chauffe / en marche (binaire)', f: 'cmd', filter: C_INFO, help: 'L\'anneau s\'illumine quand l\'appareil chauffe ou refroidit.' },
+      { k: 'cmdMode', l: 'Info mode (option)', f: 'cmd', filter: C_INFO, help: 'Le bouton dont le libellé correspond à la valeur est mis en avant.' },
+      { k: 'options', l: 'Boutons de mode (libellé + action)', f: 'options' },
+      { k: 'cmdPower', l: 'Info marche / arrêt (option)', f: 'cmd', filter: C_INFO },
+      { k: 'cmdPowerOn', l: 'Action marche (option)', f: 'cmd', filter: C_ACTION, half: true },
+      { k: 'cmdPowerOff', l: 'Action arrêt (option)', f: 'cmd', filter: C_ACTION, half: true },
+      { k: 'details', l: 'Courbe de la température', f: 'sel', o: { '': 'Non', long: 'Oui (appui long sur la température)' } }],
+    alarme: [{ k: 'eqId', l: 'Équipement alarme', f: 'eq', pluginRe: /risco/i, help: 'Les commandes de la partition (P1 Armé, P1 Armer total…) et des zones sont retrouvées automatiquement.', onPick: function (t, e) { fillRisco(t, e.id).then(function () { onTileChange({ f: 'sel' }); }).catch(fail); } },
+      { k: 'rsPart', l: 'Partition (numéro)', f: 'num', ph: '1', after: function (t) { if (cleanId(t.eqId)) fillRisco(t, t.eqId).then(function () { onTileChange({ f: 'sel' }); }).catch(fail); } },
+      { k: 'rsConfirm', l: 'Confirmation avant d\'armer / désarmer', f: 'sel', o: { '': 'Oui', non: 'Non' } },
+      { k: 'rsZonesShow', l: 'Zones ouvertes de la partition', f: 'sel', o: { '': 'Afficher (« pas prête » et pourquoi)', non: 'Masquer' } },
+      { k: 'rsTroubles', l: 'Défauts de la centrale', f: 'sel', o: { '': 'Afficher s\'il y en a', non: 'Masquer' } },
+      { k: 'rsLast', l: 'Dernier événement', f: 'sel', o: { '': 'Afficher', non: 'Masquer' } },
+      { k: 'cmdArmed', l: 'Info armé', f: 'cmd', filter: C_INFO },
+      { k: 'cmdPartial', l: 'Info armé partiel', f: 'cmd', filter: C_INFO },
+      { k: 'cmdAlarm', l: 'Info en alarme', f: 'cmd', filter: C_INFO },
+      { k: 'cmdTriggered', l: 'Info déclenché', f: 'cmd', filter: C_INFO },
+      { k: 'cmdReady', l: 'Info prêt', f: 'cmd', filter: C_INFO },
+      { k: 'cmdArmTotal', l: 'Action armer total', f: 'cmd', filter: C_ACTION },
+      { k: 'cmdArmPartial', l: 'Action armer partiel', f: 'cmd', filter: C_ACTION },
+      { k: 'cmdDisarm', l: 'Action désarmer', f: 'cmd', filter: C_ACTION }],
+    zones: [{ k: 'eqId', l: 'Équipement alarme', f: 'eq', pluginRe: /risco/i, help: 'Les zones (Z1 Nom, Z1 Ouvert, Z1 Alarme, Z1 Bypassé, Z1 Bypasser…) sont retrouvées automatiquement.', onPick: function (t, e) { fillRisco(t, e.id).then(function () { onTileChange({ f: 'sel' }); }).catch(fail); } },
+      { k: 'zsMode', l: 'Afficher', f: 'sel', o: { '': 'Seulement les zones ouvertes, en alarme ou bypassées', tous: 'Toutes les zones' } },
+      { k: 'zsPart', l: 'Seulement la partition (numéro)', f: 'num', ph: 'toutes' },
+      { k: 'okText', l: 'Texte quand tout est fermé', ph: 'Toutes les zones sont fermées' },
+      { k: 'lsSize', l: 'Taille du texte et des lignes (%)', f: 'num', ph: '100' },
+      { k: 'lsFill', l: 'Lignes', f: 'sel', o: { '': 'Taille normale, en haut de la tuile', remplir: 'Remplir la hauteur de la tuile' } },
+      { k: 'lsCols', l: 'Colonnes', f: 'sel', o: { '1': '1 colonne', '2': '2 colonnes', '3': '3 colonnes', '4': '4 colonnes', auto: 'Automatique selon la largeur' } }],
+    vigieau: [{ k: 'eqId', l: 'Équipement VigiEau', f: 'eq', pluginRe: /vigi/i, help: 'Les commandes (niveau, zone, arrêté, dates, mesures) sont retrouvées automatiquement ; vérifiez-les ci-dessous.', onPick: function (t, e) { fillVigieau(t, e.id).then(function () { onTileChange({ f: 'sel' }); }).catch(fail); } },
+      { k: 'vgStyle', l: 'Affichage', f: 'sel', o: { '': 'Complet (zone, arrêté, dates, mesures)', compact: 'Compact (niveau et barre)' } },
+      { k: 'vgInfo', l: 'Rappel du niveau (objectif et exemples nationaux)', f: 'sel', o: { '': 'Afficher (mode complet)', non: 'Masquer' } },
+      { k: 'cmdLevel', l: 'Info niveau (0 à 4 ou texte)', f: 'cmd', filter: C_INFO },
+      { k: 'cmdLevelTxt', l: 'Info libellé de la restriction', f: 'cmd', filter: C_INFO },
+      { k: 'cmdCommune', l: 'Info commune', f: 'cmd', filter: C_INFO },
+      { k: 'cmdZone', l: 'Info zone', f: 'cmd', filter: C_INFO },
+      { k: 'cmdUsage', l: 'Info type d\'eau', f: 'cmd', filter: C_INFO },
+      { k: 'cmdArrete', l: 'Info arrêté de restriction', f: 'cmd', filter: C_INFO },
+      { k: 'cmdCadre', l: 'Info arrêté cadre', f: 'cmd', filter: C_INFO },
+      { k: 'cmdStart', l: 'Info date de début', f: 'cmd', filter: C_INFO },
+      { k: 'cmdEnd', l: 'Info date de fin', f: 'cmd', filter: C_INFO },
+      { k: 'cmdMesures', l: 'Info mesures', f: 'cmd', filter: C_INFO },
+      { k: 'cmdImport', l: 'Info date d\'import', f: 'cmd', filter: C_INFO }],
+    demons: [{ k: 'dmMode', l: 'Afficher', f: 'sel', o: { '': 'Seulement les problèmes', tous: 'Tous les plugins avec démon ou dépendances' }, help: 'Problème = démon arrêté alors que sa gestion automatique est activée, ou dépendances non installées. Un appui sur une ligne : démarrer, redémarrer, arrêter, relancer les dépendances, gestion automatique, logs (droits administrateur).' },
+      { k: 'dmEvery', l: 'Vérifier toutes les (s)', f: 'num', ph: '60' },
+      { k: 'okText', l: 'Texte quand tout va bien', ph: 'Démons et dépendances OK' },
+      { k: 'lsSize', l: 'Taille du texte et des lignes (%)', f: 'num', ph: '100' },
+      { k: 'lsFill', l: 'Lignes', f: 'sel', o: { '': 'Taille normale, en haut de la tuile', remplir: 'Remplir la hauteur de la tuile' } },
+      { k: 'lsCols', l: 'Colonnes', f: 'sel', o: { '1': '1 colonne', '2': '2 colonnes', '3': '3 colonnes', '4': '4 colonnes', auto: 'Automatique selon la largeur' } }],
+    reseau: [{ k: 'ntMode', l: 'Afficher', f: 'sel', o: { '': 'Seulement les équipements hors ligne', tous: 'Tous (hors ligne en premier)' }, help: 'Les équipements du plugin Network sont lus automatiquement (état du ping, depuis quand, latence). Mise à jour en direct.' },
+      { k: 'ntLat', l: 'Latence', f: 'sel', o: { '': 'Afficher', non: 'Masquer' } },
+      { k: 'ntSlow', l: 'Latence lente à partir de (ms)', f: 'num', ph: '100', help: 'Au-delà, la ligne passe en orange.' },
+      { k: 'ntIp', l: 'Adresse IP', f: 'sel', o: { '': 'Afficher', non: 'Masquer' } },
+      { k: 'ntMax', l: 'Nombre maximum de lignes', f: 'num', ph: '50' },
+      { k: 'okText', l: 'Texte quand tout va bien', ph: 'Tout est en ligne' },
+      { k: 'lsSize', l: 'Taille du texte et des lignes (%)', f: 'num', ph: '100', help: 'Agrandit tout : texte, points, piles, espacements. Ex. 160.' },
+      { k: 'lsFill', l: 'Lignes', f: 'sel', o: { '': 'Taille normale, en haut de la tuile', remplir: 'Remplir la hauteur de la tuile' } },
+      { k: 'lsCols', l: 'Colonnes', f: 'sel', o: { '1': '1 colonne', '2': '2 colonnes', '3': '3 colonnes', '4': '4 colonnes', auto: 'Automatique selon la largeur' }, help: 'S\'il y a trop de lignes pour la hauteur, la liste défile.' }],
+    batteries: [{ k: 'btMode', l: 'Afficher', f: 'sel', o: { '': 'Seulement les piles faibles', tous: 'Toutes les piles (de la plus faible à la plus forte)' }, help: 'Les équipements et leurs niveaux sont lus automatiquement dans Jeedom. Seuils : ceux de Jeedom (Réglages → Système → Configuration → Équipements) ou de chaque équipement.' },
+      { k: 'btMax', l: 'Nombre maximum de lignes', f: 'num', ph: '50' },
+      { k: 'btStale', l: 'Signaler sans nouvelles après (h)', f: 'num', ph: '48', help: 'Le niveau n\'a pas été remonté depuis ce temps : « sans nouvelles depuis 3 j ».' },
+      { k: 'okText', l: 'Texte quand tout va bien', ph: 'Toutes les piles sont bonnes' },
+      { k: 'lsSize', l: 'Taille du texte et des lignes (%)', f: 'num', ph: '100', help: 'Agrandit tout : texte, points, piles, espacements. Ex. 160.' },
+      { k: 'lsFill', l: 'Lignes', f: 'sel', o: { '': 'Taille normale, en haut de la tuile', remplir: 'Remplir la hauteur de la tuile' } },
+      { k: 'lsCols', l: 'Colonnes', f: 'sel', o: { '1': '1 colonne', '2': '2 colonnes', '3': '3 colonnes', '4': '4 colonnes', auto: 'Automatique selon la largeur' }, help: 'S\'il y a trop de lignes pour la hauteur, la liste défile.' }],
+    reveil: [{ k: 'rvDevice', l: 'Appareil', f: 'sel', o: { '': 'Alexa et Rémi', alexa: 'Alexa seulement', remi: 'Rémi seulement' }, help: 'Une tuile par appareil : par exemple « Moi » sur l\'Alexa et « Armand » sur le Rémi, avec le même équipement Réveils.', after: function (t) { if (cleanId(t.eqId)) fillReveil(t, t.eqId).then(function () { onTileChange({ f: 'sel' }); }).catch(fail); } },
+      { k: 'eqId', l: 'Équipement Réveils', f: 'eq', plugin: 'reveil', help: 'Choisissez le réveil (plugin Réveils) : ses commandes sont retrouvées automatiquement ci-dessous.', onPick: function (t, e) { fillReveil(t, e.id).then(function () { onTileChange({ f: 'sel' }); }).catch(fail); } },
+      { k: 'cmdNext', l: 'Prochain réveil', f: 'cmd', filter: C_INFO },
+      { k: 'cmdStatus', l: 'Statut synchro', f: 'cmd', filter: C_INFO, half: true },
+      { k: 'cmdSyncOk', l: 'Synchro OK', f: 'cmd', filter: C_INFO, half: true },
+      { k: 'cmdAlexaOk', l: 'Alexa OK', f: 'cmd', filter: C_INFO, half: true },
+      { k: 'cmdRemiOk', l: 'Rémi OK', f: 'cmd', filter: C_INFO, half: true },
+      { k: 'cmdLastCheck', l: 'Dernière vérification', f: 'cmd', filter: C_INFO },
+      { k: 'cmdException', l: 'Action Exception (changer l\'heure)', f: 'cmd', filter: C_ACTION },
+      { k: 'cmdSkip', l: 'Action Pas de prochain réveil', f: 'cmd', filter: C_ACTION, half: true },
+      { k: 'cmdResync', l: 'Action Resynchroniser', f: 'cmd', filter: C_ACTION, half: true },
+      { k: 'cmdVerify', l: 'Action Vérifier', f: 'cmd', filter: C_ACTION, half: true },
+      { k: 'rvCompact', l: 'Compact (heure et pastille seulement)', f: 'check' }],
+    reveilplan: [{ k: 'eqId', l: 'Équipement Réveils', f: 'eq', plugin: 'reveil', help: 'Planning calculé par le plugin Réveils (semaine en cours + suivantes). Congés et garde sont communs à tous les réveils.' },
+      { k: 'rpWeeks', l: 'Nombre de semaines', f: 'num', ph: '4' },
+      { k: 'rpEdit', l: 'Modification depuis la tuile', f: 'sel', o: { '': 'Oui : heure, congé, enfant, profils du jour, vérifier, resynchroniser, paramètres', non: 'Non (lecture seule)' } },
+      { k: 'rpHead', l: 'Prochain réveil et statut en haut', f: 'sel', o: { '': 'Afficher', non: 'Masquer' } },
+      { k: 'rpLegend', l: 'Légende', f: 'sel', o: { '': 'Afficher', non: 'Masquer' } }],
+    reveils: [{ k: 'rvItems', l: 'Réveils', f: 'rvlist', help: 'Une ligne par équipement Réveils (toi, Armand…). Un appui sur une ligne permet de changer l\'heure ou de supprimer ce réveil.' }],
+    puissance: [F.info, F.unit, F.decimals,
+      { k: 'caption', l: 'Petit titre au-dessus', ph: 'ex. Compteur monophasé' },
+      { k: 'sub', l: 'Texte sous la valeur', ph: 'ex. Consommation' },
+      { k: 'icon', l: 'Icône', f: 'icon', ph: 'éclair' },
+      { k: 'gMin', l: 'Anneau : mini', f: 'num', ph: '0', half: true },
+      { k: 'gMax', l: 'Anneau : maxi', f: 'num', ph: 'ex. 6000', half: true, help: 'L\'anneau montre la valeur en % du maxi. Sans maxi, il affiche la valeur.' },
+      { k: 'ringLabel', l: 'Texte sous l\'anneau', ph: 'auto' },
+      { k: 'pwRing', l: 'Anneau', f: 'sel', o: { '': 'Afficher', non: 'Masquer' } },
+      { k: 'pwChart', l: 'Courbe en fond', f: 'sel', o: { '': 'Afficher', non: 'Masquer' } },
+      { k: 'pwHours', l: 'Durée de la courbe (h)', f: 'num', ph: '6', help: 'La commande doit être historisée.' },
+      { k: 'color', l: 'Couleur', f: 'color', help: 'Vide = couleur du thème.' }, F.th, { k: 'details', l: 'Courbe et détails', f: 'sel', o: { '': 'Non', clic: 'Au clic', long: 'Appui long seulement' } }],
+    separateur: [{ k: 'sepDir', l: 'Sens', f: 'sel', o: { '': 'Verticale', h: 'Horizontale' }, keep: true },
+      { k: 'sepColor', l: 'Couleur', f: 'color', help: 'Vide = couleur du thème.' },
+      { k: 'sepW', l: 'Épaisseur (px)', f: 'num', ph: '2', half: true },
+      { k: 'sepLen', l: 'Longueur (%)', f: 'num', ph: '100', half: true },
+      { k: 'sepStyle', l: 'Style', f: 'sel', o: { '': 'Dégradé (s\'estompe aux bouts)', plein: 'Plein', pointille: 'Pointillé' } },
+      { k: 'sepGlow', l: 'Lumineuse', f: 'check' }],
+    soleil: [{ k: 'cmdElev', l: 'Info hauteur du soleil (option)', f: 'cmd', filter: C_INFO, help: 'Sinon calculée avec la position de Jeedom (Réglages → Système → Configuration → Informations).' },
+      { k: 'lat', l: 'Latitude (option)', f: 'num', ph: 'Jeedom', half: true },
+      { k: 'lon', l: 'Longitude (option)', f: 'num', ph: 'Jeedom', half: true }],
+    messages: [{ k: 'cmdMsg', l: 'Info texte des messages', f: 'cmd', filter: C_INFO, help: 'Ex. l\'info du plugin rapport qui décrit ce qui ne va pas. Une ligne = un bandeau.' },
+      { k: 'cmdMsg2', l: '2e info (option)', f: 'cmd', filter: C_INFO, half: true },
+      { k: 'cmdMsg3', l: '3e info (option)', f: 'cmd', filter: C_INFO, half: true },
+      { k: 'sep', l: 'Séparer les messages par', f: 'sel', o: { '': 'Retour à la ligne, <br> ou |', semi: 'Retour à la ligne, <br> ou ;', nl: 'Retour à la ligne / <br> seulement', none: 'Ne pas séparer' } },
+      { k: 'okVals', l: 'Valeurs « tout va bien »', ph: 'ok;0;aucun;rien;-', help: 'Ces valeurs (et une info vide) n\'affichent aucun message.' },
+      { k: 'okText', l: 'Texte quand tout va bien', ph: 'Tout va bien', help: '« - » pour ne rien afficher.' },
+      { k: 'msgColor', l: 'Couleur des messages', f: 'color', help: 'Vide = automatique selon les mots : erreur / défaut / alarme → rouge, attention / batterie / bas → orange, sinon bleu.' },
+      { k: 'msgDismiss', l: 'Effacer un message d\'un appui', f: 'check', help: 'Le message revient s\'il change.' },
+      { k: 'msgTime', l: 'Afficher depuis quand', f: 'check' },
+      { k: 'lsSize', l: 'Taille du texte et des lignes (%)', f: 'num', ph: '100', help: 'Agrandit tout : texte, points, piles, espacements. Ex. 160.' },
+      { k: 'lsFill', l: 'Lignes', f: 'sel', o: { '': 'Taille normale, en haut de la tuile', remplir: 'Remplir la hauteur de la tuile' } },
+      { k: 'lsCols', l: 'Colonnes', f: 'sel', o: { '1': '1 colonne', '2': '2 colonnes', '3': '3 colonnes', '4': '4 colonnes', auto: 'Automatique selon la largeur' }, help: 'S\'il y a trop de lignes pour la hauteur, la liste défile.' }],
+    chauffeeau: [{ k: 'cmdTop', l: 'Température haut du ballon', f: 'cmd', filter: C_INFO, help: 'Seule une température ? Mettez-la ici.' },
+      { k: 'cmdBottom', l: 'Température bas du ballon (option)', f: 'cmd', filter: C_INFO, help: 'Le ballon est coloré du bas (froid, bleu) au haut (chaud, rouge).' },
+      { k: 'cmdSet', l: 'Action consigne (slider)', f: 'cmd', filter: C_ACTION },
+      { k: 'cmdSetInfo', l: 'Info consigne', f: 'cmd', filter: C_INFO, help: 'Vide = l\'info liée à l\'action consigne.' },
+      { k: 'ceMin', l: 'Consigne mini', f: 'num', ph: 'auto (40)', half: true },
+      { k: 'ceMax', l: 'Consigne maxi', f: 'num', ph: 'auto (65)', half: true },
+      { k: 'ceStep', l: 'Pas', f: 'num', ph: '1', half: true },
+      { k: 'ceKind', l: 'Type', f: 'sel', o: { '': 'Auto (PAC si ventilateur renseigné)', pac: 'Thermodynamique (PAC)', elec: 'Électrique' } },
+      { k: 'cmdHeat', l: 'Info en chauffe', f: 'cmd', filter: C_INFO, help: 'Binaire, ou valeur > 0 (ex. courant compresseur). Le ballon s\'illumine.' },
+      { k: 'heatOn', l: 'Valeur « en chauffe » (option)', ph: 'ex. 17', help: 'Si l\'info est un code d\'état : la valeur qui veut dire « chauffe ».' },
+      { k: 'cmdFan', l: 'Info ventilateur (vitesse ou débit)', f: 'cmd', filter: C_INFO, help: 'Le ventilateur dessiné tourne quand la valeur > 0, plus vite si la vitesse est élevée.' },
+      { k: 'cmdLevel', l: 'Info eau chaude disponible en % (option)', f: 'cmd', filter: C_INFO },
+      { k: 'cmdStatus', l: 'Info état / mode (option)', f: 'cmd', filter: C_INFO },
+      { k: 'statusMap', l: 'Traduction de l\'état', ph: '17=Chauffe PAC;3=Veille', help: 'valeur=texte, séparés par ;' },
+      { k: 'cmdBoost', l: 'Action Boost', f: 'cmd', filter: C_ACTION, half: true },
+      { k: 'cmdBoostInfo', l: 'Info Boost actif', f: 'cmd', filter: C_INFO, half: true },
+      { k: 'options', l: 'Autres boutons (libellé + action)', f: 'options', help: 'ex. Auto, Vacances…' },
+      { k: 'lab1', l: 'Info 1 : libellé', ph: 'auto', half: true }, { k: 'cmdX1', l: 'Info 1', f: 'cmd', filter: C_INFO, half: true },
+      { k: 'lab2', l: 'Info 2 : libellé', ph: 'auto', half: true }, { k: 'cmdX2', l: 'Info 2', f: 'cmd', filter: C_INFO, half: true },
+      { k: 'lab3', l: 'Info 3 : libellé', ph: 'auto', half: true }, { k: 'cmdX3', l: 'Info 3', f: 'cmd', filter: C_INFO, half: true },
+      { k: 'lab4', l: 'Info 4 : libellé', ph: 'auto', half: true }, { k: 'cmdX4', l: 'Info 4', f: 'cmd', filter: C_INFO, half: true },
+      { k: 'lab5', l: 'Info 5 : libellé', ph: 'auto', half: true }, { k: 'cmdX5', l: 'Info 5', f: 'cmd', filter: C_INFO, half: true },
+      { k: 'lab6', l: 'Info 6 : libellé', ph: 'auto', half: true }, { k: 'cmdX6', l: 'Info 6', f: 'cmd', filter: C_INFO, half: true },
+      { k: 'details', l: 'Courbe au clic sur le ballon', f: 'sel', o: { '': 'Non', clic: 'Oui' } }],
+    camera: [{ k: 'frigateUrl', l: 'Adresse de Frigate', ph: 'http://192.168.1.x:5000', help: 'Port 5000 (API interne de Frigate, sans authentification).' },
+      { k: 'frigateCam', l: 'Nom de la caméra', ph: 'ex. portail', help: 'Le nom tel que dans la configuration de Frigate.' },
+      { k: 'frigateMode', l: 'Mode', f: 'sel', o: { mjpeg: 'Flux vidéo MJPEG', snapshot: 'Capture rafraîchie (léger)', go2rtc: 'Direct go2rtc (WebRTC, le plus fluide)' }, keep: true },
+      { k: 'camProxy', l: 'Via Jeedom (accès à distance)', f: 'check', help: 'Le serveur Jeedom récupère l\'image et la renvoie : la caméra est visible partout où Jeedom l\'est, sans ouvrir Frigate à l\'extérieur. Un flux vidéo se met en pause après 60 s (appui pour relancer). Le mode go2rtc passe alors en MJPEG. Enregistrez la page pour l\'activer (l\'éditeur affiche la caméra en direct).' },
+      { k: 'frigateFps', l: 'Images par seconde', f: 'num', ph: '5', show: function (t) { return !t.frigateMode || t.frigateMode === 'mjpeg' || (t.frigateMode === 'go2rtc' && t.camProxy); } },
+      { k: 'frigateH', l: 'Hauteur de l\'image (px)', f: 'num', ph: '720', show: function (t) { return t.frigateMode !== 'go2rtc' || t.camProxy; } },
+      { k: 'camRefresh', l: 'Rafraîchir toutes les (s)', f: 'num', ph: '5', show: function (t) { return t.frigateMode === 'snapshot'; } },
+      { k: 'go2rtcUrl', l: 'Adresse go2rtc', ph: 'auto : même IP, port 1984', show: function (t) { return t.frigateMode === 'go2rtc' && !t.camProxy; }, help: 'Le port 1984 de go2rtc doit être accessible depuis le navigateur.' },
+      { k: 'cmdRec', l: 'Info enregistrement (binaire)', f: 'cmd', filter: C_INFO, help: 'Pastille REC rouge quand l\'enregistrement est actif.' },
+      { k: 'cmdRecOn', l: 'Action activer l\'enregistrement (option)', f: 'cmd', filter: C_ACTION, help: 'Avec les actions, un appui sur la pastille bascule l\'état.' },
+      { k: 'cmdRecOff', l: 'Action désactiver l\'enregistrement (option)', f: 'cmd', filter: C_ACTION },
+      { k: 'cmdDet', l: 'Info détection de mouvement (binaire)', f: 'cmd', filter: C_INFO },
+      { k: 'cmdDetOn', l: 'Action activer la détection (option)', f: 'cmd', filter: C_ACTION },
+      { k: 'cmdDetOff', l: 'Action désactiver la détection (option)', f: 'cmd', filter: C_ACTION },
+      { k: 'cmdPtzUp', l: 'PTZ : haut', f: 'cmd', filter: C_ACTION, half: true, help: 'Commandes affichées dans la vue agrandie (plein écran). Toutes optionnelles.' },
+      { k: 'cmdPtzDown', l: 'PTZ : bas', f: 'cmd', filter: C_ACTION, half: true },
+      { k: 'cmdPtzLeft', l: 'PTZ : gauche', f: 'cmd', filter: C_ACTION, half: true },
+      { k: 'cmdPtzRight', l: 'PTZ : droite', f: 'cmd', filter: C_ACTION, half: true },
+      { k: 'cmdPtzIn', l: 'PTZ : zoom +', f: 'cmd', filter: C_ACTION, half: true },
+      { k: 'cmdPtzOut', l: 'PTZ : zoom −', f: 'cmd', filter: C_ACTION, half: true },
+      { k: 'cmdPtzHome', l: 'PTZ : position d\'origine', f: 'cmd', filter: C_ACTION, half: true },
+      { k: 'cmdPtzStop', l: 'PTZ : stop', f: 'cmd', filter: C_ACTION, half: true },
+      { k: 'ptzMode', l: 'Déplacement', f: 'sel', o: { '': 'Un appui = un pas', maintenir: 'Maintenir appuyé (envoie Stop au relâché)' }, help: '« Maintenir » nécessite la commande Stop (caméras qui bougent en continu).' },
+      { k: 'options', l: 'Positions prédéfinies (libellé + action)', f: 'options', help: 'Boutons en bas de la vue agrandie. Clavier : 1 à 9.' },
+      { k: 'camFit', l: 'Image', f: 'sel', o: { '': 'Remplir la tuile', contain: 'Entière' } },
+      { k: 'camLive', l: 'Pastille LIVE', f: 'check' },
+      { k: 'camZoom', l: 'Plein écran au clic', f: 'check', keepFalse: true }],
+    web: [{ k: 'webUrl', l: 'Adresse de la page', ph: 'http://…', help: 'Certaines pages refusent d\'être affichées dans un cadre : elles resteront blanches.' },
+      { k: 'webZoom', l: 'Zoom (%)', f: 'num', ph: '100' },
+      { k: 'webInteractive', l: 'Utilisable dans la tuile (cliquer, défiler)', f: 'check', help: 'Sinon, un clic ouvre la page en plein écran.' },
+      { k: 'webRefresh', l: 'Recharger toutes les (min)', f: 'num', ph: '0 = jamais' }]
+  };
+
+  function hasAnimIcon(t) {
+    return ['icon', 'iconOff', 'iconActive'].some(function (k) { return /svg:a-/.test(t[k] || ''); }) ||
+      (Array.isArray(t.lines) && t.lines.some(function (l) { return /svg:a-/.test(l.icon || ''); }));
+  }
+  var COMMON = [
+    { k: 'title', l: 'Nom' },
+    { k: 'type', l: 'Fonction', f: 'func' },
+    { k: 'stack', l: 'Empiler sous la tuile précédente', f: 'check', help: 'La tuile se met sous la précédente, dans la même case. La pile fait au moins 1 case de haut (plus si la première tuile est plus haute) et ses tuiles se la partagent à parts égales : la rangée reste droite, qu\'il y en ait 2, 3 ou plus.' },
+    { k: 'w', l: 'Largeur (cases)', f: 'sel', o: SIZES, half: true, show: function (t) { return !t.stack; } },
+    { k: 'h', l: 'Hauteur (cases)', f: 'sel', o: SIZES, half: true, show: function (t) { return !t.stack; } },
+    { k: 'x', l: 'Position : colonne', f: 'pos', show: function (t) { return !t.stack; }, help: 'Placement libre. 1 = première colonne, 1.5 = milieu de la première case, 2.25… Vide = automatique. Plus simple : glissez la tuile dans l\'aperçu.' },
+    { k: 'y', l: 'Position : ligne', f: 'pos', show: function (t) { return !t.stack; }, help: '1 = première ligne, 1.5 = sous une tuile de ½ de haut… Vide = automatique.' }
+  ];
+  var LOOK = [
+    { k: 'hideTitle', l: 'Masquer le nom', f: 'check' },
+    { k: 'titleIcon', l: 'Icône devant le nom', f: 'icon', help: 'Petite icône à gauche du nom (style des thèmes).' },
+    { k: 'titlePx', l: 'Taille du nom (px)', f: 'num', ph: 'auto', help: 'Taille fixe du nom, comme dans Word. Vide = automatique selon la tuile.' },
+    { k: 'textPx', l: 'Taille du texte (px)', f: 'num', ph: 'auto', help: 'Taille fixe des valeurs et textes de la tuile. Le texte ne rétrécit que s\'il dépasse de la tuile.' },
+    { k: 'iconPx', l: 'Taille de l\'icône (px)', f: 'num', ph: 'auto', help: 'Taille fixe de l\'icône ou du bouton rond' },
+    { k: 'titleColor', l: 'Couleur du nom', f: 'color' },
+    { k: 'bg', l: 'Fond de la tuile', f: 'color' },
+    { k: 'radius', l: 'Arrondi (px)', f: 'num', ph: '14' }
+  ];
+  var ROW_SCHEMA = [
+    { k: 'space', l: 'Espace au-dessus (px)', f: 'num', ph: '30' },
+    { k: 'title', l: 'Libellé (option)', ph: 'ex. Groupes' },
+    { k: 'titleColor', l: 'Couleur du libellé', f: 'color' },
+    { k: 'mobile.hide', l: 'Ignorer sur mobile', f: 'check' }
+  ];
+  /** Plage que le slider utilisera en auto (pour l'afficher dans l'éditeur). */
+  function autoRange(t) {
+    var c = Object.assign({}, t); delete c.sMin; delete c.sMax; delete c.sStep;
+    return T.sliderRange({ meta: function (id) { id = cleanId(id); return id ? E.cmds[id] || null : null; } }, c);
+  }
+  var ACTIVE_HELP = '« Actif » = info à 1 / marche, ouvrant ouvert, bouton en marche, ou valeur qui atteint une ligne de « Couleurs selon la valeur ».';
+  var FRAME = [
+    { k: 'frameOn', l: 'Activer la couleur du cadre', f: 'check', keepFalse: true },
+    { k: 'frameTh', base: 'frameBase', l: 'Couleur du cadre selon la valeur', f: 'thresholds', show: function (t) { return t.frameOn === true; }, help: 'Indépendant de la couleur de la valeur. Jusqu\'à 10 lignes : un nombre = à partir de cette valeur, un texte = si égal.' },
+    { k: 'frameW', l: 'Épaisseur du cadre (px)', f: 'num', ph: '3', show: function (t) { return t.frameOn === true; } },
+    { k: 'frameGlow', l: 'Cadre lumineux (halo)', f: 'check', show: function (t) { return t.frameOn === true; } },
+    { k: 'cmdFrame', l: 'Info du cadre (option)', f: 'cmd', filter: C_INFO, show: function (t) { return t.frameOn === true; }, help: 'Vide = l\'info de la tuile. Permet un cadre piloté par une autre info.' }
+  ];
+  function hasFrame(t) { return (Array.isArray(t.frameTh) && t.frameTh.length) || isSet(t.frameBase); }
+  var EFFECTS = [
+    { k: 'anim', l: 'Animation', f: 'sel', o: { '': 'Aucune', rotation: 'Rotation (pompe, ventilateur)', pulsation: 'Pulsation (goutte, cœur)', clignotement: 'Clignotement (alerte)', rebond: 'Rebond', secousse: 'Secousse (cloche, réveil)' } },
+    { k: 'animWhen', l: 'Animer', f: 'sel', o: { '': 'Quand actif', toujours: 'Toujours' }, help: ACTIVE_HELP, show: function (t) { return !!t.anim; } },
+    { k: 'glow', l: 'Halo néon', f: 'sel', o: { '': 'Aucun', tuile: 'Autour de la tuile', icone: 'Sur l\'icône / la valeur' }, help: 'Halo lumineux de la couleur actuelle (couleur de l\'état ou du seuil).' },
+    { k: 'glowWhen', l: 'Allumer le halo', f: 'sel', o: { '': 'Quand actif', toujours: 'Toujours' }, help: ACTIVE_HELP, show: function (t) { return !!t.glow; } },
+    { k: 'roll', l: 'Changement de valeur', f: 'sel', o: { '': 'Le chiffre défile + flash', non: 'Direct' }, show: function (t) { return t.type === 'valeur'; } },
+    { k: 'spark', l: 'Mini-courbe en fond', f: 'check', help: 'Courbe de l\'historique Jeedom derrière la valeur. L\'info doit être historisée.', show: function (t) { return ['valeur', 'jauge', 'texte', 'lignes', 'icone'].indexOf(t.type) >= 0; } },
+    { k: 'cmdSpark', l: 'Info de la courbe', f: 'cmd', filter: C_INFO, help: 'Vide = l\'info de la tuile', show: function (t) { return !!t.spark; } },
+    { k: 'sparkHours', l: 'Durée de la courbe (h)', f: 'num', ph: '24', show: function (t) { return !!t.spark; } },
+    { k: 'flip', l: 'Recto-verso (appui long)', f: 'check', help: 'Un appui long retourne la tuile : au dos, valeur actuelle, min / max / moyenne, dernière mise à jour et commandes secondaires. Remplace l\'action « appui long ».' },
+    { k: 'cmdBack', l: 'Commandes au dos', f: 'cmdlist', filter: C_ACTION, noQuick: true, show: function (t) { return !!t.flip; } }
+  ];
+  var ADVANCED = [
+    { k: 'maxAge', l: 'Alerte si info non mise à jour depuis (min)', f: 'num', ph: 'non' },
+    { k: 'mobile.hide', l: 'Masquer sur mobile', f: 'check' },
+    { k: 'mobile.split', l: 'Sur mobile, une tuile par ligne', f: 'check', show: function (t) { return t.type === 'lignes'; } },
+    { k: 'mobile.order', l: 'Ordre sur mobile', f: 'num', ph: 'même ordre' }
+  ];
+  var LINE_SCHEMA = [
+    { k: 'kind', l: 'Type de ligne', f: 'sel', o: { value: 'Libellé : valeur', title: 'Sous-titre', button: 'Libellé : bouton', icon: 'Libellé : icône' }, rebuild: true },
+    { k: 'label', l: 'Libellé' },
+    { k: 'cmdInfo', l: 'Info', f: 'cmd', filter: C_INFO, show: function (l) { return l.kind !== 'title'; } },
+    { k: 'unit', l: 'Unité', ph: 'auto', show: function (l) { return !l.kind || l.kind === 'value'; } },
+    { k: 'decimals', l: 'Décimales', f: 'num', show: function (l) { return !l.kind || l.kind === 'value'; } },
+    { k: 'map', l: 'Libellés', ph: '0=Arrêt;1=Marche', show: function (l) { return !l.kind || l.kind === 'value'; } },
+    { k: 'cmdOn', l: 'Action', f: 'cmd', filter: C_ACTION, show: function (l) { return l.kind === 'button'; } },
+    { k: 'cmdOff', l: 'Action Off (option)', f: 'cmd', filter: C_ACTION, show: function (l) { return l.kind === 'button'; } },
+    { k: 'icon', l: 'Icône', f: 'icon', show: function (l) { return l.kind === 'button' || l.kind === 'icon'; } },
+    { k: 'thresholds', l: 'Couleurs selon la valeur', f: 'thresholds', show: function (l) { return l.kind !== 'title' && (l.kind !== 'button' || l.cmdInfo); } },
+    { k: 'color', l: 'Couleur', f: 'color' }
+  ];
+
+  /* ================================================================== */
+  /*  État                                                               */
+  /* ================================================================== */
+
+  var E = {
+    eqId: null, layout: null, cmds: {}, sel: null, presets: {}, pages: [], objects: [],
+    theme: {}, homeId: '', mobile: false, page: null, ready: null
+  };
+
+  function newId() { return 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+  function modified() {
+    window.modifyWithoutSave = true;
+    if (window.jeeFrontEnd) window.jeeFrontEnd.modifyWithoutSave = true;
+  }
+  function getPath(o, k) {
+    var parts = k.split('.');
+    for (var i = 0; i < parts.length; i++) { if (!o) return undefined; o = o[parts[i]]; }
+    return o;
+  }
+  function setPath(o, k, v) {
+    var parts = k.split('.');
+    for (var i = 0; i < parts.length - 1; i++) { o[parts[i]] = o[parts[i]] || {}; o = o[parts[i]]; }
+    var last = parts[parts.length - 1];
+    if (v === '' || v === false || v === null || v === undefined || (Array.isArray(v) && !v.length)) delete o[last];
+    else o[last] = v;
+  }
+  function tileById(id) { return (E.layout.tiles || []).filter(function (t) { return t.id === id; })[0] || null; }
+  function selTile() { return E.sel ? tileById(E.sel) : null; }
+  function toast(m, k) { T.ui.toast(m, k); }
+  function fail(e) { toast(e && e.message ? e.message : String(e), 'error'); }
+
+  function ensureMetas(ids) {
+    ids = (ids || []).map(cleanId).filter(function (id) { return id && !E.cmds[id]; });
+    if (!ids.length) return Promise.resolve();
+    return T.ajax('getCmds', { ids: ids }).then(function (metas) {
+      Object.keys(metas || {}).forEach(function (id) { E.cmds[id] = metas[id]; });
+    });
+  }
+
+  function editorInit() {
+    if (!E.ready) {
+      E.ready = T.ajax('editorInit', {}).then(function (d) {
+        E.presets = d.presets || {};
+        E.pages = d.pages || [];
+        E.objects = d.objects || [];
+        E.theme = d.theme || {};
+        var map = { title: 'title', text: 'text', ok: 'ok', warn: 'warn', alert: 'alert', info: 'info', neutral: 'neutral', on: 'on', off: 'off' };
+        var el = document.querySelector('.tl-ed');
+        if (el) Object.keys(map).forEach(function (k) { if (isSet(E.theme[k])) el.style.setProperty('--tl-c-' + map[k], E.theme[k]); });
+        E.homeId = d.homeId || '';
+        E.lat = d.lat; E.lon = d.lon;
+        E.nav = d.nav || { enabled: false, home: false, items: [] };
+      });
+    }
+    return E.ready;
+  }
+
+  /* ================================================================== */
+  /*  Hooks du template de plugin Jeedom                                 */
+  /* ================================================================== */
+
+  /** Anciennes règles, préréglages et couleur fixe → seuils (les préréglages n'existent plus). */
+  function migrateColors(t, presets) {
+    var rules = (t.rules && t.rules.length) ? t.rules : (t.preset && presets && presets[t.preset]) || null;
+    var hasTh = Array.isArray(t.thresholds) && t.thresholds.length;
+    if (rules && !hasTh) {
+      var up = rules.filter(function (r) { return r.op === '<' || r.op === '<='; });
+      var down = rules.filter(function (r) { return r.op === '>' || r.op === '>='; });
+      var other = rules.filter(function (r) { return ['<', '<=', '>', '>=', 'else'].indexOf(r.op) < 0; });
+      var els = rules.filter(function (r) { return r.op === 'else'; })[0];
+      var th = [], base;
+      if (!other.length && up.length && !down.length) {
+        up = up.slice().sort(function (a, b) { return parseFloat(a.v) - parseFloat(b.v); });
+        base = up[0].color;
+        up.forEach(function (r, i) { th.push({ v: r.v, color: i + 1 < up.length ? up[i + 1].color : (els ? els.color : r.color) }); });
+      } else if (!other.length && down.length && !up.length) {
+        down.forEach(function (r) { th.push({ v: r.v, color: r.color }); });
+        base = els ? els.color : undefined;
+      }
+      th = th.filter(function (x) { return U.isNum(x.v); }).slice(0, 10);
+      if (th.length) { t.thresholds = th; if (isSet(base)) t.thBase = base; }
+    }
+    delete t.rules;
+    delete t.preset;
+    if (isSet(t.color) && ['valeur', 'jauge', 'texte', 'lien'].indexOf(t.type) >= 0 && !isSet(t.thBase)) t.thBase = t.color;
+    if (['valeur', 'jauge', 'texte', 'lien'].indexOf(t.type) >= 0) delete t.color;
+    if (t.colorTarget === 'border') {
+      if (Array.isArray(t.thresholds) && t.thresholds.length && !(Array.isArray(t.frameTh) && t.frameTh.length)) t.frameTh = t.thresholds;
+      if (isSet(t.thBase) && !isSet(t.frameBase)) t.frameBase = t.thBase;
+      delete t.thresholds; delete t.thBase; delete t.colorTarget;
+    }
+    if (t.frameOn === undefined && hasFrame(t)) t.frameOn = true;
+    (t.lines || []).forEach(function (l) { migrateColors(l, presets); });
+  }
+  function migrateSizes(t, g) {
+    var base = Math.min(parseFloat(g.cellH) > 0 ? parseFloat(g.cellH) : 200, parseFloat(g.size) || 200);
+    if (t.titleSize === 'grand' && !U.isNum(t.titlePx)) t.titlePx = Math.round(base * 0.25);
+    delete t.titleSize;
+    if ((t.size === 'grand' || t.size === 'petit') && !U.isNum(t.textPx)) {
+      var k = { valeur: { grand: 0.4, petit: 0.17 }, texte: { grand: 0.22, petit: 0.1 }, horloge: { grand: 0.22, petit: 0.1 } }[t.type];
+      if (k && k[t.size]) t.textPx = Math.round(base * k[t.size]);
+    }
+    delete t.size;
+  }
+
+  window.printEqLogic = function (_eqLogic) {
+    E.eqId = _eqLogic.id;
+    var raw = _eqLogic.configuration ? _eqLogic.configuration.layout : null;
+    var layout = null;
+    if (raw && typeof raw === 'object') layout = raw;
+    else if (isSet(raw)) { try { layout = JSON.parse(raw); } catch (e) { layout = null; } }
+    if (!layout || typeof layout !== 'object') layout = { version: 1, grid: {}, tiles: [] };
+    layout.grid = Object.assign({ cols: 5, size: 200, gap: 12, mobileCols: 3, dense: true, icon: 'fas fa-th-large' }, layout.grid || {});
+    layout.tiles = Array.isArray(layout.tiles) ? layout.tiles : [];
+    layout.tiles.forEach(function (t) { if (!t.id) t.id = newId(); });
+    E.layout = layout;
+    E.sel = null;
+    var base = location.pathname.replace(/[^/]*$/, '');
+    var url = location.origin + base + 'index.php?v=d&m=tuiles&p=panel&page_id=' + E.eqId;
+    $('#span_tlUrl').text(url);
+    $('#span_tlUrlKiosk').text(url + '&kiosk=1');
+    editorInit().then(function () {
+      layout.tiles.forEach(function (t) { migrateColors(t, E.presets); migrateSizes(t, layout.grid); });
+      // page libre : l'ancienne colonne de gauche rejoint la grille (le bouton Accueil automatique est retiré)
+      var hadSide = false;
+      layout.tiles = layout.tiles.filter(function (t) {
+        if (t.zone !== 'side') return true;
+        hadSide = true;
+        if (t.type === 'lien' && (t.target || 'home') === 'home' && t.id === 'home') return false;
+        delete t.zone; delete t.x; delete t.y;
+        return true;
+      });
+      if (layout.grid) delete layout.grid.sideCols;
+      if (hadSide) setTimeout(function () { toast('Colonne de gauche supprimée : ses tuiles sont dans la grille. Sauvegardez pour garder ce changement.'); modified(); }, 300);
+      return ensureMetas(U.collectIds([layout.tiles, (layout.grid || {}).alerts || []]));
+    }).then(function () {
+      E.mobile = layout.grid.device === 'mobile' && !(parseFloat(layout.grid.width) > 0);
+      $('#cb_tlMobile').prop('checked', E.mobile);
+      renderGridConf();
+      renderAll();
+    }).catch(fail);
+  };
+
+  window.saveEqLogic = function (_eqLogic) {
+    if (E.layout && String(_eqLogic.id) === String(E.eqId)) {
+      _eqLogic.configuration = _eqLogic.configuration || {};
+      _eqLogic.configuration.layout = JSON.stringify(E.layout);
+    }
+    // une page Tuiles n'a aucune commande
+    _eqLogic.cmd = [];
+    return _eqLogic;
+  };
+
+  window.addCmdToTable = function () {};
+
+  /* ================================================================== */
+  /*  Rendu de l'éditeur                                                 */
+  /* ================================================================== */
+
+  var previewTimer = null;
+  function renderPreview() {
+    clearTimeout(previewTimer);
+    previewTimer = setTimeout(function () {
+      var root = document.getElementById('div_tlPreview');
+      if (!root || !E.layout) return;
+      $('#div_tlPreviewWrap').toggleClass('tl-ed-mobile', E.mobile);
+      E.page = T.mount(root, {
+        id: E.eqId, layout: E.layout, cmds: E.cmds, theme: E.theme, presets: E.presets, pages: E.pages, homeId: E.homeId,
+        device: (E.layout.grid || {}).device === 'mobile' ? 'mobile' : 'tablette', lat: E.lat, lon: E.lon, nav: E.nav
+      }, {
+        edit: true, noResync: true, mobile: E.mobile ? true : false, selected: E.sel,
+        onSelect: function (id) { select(id); },
+        onMove: function (src, target) { moveTile(src, target); },
+        onPlace: function (src, x, y, zone) { placeTile(src, x, y, zone); },
+        onSwap: function (a, b) { swapTiles(a, b); },
+        lastMoved: E.lastMoved
+      });
+      // positions corrigées par l'anti-chevauchement : on les enregistre
+      var fixed = E.page.resolved || {}, changedSel = false;
+      Object.keys(fixed).forEach(function (id) {
+        var tt = tileById(id);
+        if (!tt) return;
+        tt.x = fixed[id].x; tt.y = fixed[id].y;
+        if (id === E.sel) changedSel = true;
+        modified();
+      });
+      if (changedSel) renderProps();
+      showCell();
+    }, 60);
+  }
+  function renderAll() {
+    renderPreview();
+    renderProps();
+    updateBar();
+  }
+  function select(id) {
+    E.sel = id;
+    if (E.page) {
+      E.page.opts.selected = id;
+      $('#div_tlPreview .tl-tile').removeClass('tl-selected');
+      $('#div_tlPreview .tl-tile[data-id="' + id + '"]').addClass('tl-selected');
+    }
+    renderProps();
+    updateBar();
+  }
+  function updateBar() {
+    var has = !!selTile();
+    $('#bt_tlMoveLeft,#bt_tlMoveRight,#bt_tlDuplicate,#bt_tlDelete').toggleClass('disabled', !has);
+  }
+
+  /* ---------- réglages de grille ---------- */
+  function renderGridConf() {
+    var g = E.layout.grid;
+    var box = $('#div_tlGridConf').empty();
+    var line1 = $('<div class="tl-ed-gridline"></div>'), line2 = $('<div class="tl-ed-gridline"></div>');
+    var num = function (target, k, label, o) {
+      o = o || {};
+      var inp = $('<input type="number" class="form-control input-sm">').attr({ min: o.min, max: o.max, placeholder: o.ph || '' }).val(isSet(g[k]) && !(o.zeroEmpty && !parseFloat(g[k])) ? g[k] : '');
+      if (o.w) inp.css('width', o.w);
+      inp.on('change', function () {
+        var v = parseFloat(inp.val());
+        g[k] = isNaN(v) ? (o.def !== undefined ? o.def : 0) : v;
+        if (k === 'width' && g.device === 'mobile') {
+          E.mobile = !(parseFloat(g.width) > 0);
+          $('#cb_tlMobile').prop('checked', E.mobile);
+        }
+        modified(); renderPreview(); renderGridConf();
+      });
+      var lab = $('<label class="tl-ed-inline"></label>').text(label + ' ').append(inp);
+      if (o.title) lab.attr('title', o.title);
+      target.append(lab);
+      return lab;
+    };
+    line1.append('<b class="tl-ed-gl">Design</b>');
+    var dev = $('<select class="form-control input-sm" style="width:auto"></select>');
+    [['tablette', 'Tablette'], ['mobile', 'Mobile']].forEach(function (o) { dev.append($('<option></option>').val(o[0]).text(o[1])); });
+    if (g.device !== 'mobile') g.device = 'tablette';
+    dev.val(g.device);
+    dev.on('change', function () {
+      g.device = dev.val();
+      if (g.device === 'mobile') {
+        if (!(parseFloat(g.cols) <= 4)) g.cols = 3;
+        // retire le bouton Accueil de la colonne de gauche
+        E.layout.tiles = E.layout.tiles.filter(function (t) { return !(t.zone === 'side' && t.type === 'lien' && (t.target || 'home') === 'home'); });
+        if (parseFloat(g.width) > 1000) { delete g.width; delete g.height; }
+      }
+      E.mobile = g.device === 'mobile' && !(parseFloat(g.width) > 0);
+      $('#cb_tlMobile').prop('checked', E.mobile);
+      modified(); renderGridConf(); renderPreview();
+    });
+    line1.append($('<label class="tl-ed-inline" title="Appareil pour lequel cette page est conçue (classement dans « Mes pages »)"></label>').text('Appareil ').append(dev));
+    var FORMATS = {
+      tablette: [['1280x800', 'Tablette 1280 × 800'], ['800x1280', 'Tablette portrait 800 × 1280'], ['1024x768', 'iPad 1024 × 768'], ['768x1024', 'iPad portrait 768 × 1024'], ['1920x1200', 'Tablette 1920 × 1200']],
+      mobile: [['360x800', 'Android 360 × 800'], ['384x832', 'Galaxy S24 FE 384 × 832'], ['412x915', 'Android 412 × 915'], ['390x844', 'iPhone 390 × 844'], ['430x932', 'iPhone Max 430 × 932']] };
+    var fmt = $('<select class="form-control input-sm" style="width:auto"></select>');
+    fmt.append('<option value="">Libre</option>');
+    (FORMATS[g.device === 'mobile' ? 'mobile' : 'tablette'] || []).forEach(function (f) { fmt.append($('<option></option>').val(f[0]).text(f[1])); });
+    var curFmt = (parseFloat(g.width) > 0 && parseFloat(g.height) > 0) ? (parseInt(g.width, 10) + 'x' + parseInt(g.height, 10)) : '';
+    fmt.val(fmt.find('option[value="' + curFmt + '"]').length ? curFmt : '');
+    fmt.on('change', function () {
+      if (!fmt.val()) return;
+      var wh = fmt.val().split('x');
+      g.width = parseInt(wh[0], 10); g.height = parseInt(wh[1], 10); g.fit = true;
+      E.mobile = false;
+      $('#cb_tlMobile').prop('checked', false);
+      modified(); renderGridConf(); renderPreview();
+    });
+    line1.append($('<label class="tl-ed-inline" title="Formats courants : remplit la largeur et la hauteur et active « Adapter à l\'écran »"></label>').text('Format ').append(fmt));
+    num(line1, 'width', 'Largeur (px)', { min: 0, ph: 'auto', zeroEmpty: true, w: 80, title: 'Largeur totale de la page en pixels. Vide = s\'adapte à l\'écran.' });
+    num(line1, 'height', 'Hauteur (px)', { min: 0, ph: 'libre', zeroEmpty: true, w: 80, title: 'Hauteur totale de la page en pixels. Vide = selon le contenu.' });
+    var fit = $('<input type="checkbox">').prop('checked', !!g.fit);
+    fit.on('change', function () { g.fit = fit.is(':checked'); modified(); renderPreview(); });
+    E.fitLabel = $('<label class="tl-ed-inline" title="Agrandit ou réduit le design pour remplir l\'écran (tablette murale)"></label>').append(fit).append(' Adapter à l\'écran');
+    line1.append(E.fitLabel);
+    num(line1, 'pad', 'Marge (px)', { min: 0, max: 200, ph: '12', def: 12, w: 70 });
+    var bgLab = $('<label class="tl-ed-inline" title="Couleur de fond de toute la page (vide = fond Jeedom)"></label>').text('Fond de page ');
+    bgLab.append(colorField(g.bg, 'auto', function (c) { if (isSet(c)) g.bg = c; else delete g.bg; modified(); renderPreview(); }));
+    line1.append(bgLab);
+    line1.append('<span class="tl-ed-cell" id="span_tlCell"></span>');
+
+    line2.append('<b class="tl-ed-gl">Grille</b>');
+    num(line2, 'cols', 'Colonnes', { min: 1, max: 20, def: 5, w: 60 });
+    E.sizeLabel = num(line2, 'size', 'Case (px)', { min: 40, max: 600, def: 200, w: 70, title: 'Taille d\'une case quand la largeur du design est vide' });
+    num(line2, 'cellH', 'Hauteur case (px)', { min: 0, max: 600, ph: '= largeur', zeroEmpty: true, w: 90, title: 'Vide = cases carrées' });
+    num(line2, 'gap', 'Espace entre tuiles (px)', { min: 0, max: 100, def: 12, w: 60 });
+    num(line2, 'mobileCols', 'Colonnes mobile', { min: 1, max: 6, def: 3, w: 60 }).addClass('tl-ed-onlydesk');
+    var dense = $('<input type="checkbox">').prop('checked', g.dense !== false);
+    dense.on('change', function () { g.dense = dense.is(':checked'); modified(); renderPreview(); });
+    line2.append($('<label class="tl-ed-inline" title="Les petites tuiles comblent les trous automatiquement"></label>').append(dense).append(' Remplissage auto'));
+    var icon = $('<input type="text" class="form-control input-sm" style="width:130px">').val(g.icon || '');
+    icon.on('change', function () { g.icon = icon.val(); modified(); });
+    line2.append($('<label class="tl-ed-inline" title="Icône de la page dans la liste des pages"></label>').text('Icône ').append(icon));
+    var line3 = $('<div class="tl-ed-gridline"></div>');
+    line3.append('<b class="tl-ed-gl">Style</b>');
+    var skin = $('<select class="form-control input-sm" style="width:auto"></select>');
+    [['', 'Aucun (noir)'], ['neon-bleu', 'Néon bleu'], ['neon-vert', 'Néon vert'], ['neon-violet', 'Néon violet'], ['ambre', 'Ambre'], ['graphite', 'Graphite'], ['aurore', 'Aurore'], ['cockpit', 'Cockpit'], ['ardoise', 'Ardoise']].forEach(function (o) { skin.append($('<option></option>').val(o[0]).text(o[1])); });
+    skin.val(g.skin || '').on('change', function () { if (skin.val()) g.skin = skin.val(); else delete g.skin; modified(); renderPreview(); });
+    line3.append($('<label class="tl-ed-inline" title="Tuiles en verre avec contour lumineux, noms en petites capitales. Les couleurs de chaque tuile restent prioritaires."></label>').text('Thème ').append(skin));
+    var nav = $('<select class="form-control input-sm" style="width:auto"></select>');
+    [['', 'Barre commune'], ['none', 'Pas de barre sur cette page']].forEach(function (o) { nav.append($('<option></option>').val(o[0]).text(o[1])); });
+    nav.val(g.nav === 'none' ? 'none' : '').on('change', function () { if (nav.val()) g.nav = nav.val(); else delete g.nav; delete g.navLabel; delete g.navOrder; delete g.navHide; delete g.navHome; modified(); renderPreview(); });
+    line3.append($('<label class="tl-ed-inline" title="La barre d\'onglets est commune à toutes les pages ; elle peut être masquée sur une page."></label>').text('Onglets ').append(nav));
+    line3.append($('<a class="btn btn-xs btn-primary"><i class="fas fa-grip-lines"></i> Régler la barre d\'onglets…</a>').on('click', function () { openNavEditor(); }));
+    box.append(line1).append(line2).append(line3);
+    box.append(alertsConf(g));
+    syncGridConf();
+  }
+
+  /* ---------- barre d'onglets commune (toutes les pages) ---------- */
+  function openNavEditor() {
+    editorInit().then(function () {
+      var nav = JSON.parse(JSON.stringify(E.nav || { enabled: false, home: false, items: [] }));
+      var items = T.navItems({ nav: nav, pages: E.pages });
+      var DEV = { tablette: 'Tablette', mobile: 'Mobile' };
+      var body = $('<div class="tl-ed-nav"></div>');
+      nav.devices = nav.devices || { tablette: !!nav.enabled, mobile: !!nav.enabled };
+      delete nav.devices.pc;
+      var hm = $('<input type="checkbox">').prop('checked', !!nav.home);
+      // seulement les appareils qui ont des pages
+      var DEVS = [['tablette', 'Tablette'], ['mobile', 'Mobile']].filter(function (d) { return E.pages.some(function (pg) { return (pg.device === 'mobile' ? 'mobile' : 'tablette') === d[0]; }); });
+      var devRow = $('<div class="tl-ed-navopt"><b>Afficher la barre sur les pages :</b> </div>');
+      DEVS.forEach(function (d) {
+        var c = $('<input type="checkbox">').prop('checked', !!nav.devices[d[0]]).on('change', function () { nav.devices[d[0]] = c.is(':checked'); });
+        devRow.append($('<label class="tl-ed-inline" style="margin-left:10px"></label>').append(c).append(' ' + d[1]));
+      });
+      body.append(devRow);
+      var sz = $('<input type="range" min="60" max="300" step="10" style="width:220px;display:inline-block;vertical-align:middle">').val(nav.size || 100);
+      var szv = $('<b style="display:inline-block;width:50px;text-align:right"></b>').text((nav.size || 100) + ' %');
+      var szPrev = $('<div class="tl-ed-navprev tl-root"></div>');
+      var drawPrev = function () {
+        var k = (nav.size || 100) / 100;
+        szPrev.html('<div class="tl-tabs" style="--tk:' + k + '"><div class="tl-tabs-in"><button type="button" class="tl-tab tl-tab-home">' + T.iconHtml('svg:home') + '</button><button type="button" class="tl-tab tl-on"><span class="tl-tab-ico">' + T.iconHtml('fas fa-th-large') + '</span><span class="tl-tab-txt">Maison</span></button><button type="button" class="tl-tab"><span class="tl-tab-ico">' + T.iconHtml('svg:thermo') + '</span><span class="tl-tab-txt">Chauffage</span></button></div></div>');
+      };
+      sz.on('input', function () { nav.size = parseInt(sz.val(), 10); szv.text(nav.size + ' %'); drawPrev(); });
+      body.append($('<div class="tl-ed-navopt"></div>').append('<b>Taille des onglets :</b> ').append(sz).append(szv));
+      body.append(szPrev);
+      drawPrev();
+      body.append($('<label class="tl-ed-navopt"></label>').append(hm).append(' Bouton accueil au début de la barre'));
+      nav.homePages = nav.homePages || {};
+      var homeBox = $('<div class="tl-ed-navhome"></div>');
+      DEVS.forEach(function (d) {
+        var sel = $('<select class="form-control input-sm" style="width:auto"></select>');
+        sel.append('<option value="">Accueil du plugin</option>');
+        E.pages.filter(function (pg) { return (pg.device === 'mobile' ? 'mobile' : 'tablette') === d[0]; }).forEach(function (pg) { sel.append($('<option></option>').val(String(pg.id)).text(pg.name)); });
+        sel.val(String(nav.homePages[d[0]] || '')).on('change', function () { nav.homePages[d[0]] = sel.val(); });
+        homeBox.append($('<label class="tl-ed-inline"></label>').text('Accueil ' + d[1] + ' ').append(sel));
+      });
+      var hl = $('<input type="text" class="form-control input-sm" style="width:110px" placeholder="icône seule">').val(nav.homeLabel || '').on('input', function () { nav.homeLabel = $(this).val(); });
+      homeBox.append($('<label class="tl-ed-inline"></label>').text('Texte du bouton ').append(hl));
+      homeBox.append($('<div class="tl-ed-navhicon"></div>').append('<span>Icône du bouton </span>').append(iconField(nav.homeIcon, 'svg:home', function (v) { nav.homeIcon = v; })));
+      homeBox.append('<div class="tl-ed-hint">Le bouton accueil ouvre la page choisie pour l\'appareil (une page d\'accueil particulière : météo, résumé, alertes…). Cette page n\'est alors plus répétée dans les onglets.</div>');
+      body.append(homeBox);
+      var syncHome = function () { homeBox.toggle(hm.is(':checked')); };
+      hm.on('change', syncHome);
+      syncHome();
+      body.append('<div class="tl-ed-hint">Glissez les lignes pour changer l\'ordre. Chaque page n\'affiche que les onglets de son appareil (tablette ou mobile). Une page peut masquer la barre dans ses réglages (Style → Onglets).</div>');
+      var list = $('<div class="tl-ed-navlist"></div>');
+      body.append(list);
+      var drag = null;
+      var draw = function () {
+        list.empty();
+        items.forEach(function (it, i) {
+          var row = $('<div class="tl-ed-navrow" draggable="true"></div>').toggleClass('tl-ed-navoff', !it.show);
+          row.append('<span class="tl-ed-navgrip" title="Glisser"><i class="fas fa-grip-vertical"></i></span>');
+          var cb = $('<input type="checkbox" title="Afficher dans la barre">').prop('checked', !!it.show).on('change', function () { it.show = cb.is(':checked'); row.toggleClass('tl-ed-navoff', !it.show); });
+          row.append(cb);
+          row.append($('<span class="tl-ed-navname"></span>').text(it.name)).append($('<span class="tl-ed-navdev"></span>').text(DEV[it.device] || it.device));
+          row.append($('<input type="text" class="form-control input-sm tl-ed-navlab" placeholder="Nom d\'onglet">').val(it.label || '').on('input', function () { it.label = $(this).val(); }));
+          row.append(iconField(it.icon, it.pageIcon || 'fas fa-th-large', function (v) { it.icon = v; }));
+          var up = $('<a class="btn btn-xs btn-default" title="Monter"><i class="fas fa-arrow-up"></i></a>').on('click', function () { if (i > 0) { items.splice(i - 1, 0, items.splice(i, 1)[0]); draw(); } });
+          var dn = $('<a class="btn btn-xs btn-default" title="Descendre"><i class="fas fa-arrow-down"></i></a>').on('click', function () { if (i < items.length - 1) { items.splice(i + 1, 0, items.splice(i, 1)[0]); draw(); } });
+          row.append($('<span class="tl-ed-navarrows"></span>').append(up).append(dn));
+          row.on('dragstart', function (e) { drag = i; row.addClass('tl-ed-navdrag'); if (e.originalEvent.dataTransfer) e.originalEvent.dataTransfer.setData('text/plain', String(i)); });
+          row.on('dragend', function () { row.removeClass('tl-ed-navdrag'); list.find('.tl-ed-navover').removeClass('tl-ed-navover'); });
+          row.on('dragover', function (e) { e.preventDefault(); list.find('.tl-ed-navover').removeClass('tl-ed-navover'); row.addClass('tl-ed-navover'); });
+          row.on('drop', function (e) {
+            e.preventDefault();
+            if (drag === null || drag === i) return;
+            var moved = items.splice(drag, 1)[0];
+            items.splice(i, 0, moved);
+            drag = null;
+            draw();
+          });
+          // les champs restent utilisables (pas de glisser depuis un champ)
+          row.find('input, a, .tl-ed-icon').on('mousedown', function () { row.attr('draggable', 'false'); }).on('mouseup blur', function () { row.attr('draggable', 'true'); });
+          list.append(row);
+        });
+      };
+      draw();
+      T.ui.modal({
+        title: 'Barre d\'onglets (toutes les pages)', body: body[0], wide: true,
+        buttons: [{ label: 'Annuler' }, { label: 'Enregistrer', primary: true, click: function (close) {
+          var payload = { enabled: nav.devices.pc || nav.devices.tablette || nav.devices.mobile, devices: nav.devices, home: hm.is(':checked'), homePages: nav.homePages, size: nav.size || 100, homeLabel: nav.homeLabel || '', homeIcon: nav.homeIcon || '', items: items.map(function (it) { return { id: it.id, label: it.label || '', icon: it.icon || '', show: !!it.show }; }) };
+          T.ajax('saveNav', { nav: payload }).then(function (saved) {
+            E.nav = saved;
+            toast('Barre d\'onglets enregistrée');
+            renderPreview();
+            close();
+          }).catch(fail);
+          return false;
+        } }]
+      });
+    }).catch(fail);
+  }
+
+  /* ---------- bandeau d'alertes de la page ---------- */
+  var ALERT_OPS = [['>', '>'], ['>=', '≥'], ['<', '<'], ['<=', '≤'], ['=', '='], ['!=', '≠'], ['out', 'hors de'], ['in', 'entre'], ['text', 'texte de la commande']];
+  function alertsConf(g) {
+    var alerts = g.alerts = Array.isArray(g.alerts) ? g.alerts : [];
+    var wrap = $('<div class="tl-ed-gridline tl-ed-alerts"></div>');
+    var head = $('<b class="tl-ed-gl">Alertes</b>');
+    var toggle = $('<a class="btn btn-xs btn-default"></a>').html('<i class="fas fa-exclamation-triangle"></i> ' + (alerts.length ? alerts.length + ' règle' + (alerts.length > 1 ? 's' : '') : 'Aucune') + ' <i class="fas fa-caret-' + (E.alertsOpen ? 'up' : 'down') + '"></i>');
+    toggle.on('click', function () { E.alertsOpen = !E.alertsOpen; renderGridConf(); });
+    wrap.append(head).append(toggle);
+    wrap.append('<span class="tl-ed-hint">Bandeau en haut de la page quand une condition est vraie ; un appui le masque jusqu\'au prochain déclenchement.</span>');
+    if (!E.alertsOpen) return wrap;
+    var list = $('<div class="tl-ed-alertlist"></div>');
+    var changed = function (rebuild) { modified(); if (rebuild) renderGridConf(); };
+    alerts.forEach(function (a, i) {
+      var row = $('<div class="tl-ed-alert"></div>');
+      row.append(cmdField(a, { k: 'cmdA', filter: C_INFO }, function (v) { setPath(a, 'cmdA', v); changed(true); }));
+      var op = $('<select class="form-control input-sm" style="width:auto"></select>');
+      ALERT_OPS.forEach(function (o) { op.append($('<option></option>').val(o[0]).text(o[1])); });
+      op.val(a.op || '>').on('change', function () { a.op = op.val(); changed(true); });
+      row.append(op);
+      var inp = function (k, ph, w, type) {
+        return $('<input class="form-control input-sm">').attr({ placeholder: ph, type: type || 'text' }).css('width', w).val(isSet(a[k]) ? a[k] : '')
+          .on('change', function () { var v = $(this).val(); if (v === '') delete a[k]; else a[k] = v; changed(false); });
+      };
+      if (a.op === 'text') {
+        row.append('<span class="tl-ed-hint">une alerte par ligne (retour ligne, &lt;br&gt; ou |), rien si vide ou</span>').append(inp('okVals', 'ok;0;aucun;rien', 130));
+      } else {
+        row.append(inp('v', 'valeur', 70));
+        if (a.op === 'out' || a.op === 'in') row.append('<span>et</span>').append(inp('v2', 'valeur', 70));
+        row.append($('<label class="tl-ed-inline" title="La condition doit durer au moins ce temps avant d\'afficher l\'alerte"></label>').text('depuis ').append(inp('delay', '0', 55, 'number')).append(' min'));
+        row.append(inp('text', 'Texte (#value#, #name#, #since#)', 230));
+      }
+      row.append(colorField(a.color, a.op === 'text' ? 'auto' : '#e5484d', function (c) { if (isSet(c)) a.color = c; else delete a.color; changed(false); }));
+      var blink = $('<input type="checkbox">').prop('checked', !!a.blink).on('change', function () { a.blink = blink.is(':checked'); changed(false); });
+      row.append($('<label class="tl-ed-inline"></label>').append(blink).append(' pulse'));
+      row.append($('<a class="btn btn-xs btn-danger" title="Supprimer"><i class="fas fa-times"></i></a>').on('click', function () { alerts.splice(i, 1); changed(true); }));
+      list.append(row);
+    });
+    list.append($('<a class="btn btn-xs btn-success"><i class="fas fa-plus"></i> Ajouter une alerte</a>').on('click', function () {
+      pickCmd(C_INFO, function (cid) { alerts.push({ cmdA: cid, op: '>', v: '' }); changed(true); });
+    }));
+    list.append('<div class="tl-ed-hint">Exemples : pH <b>hors de</b> 7 et 7,6 · Porte <b>=</b> 1 depuis 10 min · Température piscine <b>&lt;</b> 10. Pour une info binaire, comparez à 1 (ou 0).</div>');
+    wrap.append(list);
+    return wrap;
+  }
+
+  function syncGridConf() {
+    var g = E.layout.grid, fixed = parseFloat(g.width) > 0, isMob = g.device === 'mobile';
+    $('#div_tlGridConf .tl-ed-onlydesk').toggle(!isMob);
+    if (E.fitLabel) E.fitLabel.toggle(fixed);
+    if (E.sizeLabel) E.sizeLabel.toggle(!fixed && !isMob);
+  }
+
+  function showCell() {
+    var p = E.page;
+    if (!p || !p.cellW) return;
+    var txt = 'Case : ' + Math.round(p.cellW) + ' × ' + Math.round(p.cellH) + ' px';
+    if (p.k && p.k < 0.999 && p.fixed) txt += ' · aperçu réduit à ' + Math.round(p.k * 100) + ' %';
+    $('#span_tlCell').text(txt);
+  }
+
+  /* ---------- panneau de propriétés ---------- */
+  function renderProps() {
+    var box = $('#div_tlProps');
+    var scroll = box.scrollTop();
+    box.empty();
+    var t = selTile();
+    if (!t) {
+      box.append('<div class="tl-ed-none"><i class="fas fa-hand-pointer"></i><br>Sélectionnez une tuile dans l\'aperçu,<br>ou cliquez sur « Ajouter une tuile ».</div>');
+      return;
+    }
+    var section = function (title, fields) {
+      var shown = fields.filter(function (f) { return !f.show || f.show(t); });
+      if (!shown.length) return;
+      box.append('<div class="tl-ed-sec">' + esc(title) + '</div>');
+      shown.forEach(function (f) { box.append(field(t, f, onTileChange)); });
+    };
+    if (t.type === 'rangee') {
+      section('Nouvelle rangée', ROW_SCHEMA);
+      box.append('<div class="tl-ed-muted">Les tuiles placées après cette ligne commencent une nouvelle rangée, avec cet espace au-dessus.</div>');
+      box.scrollTop(scroll);
+      return;
+    }
+    if (t.type === 'bouton' && (!t.behavior || !BTN_KINDS[t.behavior])) t.behavior = btnKind(t);
+    section('Tuile', COMMON);
+    section(TYPES[t.type] || t.type, SCHEMA[t.type] || []);
+    section('Apparence', LOOK);
+    section('Cadre', FRAME);
+    section('Effets', EFFECTS);
+    section('Avancé', ADVANCED);
+    box.scrollTop(scroll);
+  }
+
+  function onTileChange(f) {
+    modified();
+    renderPreview();
+    if (f && (f.f === 'sel' || f.f === 'check' || f.f === 'cmd' || f.f === 'cmdlist' || f.rebuild)) renderProps();
+  }
+
+  /** Construit un champ de formulaire lié à obj[f.k]. */
+  function field(obj, f, onChange) {
+    var row = $('<div class="tl-ed-row"></div>');
+    var label = $('<label class="tl-ed-label"></label>').text(f.l);
+    if (f.help) label.append(' <i class="fas fa-question-circle tl-ed-q" title="' + esc(f.help) + '"></i>');
+    var val = getPath(obj, f.k);
+    var ctrl;
+    var set = function (v) { setPath(obj, f.k, v); onChange(f); if (f.after) f.after(obj); };
+    switch (f.f) {
+      case 'check':
+        ctrl = $('<input type="checkbox">').prop('checked', !!val).on('change', function () {
+          if (f.keepFalse) { obj[f.k] = $(this).is(':checked'); onChange(f); return; }
+          set($(this).is(':checked'));
+        });
+        row.addClass('tl-ed-row-check').append($('<label class="tl-ed-check"></label>').append(ctrl).append(' ' + esc(f.l)));
+        return row;
+      case 'sel':
+        ctrl = $('<select class="form-control input-sm"></select>');
+        if (f.half) SIZE_LIST.forEach(function (x) { ctrl.append($('<option></option>').val(x[0].toFixed(4)).text(x[1])); });
+        else Object.keys(f.o).forEach(function (k) { ctrl.append($('<option></option>').val(k).text(f.o[k])); });
+        if (f.half) {
+          var cv = U.isNum(val) ? parseFloat(val) : 1, best = '1.0000', bd = 1e9;
+          SIZE_LIST.forEach(function (x) { var d = Math.abs(x[0] - cv); if (d < bd) { bd = d; best = x[0].toFixed(4); } });
+          ctrl.val(best);
+        }
+        else ctrl.val(isSet(val) ? String(val) : Object.keys(f.o)[0]);
+        ctrl.on('change', function () {
+          var v = ctrl.val();
+          if (f.half) v = Math.round(parseFloat(v) * 10000) / 10000;
+          if (f.k === 'type') { set(v); return; }
+          set(v === Object.keys(f.o)[0] && !f.half && !f.keep && f.k !== 'target' && f.k !== 'kind' && f.k !== 'display' ? '' : v);
+        });
+        break;
+      case 'func':
+        ctrl = $('<select class="form-control input-sm"></select>');
+        FUNCS.forEach(function (g) {
+          var og = $('<optgroup></optgroup>').attr('label', g[0]);
+          Object.keys(g[1]).forEach(function (k) { og.append($('<option></option>').val(k).text(g[1][k])); });
+          ctrl.append(og);
+        });
+        ctrl.val(val || 'valeur');
+        ctrl.on('change', function () {
+          var v = ctrl.val(), d = defaultsFor(v);
+          Object.keys(d).forEach(function (k) {
+            if (['id', 'title', 'w', 'h', 'hideTitle', 'type'].indexOf(k) < 0 && obj[k] === undefined) obj[k] = d[k];
+          });
+          obj.type = v;
+          onChange({ f: 'sel', rebuild: true });
+        });
+        break;
+      case 'eq':
+        ctrl = eqField(obj, f, set);
+        break;
+      case 'rvlist':
+        ctrl = rvListField(obj, function (ff) { onTileChange(ff); });
+        break;
+      case 'pos':
+        ctrl = $('<div class="tl-ed-pos"></div>');
+        var pin = $('<input type="number" step="0.25" min="1" class="form-control input-sm">').val(U.isNum(val) ? Math.round(parseFloat(val) * 1000) / 1000 : '').attr('placeholder', 'auto');
+        pin.on('change', function () { var v = pin.val(); E.lastMoved = obj.id; set(U.isNum(v) && parseFloat(v) >= 1 ? parseFloat(v) : ''); });
+        var auto = $('<a class="btn btn-xs btn-default" title="Revenir au placement automatique">auto</a>').on('click', function () { setPath(obj, 'x', ''); setPath(obj, 'y', ''); onChange({ f: 'sel' }); });
+        ctrl.append(pin);
+        if (f.k === 'y' && (U.isNum(obj.x) || U.isNum(obj.y))) ctrl.append(auto);
+        break;
+      case 'num':
+        ctrl = $('<input type="number" step="any" class="form-control input-sm">').val(isSet(val) ? val : '').attr('placeholder', f.phFn ? f.phFn(obj) : (f.ph || ''));
+        ctrl.on('change', function () { var v = ctrl.val(); set(isSet(v) ? v : ''); });
+        break;
+      case 'area':
+        ctrl = $('<textarea class="form-control input-sm" rows="2"></textarea>').val(isSet(val) ? val : '').attr('placeholder', f.ph || '');
+        ctrl.on('input', function () { set(ctrl.val()); });
+        break;
+      case 'color':
+        ctrl = colorField(val, f.ph, set);
+        break;
+      case 'icon':
+        ctrl = iconField(val, f.ph, function (v) {
+          var was = /svg:a-/.test(getPath(obj, f.k) || '');
+          set(v);
+          if (was !== /svg:a-/.test(v || '')) setTimeout(renderProps, 0); // icône animée : réglages de vitesse
+        });
+        break;
+      case 'cmd':
+        ctrl = cmdField(obj, f, set);
+        break;
+      case 'cmdlist':
+        ctrl = cmdListField(obj, f, set);
+        break;
+      case 'thresholds':
+        ctrl = thresholdsField(obj, onChange, f.k, f.base);
+        break;
+      case 'lines':
+        ctrl = linesField(obj, onChange);
+        break;
+      case 'options':
+        ctrl = optionsField(obj, onChange);
+        break;
+      case 'page':
+        ctrl = $('<select class="form-control input-sm"></select>').append('<option value="">—</option>');
+        E.pages.forEach(function (p) { ctrl.append($('<option></option>').val(p.id).text(p.name)); });
+        ctrl.val(isSet(val) ? String(val) : '').on('change', function () { set(ctrl.val()); });
+        break;
+      default:
+        ctrl = $('<input type="text" class="form-control input-sm">').val(isSet(val) ? val : '').attr('placeholder', f.ph || '');
+        ctrl.on('input', function () { set(ctrl.val()); });
+        if (f.blurRebuild) ctrl.on('change', function () { setTimeout(renderProps, 0); });
+    }
+    if (['thresholds', 'rules', 'lines', 'options', 'icon'].indexOf(f.f) >= 0) row.addClass('tl-ed-row-full');
+    row.append(label).append($('<div class="tl-ed-ctrl"></div>').append(ctrl));
+    return row;
+  }
+
+  var THEME_HEX = { title: '#8f8f8f', text: '#9a9a9a', ok: '#2ecc40', warn: '#ff9800', alert: '#ff1a1a', info: '#2f6bff', neutral: '#c8c8c8', on: '#1fbf3a', off: '#e00000' };
+  /** Couleur en #rrggbb (les anciens noms ok, warn… sont convertis). */
+  function toHex(v) {
+    if (!isSet(v)) return '';
+    v = String(v).trim();
+    if (THEME_HEX[v]) return (E.theme && /^#[0-9a-f]{6}$/i.test(E.theme[v] || '')) ? E.theme[v] : THEME_HEX[v];
+    if (/^#[0-9a-f]{6}$/i.test(v)) return v.toLowerCase();
+    if (/^#[0-9a-f]{3}$/i.test(v)) return ('#' + v[1] + v[1] + v[2] + v[2] + v[3] + v[3]).toLowerCase();
+    return v;
+  }
+
+  /** Sélecteur de couleur libre : pastille + code, croix = automatique. */
+  function colorField(val, ph, set, noClear) {
+    var wrap = $('<div class="tl-ed-color"></div>');
+    var pick = $('<input type="color" class="tl-ed-picker" title="Choisir la couleur">');
+    var code = $('<input type="text" class="form-control input-sm tl-ed-code" maxlength="7" spellcheck="false">');
+    var clear = $('<a class="btn btn-xs btn-default tl-ed-cclear" title="Couleur automatique"><i class="fas fa-times"></i></a>');
+    var cur = toHex(val);
+    var draw = function () {
+      var hex = /^#[0-9a-f]{6}$/i.test(cur) ? cur : '';
+      pick.val(hex || '#000000');
+      code.val(cur).attr('placeholder', 'auto');
+      wrap.toggleClass('tl-ed-color-auto', !cur);
+      clear.toggle(!!cur && !noClear);
+    };
+    pick.on('input change', function () { cur = pick.val(); draw(); set(cur); });
+    code.on('change', function () {
+      var v = toHex(code.val());
+      if (v && !/^#[0-9a-f]{6}$/i.test(v)) { code.val(cur); return; }
+      cur = v; draw(); set(cur);
+    });
+    clear.on('click', function () { cur = ''; draw(); set(''); });
+    wrap.append(pick).append(code).append(clear);
+    draw();
+    return wrap;
+  }
+
+  /** Ouvre le sélecteur d'icônes du core Jeedom (4.4+ : jeedomUtils.chooseIcon, avant : chooseIcon). */
+  function coreIconPicker() {
+    if (window.jeedomUtils && typeof window.jeedomUtils.chooseIcon === 'function') return window.jeedomUtils.chooseIcon;
+    if (typeof window.chooseIcon === 'function') return window.chooseIcon;
+    return null;
+  }
+  function pickCoreIcon(current, cb) {
+    var fn = coreIconPicker();
+    if (!fn) { toast('Sélecteur d\'icônes Jeedom indisponible sur cette page', 'error'); return; }
+    var params = { img: true };
+    if (isSet(current) && current.indexOf('svg:') !== 0 && current.indexOf('img:') !== 0) params.icon = current;
+    fn(function (html) {
+      var spec = T.coreIconClass(html);
+      if (spec) cb(spec);
+    }, params);
+  }
+  function pickPluginIcon(cb) {
+    var body = $('<div class="tl-ed-ipk"></div>');
+    var m;
+    ICON_GROUPS.concat(T.animIcons ? [['Animées (bougent quand la tuile est active)', T.animIcons]] : []).forEach(function (g) {
+      body.append($('<div class="tl-ed-ipk-h"></div>').text(g[0]));
+      var grid = $('<div class="tl-ed-ipk-grid"></div>');
+      g[1].forEach(function (ic) {
+        var it = $('<div class="tl-ed-ipk-it"></div>').attr('title', ic[0]);
+        it.append($('<div class="tl-ed-ipk-ic"></div>').html(T.iconHtml(ic[0])));
+        it.append($('<div class="tl-ed-ipk-lb"></div>').text(ic[1]));
+        it.on('click', function () { cb(ic[0]); m.close(); });
+        grid.append(it);
+      });
+      body.append(grid);
+    });
+    var buttons = [{ label: 'Fermer' }];
+    if (coreIconPicker()) buttons.unshift({ label: 'Bibliothèque Jeedom…', click: function () { setTimeout(function () { pickCoreIcon('', cb); }, 0); } });
+    m = T.ui.modal({ title: 'Icônes du plugin', body: body[0], wide: true, buttons: buttons });
+  }
+
+  function iconField(val, ph, set) {
+    var wrap = $('<div class="tl-ed-icon"></div>');
+    var prev = $('<span class="tl-ed-ipv" title="Aperçu"></span>');
+    var inp = $('<input type="text" class="form-control input-sm">').val(isSet(val) ? val : '').attr('placeholder', ph || 'aucune');
+    var refresh = function () {
+      var v = inp.val() || ph || '';
+      prev.html(T.iconHtml(v)).toggleClass('tl-ed-ipv-ph', !inp.val());
+    };
+    var apply = function (spec) { inp.val(spec); refresh(); set(spec); };
+    inp.on('input', function () { refresh(); set(inp.val()); });
+    var jee = $('<a class="btn btn-sm btn-primary tl-ed-ib" title="Bibliothèque d\'icônes Jeedom"><i class="fas fa-icons"></i> Jeedom</a>');
+    var mine = $('<a class="btn btn-sm btn-default tl-ed-ib" title="Icônes du plugin Tuiles"><i class="fas fa-th-large"></i> Tuiles</a>');
+    var clear = $('<a class="btn btn-sm btn-default tl-ed-ib" title="Retirer l\'icône"><i class="fas fa-times"></i></a>');
+    jee.on('click', function () {
+      // dans une fenêtre Tuiles, on la passe derrière le sélecteur d'icônes de Jeedom le temps du choix
+      var ov = wrap.closest('.tl-modal-ov');
+      if (ov.length) ov.css('z-index', 1000);
+      pickCoreIcon(inp.val(), function (spec) { if (ov.length) ov.css('z-index', ''); apply(spec); });
+      if (ov.length) setTimeout(function () { $(document).one('click', '.ui-dialog-titlebar-close, .bootbox .close, [data-dismiss=modal]', function () { ov.css('z-index', ''); }); }, 0);
+    });
+    mine.on('click', function () { pickPluginIcon(apply); });
+    prev.on('click', function () { pickCoreIcon(inp.val(), apply); });
+    clear.on('click', function () { apply(''); });
+    if (!coreIconPicker()) jee.addClass('disabled').attr('title', 'Bibliothèque Jeedom indisponible ici');
+    wrap.append($('<div class="tl-ed-icon-l1"></div>').append(prev).append(inp).append(clear));
+    wrap.append($('<div class="tl-ed-icon-l2"></div>').append(jee).append(mine));
+    refresh();
+    return wrap;
+  }
+
+  /** Couleurs par seuils : jusqu'à 10 seuils, chacun sa couleur. */
+  function thresholdsField(obj, onChange, kList, kBase) {
+    kList = kList || 'thresholds'; kBase = kBase || 'thBase';
+    var MAX = 10;
+    var wrap = $('<div class="tl-ed-th"></div>');
+    var th = obj[kList] = Array.isArray(obj[kList]) ? obj[kList] : [];
+    var changed = function (rebuild) { onChange(rebuild ? { f: 'sel' } : { f: 'text' }); drawBar(); };
+    var bar = $('<div class="tl-ed-th-bar" title="Aperçu des plages"></div>');
+    var drawBar = function () {
+      bar.empty();
+      var list = th.filter(function (x) { return isSet(x.v); }).slice().sort(function (a, b) { return (U.isNum(a.v) ? parseFloat(a.v) : 1e18) - (U.isNum(b.v) ? parseFloat(b.v) : 1e18); });
+      var seg = function (c, txt) { bar.append($('<span></span>').css('background', c ? toHex(c) : 'transparent').attr('data-l', txt)); };
+      seg(obj[kBase] || '', 'autre');
+      list.forEach(function (x) { seg(x.color, (U.isNum(x.v) ? '≥ ' : '= ') + x.v); });
+    };
+    var base = $('<div class="tl-ed-th-row tl-ed-th-base"></div>');
+    base.append('<span class="tl-ed-th-lab">' + (th.length ? 'Autres valeurs' : 'Couleur') + '</span>');
+    base.append(colorField(obj[kBase], 'couleur normale', function (c) { if (isSet(c)) obj[kBase] = c; else delete obj[kBase]; changed(false); }));
+    wrap.append(base);
+    th.forEach(function (x, i) {
+      var row = $('<div class="tl-ed-th-row"></div>');
+      var lab = $('<span class="tl-ed-th-lab"></span>');
+      var setLab = function () { lab.text((U.isNum(x.v) || !isSet(x.v) ? 'à partir de' : 'si égal à')); };
+      setLab();
+      row.append(lab);
+      var v = $('<input type="text" class="form-control input-sm tl-ed-th-v" placeholder="nombre ou texte">').val(isSet(x.v) ? x.v : '');
+      v.on('input', setLab);
+      v.on('input', function () { x.v = v.val(); changed(false); });
+      v.on('change', function () {
+        th.sort(function (a, b) { return (U.isNum(a.v) ? parseFloat(a.v) : 1e18) - (U.isNum(b.v) ? parseFloat(b.v) : 1e18); });
+        th.forEach(function (y) { if (isSet(y.v)) y.v = String(y.v).trim(); });
+        changed(true);
+      });
+      var del = $('<a class="btn btn-xs btn-danger" title="Supprimer ce seuil"><i class="fas fa-times"></i></a>').on('click', function () { th.splice(i, 1); changed(true); });
+      row.append(v).append(colorField(x.color, 'couleur', function (c) { x.color = c; changed(false); }, true)).append(del);
+      wrap.append(row);
+    });
+    var add = $('<a class="btn btn-xs btn-default"><i class="fas fa-plus"></i> Seuil</a>');
+    if (th.length >= MAX) add.addClass('disabled');
+    add.on('click', function () {
+      if (th.length >= MAX) return;
+      var last = th.length ? parseFloat(th[th.length - 1].v) : NaN;
+      var palette = ['#2ecc40', '#ff9800', '#ff1a1a', '#2f6bff', '#4fc3f7', '#9c27b0', '#ffeb3b', '#795548', '#00bcd4', '#e91e63'];
+      th.push({ v: isNaN(last) ? '' : String(last + 1), color: palette[th.length % palette.length] });
+      changed(true);
+    });
+    var foot = $('<div class="tl-ed-listbar"></div>').append(add).append(' <span class="tl-ed-muted">' + th.length + ' / ' + MAX + '</span>');
+    if (th.length) foot.append(' ').append($('<a class="btn btn-xs btn-default">Tout effacer</a>').on('click', function () { obj[kList] = []; delete obj[kBase]; changed(true); }));
+    wrap.append(foot).append(bar);
+    drawBar();
+    return wrap;
+  }
+
+  /** Sélecteur d'équipement (liste des équipements Jeedom avec recherche). */
+  function loadEqList() {
+    if (!E.eqListP) E.eqListP = T.ajax('eqList', {}).then(function (l) { E.eqList = l || []; return E.eqList; });
+    return E.eqListP;
+  }
+  function eqName(id) {
+    var e = (E.eqList || []).filter(function (x) { return String(x.id) === String(id); })[0];
+    return e ? (e.object ? '[' + e.object + '] ' : '') + e.name + ' (' + e.plugin + ')' : (id ? '#' + id : '');
+  }
+  function eqField(obj, f, set) {
+    var id = cleanId(getPath(obj, f.k));
+    var wrap = $('<div class="input-group input-group-sm"></div>');
+    var inp = $('<input type="text" class="form-control" readonly>').attr('placeholder', 'Aucun');
+    var btns = $('<span class="input-group-btn"></span>');
+    var pick = $('<a class="btn btn-default" title="Choisir"><i class="fas fa-list-alt"></i></a>');
+    var clear = $('<a class="btn btn-default" title="Retirer"><i class="fas fa-times"></i></a>');
+    loadEqList().then(function () { inp.val(id ? eqName(id) : ''); });
+    var open = function () {
+      loadEqList().then(function (list) {
+        var body = $('<div class="tl-ed-eqpick"></div>');
+        var q = $('<input class="form-control" placeholder="Rechercher un équipement, un objet ou un plugin…">');
+        var ul = $('<div class="tl-ed-eqlist"></div>');
+        var m;
+        var draw = function () {
+          var s = q.val().toLowerCase().trim();
+          ul.empty();
+          list.filter(function (e) { return (!f.plugin || e.plugin === f.plugin) && (!f.pluginRe || f.pluginRe.test(e.plugin)) && (!s || (e.name + ' ' + e.object + ' ' + e.plugin).toLowerCase().indexOf(s) >= 0); }).slice(0, 300).forEach(function (e) {
+            var it = $('<div class="tl-ed-eqit"></div>').toggleClass('tl-ed-eqoff', !e.enable);
+            it.append($('<b></b>').text(e.name)).append($('<span></span>').text((e.object ? e.object + ' · ' : '') + e.plugin));
+            it.on('click', function () { set(String(e.id)); m.close(); if (f.onPick) f.onPick(obj, e); });
+            ul.append(it);
+          });
+        };
+        q.on('input', draw);
+        body.append(q).append(ul);
+        draw();
+        m = T.ui.modal({ title: 'Choisir un équipement', body: body[0], wide: true, buttons: [{ label: 'Fermer' }] });
+        setTimeout(function () { q.trigger('focus'); }, 50);
+      }, fail);
+    };
+    pick.on('click', open);
+    inp.on('click', open);
+    clear.on('click', function () { set(''); });
+    btns.append(pick).append(clear);
+    return wrap.append(inp).append(btns);
+  }
+
+  /* ---------- plugin Réveils : commandes retrouvées automatiquement ---------- */
+  function normName(x) { return String(x || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ').trim(); }
+  var RV_MAP = [
+    ['cmdNext', 'info', /prochain reveil|^prochain|next/],
+    ['cmdStatus', 'info', /statut synchro|statut/],
+    ['cmdSyncOk', 'info', /^synchro ok$/],
+    ['cmdAlexaOk', 'info', /^alexa ok$/],
+    ['cmdRemiOk', 'info', /^remi ok$/],
+    ['cmdLastCheck', 'info', /derniere verification/],
+    ['cmdResync', 'action', /resynchronis/],
+    ['cmdVerify', 'action', /^verifier/],
+    ['cmdSkip', 'action', /pas de (prochain )?reveil/],
+    ['cmdException', 'action', /^exception/],
+    ['cmdStatusAlexa', 'info', /statut alexa/],
+    ['cmdStatusRemi', 'info', /statut remi/],
+    ['cmdNextAlexa', 'info', /prochain.*alexa|alexa.*prochain/],
+    ['cmdNextRemi', 'info', /prochain.*remi|remi.*prochain/]
+  ];
+  /** Tuile limitée à un appareil (Alexa ou Rémi) : son statut, sa pastille, son prochain réveil s'il existe. */
+  function applyRvDevice(obj) {
+    var dv = obj.rvDevice;
+    obj.cmdNext = (dv === 'alexa' && obj.cmdNextAlexa) || (dv === 'remi' && obj.cmdNextRemi) || obj.cmdNextAll || obj.cmdNext;
+    obj.cmdStatus = (dv === 'alexa' && obj.cmdStatusAlexa) || (dv === 'remi' && obj.cmdStatusRemi) || obj.cmdStatusAll || obj.cmdStatus;
+    obj.cmdSyncOk = (dv === 'alexa' && obj.cmdAlexaOk) || (dv === 'remi' && obj.cmdRemiOk) || obj.cmdSyncAll || obj.cmdSyncOk;
+  }
+  /** Remplit une tuile (ou une ligne de liste) avec les commandes d'un équipement Réveils. */
+  function fillReveil(obj, eqId) {
+    return T.ajax('eqCmds', { id: eqId }).then(function (r) {
+      var cmds = (r && r.cmds) || [], ids = [];
+      RV_MAP.forEach(function (m) {
+        var c = cmds.filter(function (c2) { return c2.type === m[1] && (m[2].test(normName(c2.name)) || m[2].test(normName(c2.logicalId))); })[0];
+        if (c) { obj[m[0]] = String(c.id); ids.push(String(c.id)); } else delete obj[m[0]];
+      });
+      obj.cmdNextAll = obj.cmdNext; obj.cmdStatusAll = obj.cmdStatus; obj.cmdSyncAll = obj.cmdSyncOk;
+      applyRvDevice(obj);
+      if (!obj.cmdNext) toast('Commande « Prochain réveil » introuvable : choisissez-la à la main', 'error');
+      return ensureMetas(ids);
+    });
+  }
+  function rvListField(obj, onChange) {
+    var wrap = $('<div class="tl-ed-lines"></div>');
+    var items = obj.rvItems = Array.isArray(obj.rvItems) ? obj.rvItems : [];
+    items.forEach(function (it, i) {
+      var row = $('<div class="tl-ed-optrow"></div>');
+      var lab = $('<input class="form-control input-sm" placeholder="Nom affiché">').val(it.name || '').on('input', function () { it.name = $(this).val(); onChange({ f: 'text' }); });
+      var info = $('<span class="tl-ed-hint"></span>').text(it.cmdNext ? 'commandes trouvées' : 'commandes à compléter');
+      var up = $('<a class="btn btn-xs btn-default"><i class="fas fa-arrow-up"></i></a>').on('click', function () { if (i > 0) { items.splice(i - 1, 0, items.splice(i, 1)[0]); onChange({ f: 'sel' }); } });
+      var del = $('<a class="btn btn-xs btn-danger"><i class="fas fa-times"></i></a>').on('click', function () { items.splice(i, 1); onChange({ f: 'sel' }); });
+      row.append(lab).append(info).append(up).append(del);
+      wrap.append(row);
+    });
+    var holder = {};
+    var add = eqField(holder, { k: 'eqId', plugin: 'reveil', onPick: function (h, e) {
+      var it = { eqId: String(e.id), name: e.name };
+      fillReveil(it, e.id).then(function () { items.push(it); onChange({ f: 'sel' }); }).catch(fail);
+    } }, function () {});
+    wrap.append($('<div class="tl-ed-hint">Ajouter un équipement Réveils :</div>')).append(add);
+    return wrap;
+  }
+
+  /* ---------- alarme Risco : partitions et zones retrouvées par leurs noms (P1 …, Z1 …) ---------- */
+  function fillRisco(obj, eqId) {
+    return T.ajax('eqCmds', { id: eqId }).then(function (r) {
+      var cmds = (r && r.cmds) || [], ids = [], by = {};
+      cmds.forEach(function (c) { by[c.type + ':' + normName(c.name)] = String(c.id); });
+      var get = function (type, name) { var id = by[type + ':' + name]; if (id) ids.push(id); return id || ''; };
+      var part = Math.max(1, Math.round(parseFloat(obj.rsPart) || 1)), P = 'p' + part + ' ';
+      obj.cmdState = get('info', P + 'etat');
+      obj.cmdArmed = get('info', P + 'arme');
+      obj.cmdPartial = get('info', P + 'arme partiel');
+      obj.cmdTriggered = get('info', P + 'declenche');
+      obj.cmdAlarm = get('info', P + 'en alarme');
+      obj.cmdReady = get('info', P + 'pret');
+      obj.cmdPartName = get('info', P + 'nom');
+      obj.cmdArmTotal = get('action', P + 'armer total');
+      obj.cmdArmPartial = get('action', P + 'armer partiel');
+      obj.cmdDisarm = get('action', P + 'desarmer');
+      obj.cmdConn = get('info', 'connexion');
+      obj.cmdLastName = get('info', 'dernier evenement nom');
+      obj.cmdLastTime = get('info', 'dernier evenement heure');
+      obj.cmdLastZone = get('info', 'dernier evenement zone');
+      obj.cmdTroubles = cmds.filter(function (c) { return c.type === 'info' && /^(trouble |tamper)/.test(normName(c.name)); }).map(function (c) { ids.push(String(c.id)); return String(c.id); });
+      // zones : Z1 … Zn
+      var zones = {};
+      cmds.forEach(function (c) { var m = /^z(\d+) /.exec(normName(c.name)); if (m) zones[m[1]] = true; });
+      obj.rsZones = Object.keys(zones).map(Number).sort(function (a, b) { return a - b; }).map(function (n) {
+        var Z = 'z' + n + ' ';
+        return { n: n, cmdZName: get('info', Z + 'nom'), cmdZOpen: get('info', Z + 'ouvert'), cmdZAlarm: get('info', Z + 'alarme'), cmdZBypass: get('info', Z + 'bypasse'),
+          cmdZArmed: get('info', Z + 'arme'), cmdZParts: get('info', Z + 'partitions'), cmdZType: get('info', Z + 'type'), cmdZByp: get('action', Z + 'bypasser'), cmdZUnbyp: get('action', Z + 'debypasser') };
+      });
+      if (obj.type === 'alarme' && !obj.cmdArmed && !obj.cmdState) toast('Partition ' + part + ' introuvable dans cet équipement', 'error');
+      if (obj.type === 'zones' && !obj.rsZones.length) toast('Aucune zone (Z1 …) dans cet équipement', 'error');
+      return ensureMetas(ids);
+    });
+  }
+
+  /* ---------- VigiEau : commandes retrouvées par leur nom ---------- */
+  var VG_MAP = [
+    ['cmdLevel', [/^niveau$/, /niveau.*(restriction|alerte|gravite)/, /(restriction|alerte|gravite).*niveau/, /^gravite/, /^niveau/]],
+    ['cmdLevelTxt', [/^restriction$/, /libelle/, /^(niveau|restriction).*(texte|nom|libelle)/, /^alerte$/]],
+    ['cmdCommune', [/commune/, /ville/]],
+    ['cmdZone', [/zone/]],
+    ['cmdArrete', [/arrete.*restriction/, /numero.*arrete/, /^arrete$/]],
+    ['cmdCadre', [/cadre/]],
+    ['cmdStart', [/debut/]],
+    ['cmdEnd', [/(^|\s)fin/]],
+    ['cmdMesures', [/mesure/]],
+    ['cmdUsage', [/usage|type d.eau|ressource|eau du robinet|^eau/]],
+    ['cmdImport', [/import|mise a jour|maj|derniere/]]
+  ];
+  var HIK_MAP = [['cmdEtat', 'etat_appel'], ['cmdRing', 'sonnerie'], ['cmdTalk', 'en_communication'], ['cmdOnline', 'en_ligne'], ['cmdEvent', 'dernier_evenement'],
+    ['cmdTalkUrl', 'lien_parler'], ['cmdAnswer', 'decrocher'], ['cmdHangup', 'raccrocher'], ['cmdReject', 'refuser'], ['cmdOpen', 'ouvrir_porte']];
+  function fillHik(obj, eqId) {
+    return T.ajax('eqCmds', { id: eqId }).then(function (r) {
+      var cmds = (r && r.cmds) || [], ids = [];
+      HIK_MAP.forEach(function (m) {
+        var c = cmds.filter(function (x) { return x.logicalId === m[1]; })[0];
+        if (c) { obj[m[0]] = String(c.id); ids.push(String(c.id)); } else delete obj[m[0]];
+      });
+      if (!obj.cmdEtat) toast('Commandes hikinterphone introuvables : choisissez-les à la main', 'error');
+      return ensureMetas(ids);
+    });
+  }
+
+  /** bonsPoints : commandes par logicalId ; comportements = actions behav_* « Nom (+2) », paliers = infos palier_* « Palier Nom (10 pts) ». */
+  function bpParse(name) {
+    var m = String(name || '').match(/^(.*?)\s*\(\s*([+\-−]?\s*\d+(?:[.,]\d+)?)[^)]*\)\s*(\d+)?\s*$/);
+    if (!m) return null;
+    return { label: m[1].trim(), pts: parseFloat(m[2].replace('−', '-').replace(/\s/g, '').replace(',', '.')) };
+  }
+  function fillBonsPoints(obj, eqId) {
+    return T.ajax('eqCmds', { id: eqId }).then(function (r) {
+      var cmds = (r && r.cmds) || [], ids = [];
+      var by = function (lid) { return cmds.filter(function (c) { return c.logicalId === lid; })[0]; };
+      [['cmdScore', 'score_semaine'], ['cmdPrev', 'score_semaine_prec'], ['cmdTotal', 'score_total'], ['cmdLast', 'dernier'], ['cmdActif', 'actif'], ['cmdUndo', 'annuler']].forEach(function (m) {
+        var c = by(m[1]);
+        if (c) { obj[m[0]] = String(c.id); ids.push(String(c.id)); } else delete obj[m[0]];
+      });
+      var oldIcons = {};
+      (obj.bpPal || []).forEach(function (x) { if (x.icon) oldIcons[x.name] = x.icon; });
+      obj.bpBehav = cmds.filter(function (c) { return /^behav_/.test(c.logicalId || ''); }).map(function (c) {
+        var b = bpParse(c.name) || { label: c.name, pts: 0 };
+        return { cmdAct: String(c.id), label: b.label, pts: b.pts };
+      });
+      obj.bpPal = cmds.filter(function (c) {
+        // paliers = infos palier_<id> ; « Palier atteint » / « Palier semaine précédente » ne sont pas des paliers
+        return /^palier_/.test(c.logicalId || '') && ['palier_atteint', 'palier_prec'].indexOf(c.logicalId) < 0 && c.type === 'info' && bpParse(String(c.name).replace(/^Palier\s+/i, ''));
+      }).map(function (c) {
+        var b = bpParse(String(c.name).replace(/^Palier\s+/i, ''));
+        var x = { cmdBin: String(c.id), name: b.label, pts: b.pts };
+        if (oldIcons[b.label]) x.icon = oldIcons[b.label];
+        return x;
+      }).sort(function (a, b) { return a.pts - b.pts; });
+      if (!obj.cmdScore) toast('Commandes bonsPoints introuvables : choisissez-les à la main', 'error');
+      else toast(obj.bpBehav.length + ' comportements et ' + obj.bpPal.length + ' paliers repris');
+      return ensureMetas(ids);
+    });
+  }
+
+  function fillVigieau(obj, eqId) {
+    return T.ajax('eqCmds', { id: eqId }).then(function (r) {
+      var cmds = ((r && r.cmds) || []).filter(function (c) { return c.type === 'info'; }), ids = [], used = {};
+      VG_MAP.forEach(function (m) {
+        var found = null;
+        m[1].some(function (re) {
+          found = cmds.filter(function (c) { return !used[c.id] && (re.test(normName(c.name)) || re.test(normName(c.logicalId))); })[0];
+          return !!found;
+        });
+        if (found) { obj[m[0]] = String(found.id); used[found.id] = true; ids.push(String(found.id)); } else delete obj[m[0]];
+      });
+      if (!obj.cmdLevel && !obj.cmdLevelTxt) toast('Niveau de restriction introuvable : choisissez la commande à la main', 'error');
+      return ensureMetas(ids);
+    });
+  }
+
+  function cmdLabel(id) {
+    var m = E.cmds[id];
+    if (!m) return '#' + id + '#';
+    return m.human || ('#' + id + '#');
+  }
+
+  function pickCmd(filter, cb) {
+    if (!window.jeedom || !jeedom.cmd || typeof jeedom.cmd.getSelectModal !== 'function') { fail('Sélecteur de commande indisponible'); return; }
+    var opts = { cmd: {} };
+    if (filter && filter.type) opts.cmd.type = filter.type;
+    if (filter && filter.subType) opts.cmd.subType = filter.subType;
+    jeedom.cmd.getSelectModal(opts, function (result) {
+      var id = cleanId(result && result.cmd ? result.cmd.id : '');
+      var done = function (cid) {
+        if (!cid) { fail('Commande introuvable'); return; }
+        ensureMetas([cid]).then(function () { cb(cid); }).catch(fail);
+      };
+      if (id) done(id);
+      else if (result && result.human) T.ajax('resolveHuman', { human: result.human }).then(function (r) { done(cleanId(r)); }, fail);
+    });
+  }
+
+  function cmdField(obj, f, set) {
+    var id = cleanId(getPath(obj, f.k));
+    var wrap = $('<div class="input-group input-group-sm"></div>');
+    var inp = $('<input type="text" class="form-control" readonly>').val(id ? cmdLabel(id) : '').attr('placeholder', 'Aucune');
+    if (id && E.cmds[id] && E.cmds[id].missing) inp.addClass('tl-ed-missing');
+    var btns = $('<span class="input-group-btn"></span>');
+    var pick = $('<a class="btn btn-default" title="Choisir"><i class="fas fa-list-alt"></i></a>');
+    var clear = $('<a class="btn btn-default" title="Retirer"><i class="fas fa-times"></i></a>');
+    pick.on('click', function () {
+      pickCmd(f.filter, function (cid) {
+        // le nom de la tuile n'est jamais modifié par le choix d'une commande
+        set(cid);
+      });
+    });
+    clear.on('click', function () { set(''); });
+    inp.on('click', function () { pick.trigger('click'); });
+    btns.append(pick).append(clear);
+    wrap.append(inp).append(btns);
+    return wrap;
+  }
+
+  function cmdListField(obj, f, set) {
+    var list = (getPath(obj, f.k) || []).map(cleanId).filter(Boolean);
+    var wrap = $('<div class="tl-ed-list"></div>');
+    var chips = $('<div class="tl-ed-chips"></div>');
+    list.forEach(function (id, i) {
+      var chip = $('<span class="tl-ed-chip"></span>').text(E.cmds[id] ? (E.cmds[id].eqName + ' › ' + E.cmds[id].name) : '#' + id + '#');
+      var x = $('<i class="fas fa-times"></i>').on('click', function () { list.splice(i, 1); set(list.slice()); });
+      chips.append(chip.append(' ').append(x));
+    });
+    if (!list.length) chips.append('<span class="tl-ed-muted">Aucune commande</span>');
+    var add = $('<a class="btn btn-xs btn-default"><i class="fas fa-plus"></i> Ajouter</a>').on('click', function () {
+      pickCmd(f.filter || C_INFO, function (cid) { if (list.indexOf(cid) < 0) list.push(cid); set(list.slice()); });
+    });
+    var quick = $('<span class="tl-ed-quick">Remplir avec : </span>');
+    if (f.noQuick) quick = '';
+    if (quick) [['ouvrants', 'les ouvrants'], ['lumieres', 'les lumières'], ['prises', 'les prises'], ['volets', 'les volets']].forEach(function (q) {
+      quick.append($('<a class="btn btn-xs btn-default"></a>').text(q[1]).on('click', function () {
+        T.ajax('countList', { kind: q[0] }).then(function (r) {
+          Object.keys(r.cmds || {}).forEach(function (id) { E.cmds[id] = r.cmds[id]; });
+          if (!r.ids.length) { toast('Aucune commande avec ce type générique'); return; }
+          toast(r.ids.length + ' commande(s) ajoutée(s)');
+          set(r.ids.map(String));
+        }, fail);
+      }));
+    });
+    var clearAll = list.length ? $('<a class="btn btn-xs btn-default">Vider</a>').on('click', function () { set([]); }) : '';
+    wrap.append(chips).append($('<div class="tl-ed-listbar"></div>').append(add).append(' ').append(clearAll)).append(quick);
+    return wrap;
+  }
+
+  function linesField(obj, onChange) {
+    var wrap = $('<div class="tl-ed-lines"></div>');
+    var lines = obj.lines = Array.isArray(obj.lines) ? obj.lines : [];
+    lines.forEach(function (l, i) {
+      var card = $('<div class="tl-ed-card"></div>');
+      var head = $('<div class="tl-ed-cardhead"></div>').text('Ligne ' + (i + 1));
+      var up = $('<a class="btn btn-xs btn-default"><i class="fas fa-arrow-up"></i></a>').on('click', function () {
+        if (i > 0) { lines.splice(i - 1, 0, lines.splice(i, 1)[0]); onChange({ f: 'sel' }); }
+      });
+      var del = $('<a class="btn btn-xs btn-danger"><i class="fas fa-times"></i></a>').on('click', function () { lines.splice(i, 1); onChange({ f: 'sel' }); });
+      head.append($('<span class="pull-right"></span>').append(up).append(' ').append(del));
+      card.append(head);
+      LINE_SCHEMA.forEach(function (f) {
+        if (f.show && !f.show(l)) return;
+        card.append(field(l, f, function (ff) { onChange(ff && (ff.f === 'cmd' || ff.f === 'sel' || ff.rebuild) ? { f: 'sel' } : { f: 'text' }); }));
+      });
+      wrap.append(card);
+    });
+    wrap.append($('<a class="btn btn-xs btn-default"><i class="fas fa-plus"></i> Ligne</a>').on('click', function () {
+      lines.push({ kind: 'value', label: '' });
+      onChange({ f: 'sel' });
+    }));
+    return wrap;
+  }
+
+  function optionsField(obj, onChange) {
+    var wrap = $('<div class="tl-ed-lines"></div>');
+    var options = obj.options = Array.isArray(obj.options) ? obj.options : [];
+    options.forEach(function (o, i) {
+      var row = $('<div class="tl-ed-optrow"></div>');
+      var lab = $('<input class="form-control input-sm" placeholder="Libellé">').val(o.label || '').on('input', function () { o.label = $(this).val(); onChange({ f: 'text' }); });
+      var c = cmdField(o, { k: 'cmdAction', filter: C_ACTION }, function (v) { setPath(o, 'cmdAction', v); onChange({ f: 'sel' }); });
+      var del = $('<a class="btn btn-xs btn-danger"><i class="fas fa-times"></i></a>').on('click', function () { options.splice(i, 1); onChange({ f: 'sel' }); });
+      row.append(lab).append(c).append(del);
+      wrap.append(row);
+    });
+    wrap.append($('<a class="btn btn-xs btn-default"><i class="fas fa-plus"></i> Commande</a>').on('click', function () {
+      pickCmd(C_ACTION, function (cid) {
+        options.push({ label: (E.cmds[cid] && E.cmds[cid].name) || '', cmdAction: cid });
+        onChange({ f: 'sel' });
+      });
+    }));
+    return wrap;
+  }
+
+  /* ================================================================== */
+  /*  Actions de la barre                                                */
+  /* ================================================================== */
+
+  function addTile(t) {
+    var cur = selTile();
+    var tiles = E.layout.tiles;
+    // une tuile ajoutée depuis la colonne de gauche y reste
+    if (cur) tiles.splice(tiles.indexOf(cur) + 1, 0, t); else tiles.push(t);
+    E.sel = t.id;
+    modified();
+    renderAll();
+  }
+
+  function moveTile(src, target) {
+    var tiles = E.layout.tiles, a = tileById(src), b = tileById(target);
+    if (!a || !b) return;
+    tiles.splice(tiles.indexOf(a), 1);
+    tiles.splice(tiles.indexOf(b), 0, a);
+    if ((a.zone || '') !== (b.zone || '')) { if (b.zone) a.zone = b.zone; else delete a.zone; }
+    E.sel = src;
+    modified();
+    renderAll();
+  }
+
+  /** Échange deux tuiles : ordre, position, emplacement et pile. */
+  function swapTiles(a, b) {
+    var ta = tileById(a), tb = tileById(b), tiles = E.layout.tiles;
+    if (!ta || !tb || ta === tb) return;
+    var ia = tiles.indexOf(ta), ib = tiles.indexOf(tb);
+    tiles[ia] = tb; tiles[ib] = ta;
+    ['x', 'y', 'zone', 'stack'].forEach(function (k) {
+      var va = ta[k], vb = tb[k];
+      if (vb === undefined) delete ta[k]; else ta[k] = vb;
+      if (va === undefined) delete tb[k]; else tb[k] = va;
+    });
+    E.lastMoved = null;
+    E.sel = a;
+    modified();
+    renderAll();
+  }
+
+  function placeTile(src, x, y, zone) {
+    var t = tileById(src);
+    if (!t || t.type === 'rangee') return;
+    delete t.stack;
+    t.x = x; t.y = y;
+    E.lastMoved = src;
+    if (zone) t.zone = zone; else delete t.zone;
+    E.sel = src;
+    modified();
+    renderAll();
+  }
+
+  function shift(d) {
+    var t = selTile();
+    if (!t) return;
+    var tiles = E.layout.tiles, i = tiles.indexOf(t), j = i + d;
+    if (j < 0 || j >= tiles.length) return;
+    tiles.splice(i, 1);
+    tiles.splice(j, 0, t);
+    modified();
+    renderPreview();
+  }
+
+  function defaultsFor(type) {
+    var base = { id: newId(), type: type, w: 1, h: 1, title: '' };
+    switch (type) {
+      case 'rangee': return { id: newId(), type: 'rangee', space: 30 };
+      case 'lumiere': return Object.assign(base, { title: 'Lumière', w: 1, h: 1 });
+      case 'variateur': return Object.assign(base, { title: 'Lumière', w: 1, h: 1 });
+      case 'interphone': return Object.assign(base, { title: 'Interphone', w: 2, h: 2 });
+      case 'bonspoints': return Object.assign(base, { title: 'Bons points', bpStyle: 'grande', w: 3, h: 3.5 });
+      case 'thermostat': return Object.assign(base, { thKind: 'chauffage', thStep: 0.5, w: 1.5, h: 2 });
+      case 'chauffeeau': return Object.assign(base, { w: 1.5, h: 1.5 });
+      case 'messages': return Object.assign(base, { w: 2, h: 1 });
+      case 'puissance': return Object.assign(base, { w: 1.5, h: 1 });
+      case 'batteries': return Object.assign(base, { title: 'Batteries', w: 2, h: 1.5 });
+      case 'reseau': return Object.assign(base, { title: 'Réseau', w: 2, h: 1.5 });
+      case 'demons': return Object.assign(base, { title: 'Démons', w: 2, h: 1.5 });
+      case 'alarme': return Object.assign(base, { title: 'Alarme', rsPart: 1, w: 1.5, h: 2 });
+      case 'zones': return Object.assign(base, { title: 'Zones', w: 2, h: 2 });
+      case 'vigieau': return Object.assign(base, { title: 'VigiEau', w: 2, h: 1.5 });
+      case 'reveil': return Object.assign(base, { title: 'Réveil', w: 1.5, h: 1 });
+      case 'reveils': return Object.assign(base, { title: 'Réveils', w: 2, h: 1 });
+      case 'reveilplan': return Object.assign(base, { title: 'Planning', w: 2.5, h: 2 });
+      case 'soleil': return Object.assign(base, { w: 1.5, h: 1 });
+      case 'separateur': return Object.assign(base, { title: '', hideTitle: true, w: 0.25, h: 2 });
+      case 'camera': return Object.assign(base, { frigateMode: 'mjpeg', camLive: true, camZoom: true, w: 2, h: 1.5 });
+      case 'widget': return Object.assign(base, { w: 2, h: 2 });
+      case 'web': return Object.assign(base, { w: 2, h: 2 });
+      case 'bouton': return Object.assign(base, { behavior: 'impulsion' });
+      case 'ouvrant': return Object.assign(base, { kind: 'fenetre', openValue: '1' });
+      case 'select': return Object.assign(base, { display: 'popup' });
+      case 'lien': return Object.assign(base, { title: 'Accueil', target: 'home', icon: 'svg:home', titleColor: '#ffffff' });
+      case 'horloge': return Object.assign(base, { title: '', hideTitle: true, w: 2, h: 0.5, format: 'date', align: 'gauche' });
+      case 'texte': return Object.assign(base, { title: '', hideTitle: true, w: 2, h: 0.5, template: '{1}°C | {2}%' });
+      case 'lignes': return Object.assign(base, { title: 'Pièce', w: 2.5, h: 1, titlePx: 50, lines: [{ kind: 'value', label: 'Température' }, { kind: 'value', label: 'Consigne' }] });
+      case 'jauge': return Object.assign(base, { title: 'Cuve', w: 2, h: 2, style: 'cuve', unit: '%' });
+      case 'image': return Object.assign(base, { title: '', hideTitle: true });
+      case 'vide': return Object.assign(base, { title: 'Réserve' });
+    }
+    return base;
+  }
+
+  function openJson() {
+    var area = $('<textarea class="form-control tl-ed-json" spellcheck="false"></textarea>').val(JSON.stringify(E.layout, null, 2));
+    var body = $('<div><p>Copiez ce texte pour sauvegarder ou recopier la page ailleurs. Collez un autre JSON puis « Appliquer » pour l\'importer.</p></div>').append(area);
+    T.ui.modal({
+      title: 'Page en JSON', wide: true, body: body[0], buttons: [{ label: 'Fermer' }, {
+        label: 'Appliquer', primary: true, click: function () {
+          var data;
+          try { data = JSON.parse(area.val()); } catch (e) { fail('JSON invalide : ' + e.message); return false; }
+          if (!data || !Array.isArray(data.tiles)) { fail('Le JSON doit contenir une liste « tiles »'); return false; }
+          data.grid = Object.assign({}, E.layout.grid, data.grid || {});
+          data.tiles.forEach(function (t) { if (!t.id) t.id = newId(); });
+          E.layout = data;
+          E.sel = null;
+          modified();
+          ensureMetas(U.collectIds([data.tiles, (data.grid || {}).alerts || []])).then(function () { renderGridConf(); renderAll(); }).catch(fail);
+        }
+      }]
+    });
+  }
+
+  /* ================================================================== */
+  /*  Branchements                                                       */
+  /* ================================================================== */
+
+  $('#span_tlVersion').text(T.version);
+  $('#bt_tlAddTile').on('click', function () {
+    if (!E.layout) return;
+    var t = defaultsFor('valeur');
+    t.title = 'Nouvelle tuile';
+    addTile(t);
+  });
+  $('#bt_tlAddRow').on('click', function () {
+    if (!E.layout) return;
+    addTile(defaultsFor('rangee'));
+  });
+  $('#bt_tlMoveLeft').on('click', function () { shift(-1); });
+  $('#bt_tlMoveRight').on('click', function () { shift(1); });
+  $('#bt_tlDuplicate').on('click', function () {
+    var t = selTile();
+    if (!t) return;
+    var c = JSON.parse(JSON.stringify(t));
+    c.id = newId();
+    addTile(c);
+  });
+  $('#bt_tlDelete').on('click', function () {
+    var t = selTile();
+    if (!t) return;
+    E.layout.tiles.splice(E.layout.tiles.indexOf(t), 1);
+    E.sel = null;
+    modified();
+    renderAll();
+  });
+  $('#cb_tlMobile').on('change', function () { E.mobile = $(this).is(':checked'); renderPreview(); });
+  $('#bt_tlJson').on('click', function () { if (E.layout) openJson(); });
+  $('#bt_tlOpenPage').on('click', function () {
+    if (E.eqId) window.open('index.php?v=d&m=tuiles&p=panel&page_id=' + E.eqId, '_blank');
+  });
+  $('#bt_tlOpenPanel').on('click', function () { window.open('index.php?v=d&m=tuiles&p=panel', '_blank'); });
+  $('#bt_tlNav').on('click', function () { openNavEditor(); });
+})();
