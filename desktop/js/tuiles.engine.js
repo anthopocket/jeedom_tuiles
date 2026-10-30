@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.57.0';
+  var VERSION = '1.57.1';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -1488,7 +1488,9 @@
     if (api.el.querySelector('.tl-anim')) {
       var mode = t.iconAnim || (t.animWhen === 'toujours' ? 'toujours' : '');
       // dans l'éditeur, l'icône bouge toujours pour qu'on voie l'animation
-      api.el.classList.toggle('tl-run', !!(this.opts && this.opts.edit) || mode === 'toujours' || (mode !== 'jamais' && this.tileActive(t)));
+      // sans info d'état (ex. lien d'accueil sans compteur), « quand actif » n'a pas de sens : l'icône bouge en permanence
+      var hasState = (t.type === 'lien' && Array.isArray(t.cmdList) && t.cmdList.length) || !!(cleanId(t.cmdInfo) || cleanId(t.cmdV1) || cleanId(t.cmdBadge) || cleanId(t.cmdState));
+      api.el.classList.toggle('tl-run', !!(this.opts && this.opts.edit) || mode === 'toujours' || (mode !== 'jamais' && (!hasState || this.tileActive(t))));
       var sp = { lent: 1.8, rapide: 0.55 }[t.animSpeed];
       api.el.style.setProperty('--tla-d', sp || 1);
     } else api.el.classList.remove('tl-run');
