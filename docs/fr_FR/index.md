@@ -111,7 +111,10 @@ La page d'accueil est celle choisie pour l'appareil (sinon l'accueil du plugin).
 | Texte avec valeurs | modèle libre `{1}°C \| {2}%` |
 | Date / heure du jour | « jeudi 22 octobre », heure, etc. |
 | Lien | navigation vers une page, l'accueil, un Design ; compteur (ex. nombre d'ouvrants ouverts) |
-| Double lien | deux moitiés cliquables dans une même tuile (côte à côte ou l'une au-dessus de l'autre), chacune avec son texte, son image ou son icône, sa couleur et sa destination (page, accueil, adresse) |
+| Double lien | deux moitiés cliquables dans une même tuile (côte à côte ou l'une au-dessus de l'autre), chacune avec son texte, un sous-texte (fixe, ou avec la valeur d'une info : « # ouverts »), son image ou son icône, sa couleur et sa destination (page, accueil, adresse) |
+
+**Animer un lien** (Lien et chaque moitié du Double lien) : case **Animer l'icône / l'image** — sans condition, cochée = animée en permanence, décochée = fixe. Option **Animer seulement si l'info…** (une info, une comparaison et une valeur, ex. Mouvement = 1) : animée quand la condition est vraie, sinon fixe ; la case est alors ignorée. Une icône animée bouge ; une image ou une icône simple pulse doucement.
+
 | Envoi de date, Saisie | envoie une date ou une valeur à une commande message ou slider |
 | Image, Vide | logo, réserve |
 

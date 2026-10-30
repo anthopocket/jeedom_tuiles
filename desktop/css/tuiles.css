@@ -1327,8 +1327,13 @@ body.tl-kiosk #div_pageContainer { padding-top: 0 !important; margin-top: 0 !imp
 .tl-anim .tla-fs { fill: currentColor; opacity: .25; }
 .tl-anim .tla-wh { fill: #fff; }
 .tl-anim .tla-dk { fill: rgba(0,0,0,.75); }
-.tl-tile:not(.tl-run) .tl-anim * { animation-play-state: paused !important; }
-.tl-tile:not(.tl-run) .tl-anim .tla-fx { opacity: 0 !important; }
+.tl-tile:not(.tl-run):not(.tl-t-lien2) .tl-anim * { animation-play-state: paused !important; }
+.tl-tile:not(.tl-run):not(.tl-t-lien2) .tl-anim .tla-fx { opacity: 0 !important; }
+.tl-t-lien2 .tl-l2-half:not(.tl-run) .tl-anim * { animation-play-state: paused !important; }
+.tl-t-lien2 .tl-l2-half:not(.tl-run) .tl-anim .tla-fx { opacity: 0 !important; }
+/* image ou icône simple d'un lien : pulsation quand la condition est vraie (ou case « animer » cochée) */
+.tl-pulse-on .tl-icons, .tl-l2-half.tl-pulse-on .tl-l2-ico, .tl-l2-half.tl-pulse-on .tl-l2-img { animation: tlLinkPulse calc(1.6s * var(--tla-d, 1)) ease-in-out infinite; }
+@keyframes tlLinkPulse { 0%, 100% { transform: scale(1); filter: none; } 50% { transform: scale(1.08); filter: drop-shadow(0 0 10px currentColor); } }
 @media (prefers-reduced-motion: reduce) { .tl-anim * { animation: none !important; } }
 @keyframes tla-spin { to { transform: rotate(360deg); } }
 @keyframes tla-spinx { 0% { transform: scaleX(1); } 50% { transform: scaleX(-1); } 100% { transform: scaleX(1); } }
@@ -1517,4 +1522,6 @@ body.tl-kiosk #div_pageContainer { padding-top: 0 !important; margin-top: 0 !imp
 .tl-l2-img { flex: 1 1 auto; min-height: 0; width: 100%; object-fit: contain; border-radius: 8px; }
 .tl-l2-img.tl-fit-cover { object-fit: cover; }
 .tl-l2-lab { flex: none; max-width: 100%; font-weight: 700; font-size: max(11px, min(12cqh, 7cqw)); white-space: nowrap; text-align: center; }
+.tl-l2-sub { flex: none; max-width: 100%; font-size: max(10px, min(8cqh, 5cqw)); color: rgba(255,255,255,.6); white-space: nowrap; text-align: center; line-height: 1.15; }
+.tl-l2-col .tl-l2-sub { font-size: max(10px, min(5cqh, 9cqw)); }
 .tl-l2-col .tl-l2-lab { font-size: max(11px, min(7cqh, 12cqw)); }

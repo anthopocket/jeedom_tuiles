@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.59.2';
+  var VERSION = '1.60.1';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -1535,6 +1535,19 @@
     var t = api.t;
     this.frame(api);
     // icônes animées : en mouvement quand la tuile est active (ou toujours)
+    if (t.type === 'lien') {
+      var la = linkAnim(this, t.cmdAnim, t.animOp, t.animVal, t.animOn);
+      if (la !== null) {
+        var run = !!(this.opts && this.opts.edit) || la;
+        var svgAnim = !!api.el.querySelector('.tl-anim');
+        api.el.classList.toggle('tl-run', run && svgAnim);
+        api.el.classList.toggle('tl-pulse-on', run && !svgAnim);   // image ou icône simple : pulsation
+        var sp0 = { lent: 1.8, rapide: 0.55 }[t.animSpeed];
+        api.el.style.setProperty('--tla-d', sp0 || 1);
+        return this.effectsRest(api, id, t);
+      }
+    }
+    if (t.type === 'lien2') return this.effectsRest(api, id, t);
     if (api.el.querySelector('.tl-anim')) {
       var mode = t.iconAnim || (t.animWhen === 'toujours' ? 'toujours' : '');
       // dans l'éditeur, l'icône bouge toujours pour qu'on voie l'animation
@@ -1544,6 +1557,10 @@
       var sp = { lent: 1.8, rapide: 0.55 }[t.animSpeed];
       api.el.style.setProperty('--tla-d', sp || 1);
     } else api.el.classList.remove('tl-run');
+    this.effectsRest(api, id, t);
+  };
+
+  Page.prototype.effectsRest = function (api, id, t) {
     var needActive = (t.anim && t.anim !== 'aucune') || (t.glow && t.glow !== 'aucun');
     if (needActive) {
       var act = this.tileActive(t);
@@ -5107,9 +5124,18 @@
     };
   };
 
+  /** Animation d'un lien : condition (info + comparaison) si renseignée, sinon la case « animer ». null = ancien réglage. */
+  function linkAnim(page, cmd, op, val, on) {
+    if (cleanId(cmd)) return matchRule({ op: op || '=', v: isSet(val) && val !== '' ? val : '1' }, page.val(cmd));
+    if (on === true || on === 'true' || on === 1) return true;
+    if (on === false || on === 'false' || on === 0) return false;
+    return null;
+  }
+
   /* ---- Double lien : 2 images / icônes, 2 destinations dans une même tuile ---- */
   R.lien2 = function (p, t, api) {
     api.el.classList.add('tl-l2-tile');
+    var halves = [];
     var box = el('div', 'tl-l2 tl-l2-' + (t.l2Dir === 'dessus' ? 'col' : 'row') + (t.l2Sep === false || t.l2Sep === '0' || t.l2Sep === 'non' ? '' : ' tl-l2-sep'));
     ['a', 'b'].forEach(function (k) {
       var img = t[k + 'Img'], ico = t[k + 'Icon'], lab = t[k + 'Label'];
@@ -5117,15 +5143,35 @@
       var half = el('div', 'tl-l2-half' + (isSet(img) ? ' tl-l2-hasimg' : ''));
       var vis = isSet(img) ? '<img class="tl-l2-img tl-fit-' + (t.l2Fit === 'cover' ? 'cover' : 'contain') + '" src="' + esc(img) + '" alt="">' :
         '<div class="tl-l2-ico">' + iconHtml(ico || (k === 'a' ? 'fas fa-arrow-left' : 'fas fa-arrow-right')) + '</div>';
-      half.innerHTML = vis + (isSet(lab) ? '<div class="tl-l2-lab tl-fit">' + esc(lab) + '</div>' : '');
+      var K = k.toUpperCase(), sub = t[k + 'Desc'], hasSub = isSet(sub) && sub !== '' || cleanId(t['cmdDesc' + K]);
+      half.innerHTML = vis + (isSet(lab) && lab !== '' ? '<div class="tl-l2-lab tl-fit">' + esc(lab) + '</div>' : '') +
+        (hasSub ? '<div class="tl-l2-sub tl-fit">' + esc(isSet(sub) ? sub : '') + '</div>' : '');
       var c = color(t[k + 'Color'], '');
       if (c) half.style.color = c;
       box.appendChild(half);
       var dest = { target: t[k + 'Target'] || 'page', page: t[k + 'Page'], url: t[k + 'Url'], newTab: t[k + 'NewTab'] };
       p.press(half, function () { p.navigate(dest); });
+      halves.push({ el: half, K: K, svg: !!half.querySelector('.tl-anim'), sub: half.querySelector('.tl-l2-sub'), pre: isSet(sub) ? String(sub) : '' });
     });
     api.body.appendChild(box);
-    return function () {};
+    api.el.style.setProperty('--tla-d', { lent: 1.8, rapide: 0.55 }[t.animSpeed] || 1);
+    // animation de chaque moitié : condition (info) si renseignée, sinon la case « animer »
+    return function () {
+      halves.forEach(function (h) {
+        // sous-texte : texte fixe, suivi de la valeur d'une info si choisie (ex. « 3 ouverts »)
+        var dc = t['cmdDesc' + h.K];
+        if (h.sub && cleanId(dc)) {
+          var m = p.meta(dc), f = fmt({ decimals: t['descDec' + h.K] }, m, m ? m.value : undefined);
+          var v = f.invalid ? '…' : f.text + (f.unit ? ' ' + f.unit : '');
+          h.sub.textContent = h.pre ? (h.pre.indexOf('#') >= 0 ? h.pre.replace('#', v) : h.pre + ' ' + v) : v;
+        }
+        var la = linkAnim(p, t['cmdAnim' + h.K], t['animOp' + h.K], t['animVal' + h.K], t['animOn' + h.K]);
+        if (la === null) la = h.svg;   // icône animée sans réglage : elle bouge
+        var run = !!p.opts.edit || la;
+        h.el.classList.toggle('tl-run', run && h.svg);
+        h.el.classList.toggle('tl-pulse-on', run && !h.svg && (la === true && (cleanId(t['cmdAnim' + h.K]) || t['animOn' + h.K] === true)));
+      });
+    };
   };
 
   /* ---- Image ---- */

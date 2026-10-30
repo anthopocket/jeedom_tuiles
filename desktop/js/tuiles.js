@@ -94,7 +94,7 @@
 
   var F = {
     iconAnim: { k: 'iconAnim', l: 'Icône animée : bouge', f: 'sel', o: { '': 'Quand la tuile est active (en marche)', toujours: 'Toujours', jamais: 'Jamais (figée)' }, help: 'Dans l\'éditeur, l\'icône bouge toujours pour l\'aperçu.', show: function (t) { return hasAnimIcon(t); } },
-    animSpeed: { k: 'animSpeed', l: 'Icône animée : vitesse', f: 'sel', o: { '': 'Normale', lent: 'Lente', rapide: 'Rapide' }, show: function (t) { return hasAnimIcon(t); } },
+    animSpeed: { k: 'animSpeed', l: 'Animation : vitesse', f: 'sel', o: { '': 'Normale', lent: 'Lente', rapide: 'Rapide' }, show: function (t) { return hasAnimIcon(t); } },
     info: { k: 'cmdInfo', l: 'Info', f: 'cmd', filter: C_INFO },
     th: { k: 'thresholds', base: 'thBase', l: 'Couleur de la valeur selon la valeur', f: 'thresholds', help: 'Jusqu\'à 10 lignes. Un nombre = à partir de cette valeur (le plus haut seuil atteint gagne). Un texte = si la valeur est égale à ce texte. La couleur s\'applique au texte comme à l\'icône.' },
     target: { k: 'colorTarget', l: 'Ces couleurs colorent', f: 'sel', o: TARGETS },
@@ -205,15 +205,22 @@
       { k: 'page', l: 'Page', f: 'page', show: function (t) { return t.target === 'page'; } },
       { k: 'url', l: 'Adresse', ph: 'index.php?v=d&p=plan&plan_id=1', show: function (t) { return t.target === 'url'; } },
       { k: 'newTab', l: 'Nouvel onglet', f: 'check', show: function (t) { return t.target === 'url'; } },
-      { k: 'icon', l: 'Icône(s)', f: 'icon', help: 'Plusieurs icônes : séparez par |' }, F.iconAnim, F.animSpeed, { k: 'img', l: 'Ou image (adresse)', ph: 'plugins/…/logo.png' },
+      { k: 'icon', l: 'Icône(s)', f: 'icon', help: 'Plusieurs icônes : séparez par |' }, { k: 'img', l: 'Ou image (adresse)', ph: 'plugins/…/logo.png' },
+      { k: 'animOn', l: 'Animer l\'icône / l\'image', f: 'check', keepFalse: true, help: 'Sans condition : coché = animée en permanence, décoché = fixe. Une image ou une icône simple pulse ; une icône animée bouge.' },
+      { k: 'cmdAnim', l: 'Animer seulement si l\'info…', f: 'cmd', filter: C_INFO, help: 'Option. Renseignée : animée quand la condition est vraie, sinon fixe (la case ci-dessus est alors ignorée).' },
+      { k: 'animOp', l: '…a une valeur', f: 'sel', o: { '=': '=', '!=': '≠', '>': '>', '>=': '≥', '<': '<', '<=': '≤' }, keep: true, show: function (t) { return !!t.cmdAnim; } },
+      { k: 'animVal', l: 'Valeur', ph: '1', show: function (t) { return !!t.cmdAnim; } },
+      F.animSpeed,
       { k: 'color', l: 'Couleur de l\'icône', f: 'color', ph: '#ffffff' }, { k: 'desc', l: 'Sous-titre (option)' },
       { k: 'cmdList', l: 'Compteur : nombre de commandes…', f: 'cmdlist' },
       { k: 'countOp', l: '…dont la valeur est', f: 'sel', o: { '=': '=', '!=': '≠', '>': '>', '>=': '≥', '<': '<', '<=': '≤' }, show: function (t) { return t.cmdList && t.cmdList.length; } },
       { k: 'countVal', l: 'Valeur comptée', ph: '1', show: function (t) { return t.cmdList && t.cmdList.length; } },
       { k: 'cmdBadge', l: 'Ou : badge = valeur d\'une info', f: 'cmd', filter: C_INFO, show: function (t) { return !(t.cmdList && t.cmdList.length); } },
       { k: 'hideZero', l: 'Masquer le badge à 0', f: 'check' }, { k: 'thresholds', l: 'Couleur de l\'icône selon le compteur', f: 'thresholds' }],
-    lien2: [{ k: 'l2Dir', l: 'Disposition', f: 'sel', o: { '': 'Côte à côte', dessus: 'L\'un au-dessus de l\'autre' } }, { k: 'l2Sep', l: 'Trait de séparation', f: 'sel', o: { '': 'Oui', non: 'Non' }, keep: true }, { k: 'l2Fit', l: 'Images', f: 'sel', o: { '': 'Entières', cover: 'Remplir la moitié (rognées)' } },
+    lien2: [{ k: 'l2Dir', l: 'Disposition', f: 'sel', o: { '': 'Côte à côte', dessus: 'L\'un au-dessus de l\'autre' } }, { k: 'l2Sep', l: 'Trait de séparation', f: 'sel', o: { '': 'Oui', non: 'Non' }, keep: true }, { k: 'l2Fit', l: 'Images', f: 'sel', o: { '': 'Entières', cover: 'Remplir la moitié (rognées)' } }, F.animSpeed,
       { k: 'aLabel', l: 'Lien 1 : texte', ph: 'aucun' },
+      { k: 'aDesc', l: 'Lien 1 : sous-texte (sous l\'image)', ph: 'aucun', help: 'Petit texte sous le texte principal. Avec une info ci-dessous : # est remplacé par sa valeur (ex. « # ouverts »), sinon la valeur est ajoutée à la fin.' },
+      { k: 'cmdDescA', l: 'Lien 1 : valeur d\'une info dans le sous-texte (option)', f: 'cmd', filter: C_INFO },
       { k: 'aTarget', l: 'Lien 1 : ouvre', f: 'sel', o: { page: 'Une page Tuiles', home: 'L\'accueil', url: 'Une adresse (Design, dashboard…)', index: 'La liste des pages' }, keep: true },
       { k: 'aPage', l: 'Lien 1 : page', f: 'page', show: function (t) { return !t.aTarget || t.aTarget === 'page'; } },
       { k: 'aUrl', l: 'Lien 1 : adresse', ph: 'index.php?v=d&p=plan&plan_id=1', show: function (t) { return t.aTarget === 'url'; } },
@@ -221,14 +228,24 @@
       { k: 'aImg', l: 'Lien 1 : image (adresse)', ph: 'plugins/…/photo.jpg', help: 'Une image (photo, logo). Vide = l\'icône ci-dessous.' },
       { k: 'aIcon', l: 'Lien 1 : icône', f: 'icon', show: function (t) { return !t.aImg; } },
       { k: 'aColor', l: 'Lien 1 : couleur', f: 'color', ph: '#ffffff' },
+      { k: 'animOnA', l: 'Lien 1 : Animer l\'icône / l\'image', f: 'check', keepFalse: true, help: 'Sans condition : coché = animée en permanence, décoché = fixe. Une image ou une icône simple pulse ; une icône animée bouge.' },
+      { k: 'cmdAnimA', l: 'Lien 1 : Animer seulement si l\'info…', f: 'cmd', filter: C_INFO, help: 'Option. Renseignée : animée quand la condition est vraie, sinon fixe (la case ci-dessus est alors ignorée).' },
+      { k: 'animOpA', l: 'Lien 1 : …a une valeur', f: 'sel', o: { '=': '=', '!=': '≠', '>': '>', '>=': '≥', '<': '<', '<=': '≤' }, keep: true, show: function (t) { return !!t.cmdAnimA; } },
+      { k: 'animValA', l: 'Lien 1 : Valeur', ph: '1', show: function (t) { return !!t.cmdAnimA; } },
       { k: 'bLabel', l: 'Lien 2 : texte', ph: 'aucun' },
+      { k: 'bDesc', l: 'Lien 2 : sous-texte (sous l\'image)', ph: 'aucun', help: 'Petit texte sous le texte principal. Avec une info ci-dessous : # est remplacé par sa valeur (ex. « # ouverts »), sinon la valeur est ajoutée à la fin.' },
+      { k: 'cmdDescB', l: 'Lien 2 : valeur d\'une info dans le sous-texte (option)', f: 'cmd', filter: C_INFO },
       { k: 'bTarget', l: 'Lien 2 : ouvre', f: 'sel', o: { page: 'Une page Tuiles', home: 'L\'accueil', url: 'Une adresse (Design, dashboard…)', index: 'La liste des pages' }, keep: true },
       { k: 'bPage', l: 'Lien 2 : page', f: 'page', show: function (t) { return !t.bTarget || t.bTarget === 'page'; } },
       { k: 'bUrl', l: 'Lien 2 : adresse', ph: 'index.php?v=d&p=plan&plan_id=1', show: function (t) { return t.bTarget === 'url'; } },
       { k: 'bNewTab', l: 'Lien 2 : nouvel onglet', f: 'check', show: function (t) { return t.bTarget === 'url'; } },
       { k: 'bImg', l: 'Lien 2 : image (adresse)', ph: 'plugins/…/photo.jpg', help: 'Une image (photo, logo). Vide = l\'icône ci-dessous.' },
       { k: 'bIcon', l: 'Lien 2 : icône', f: 'icon', show: function (t) { return !t.bImg; } },
-      { k: 'bColor', l: 'Lien 2 : couleur', f: 'color', ph: '#ffffff' }],
+      { k: 'bColor', l: 'Lien 2 : couleur', f: 'color', ph: '#ffffff' },
+      { k: 'animOnB', l: 'Lien 2 : Animer l\'icône / l\'image', f: 'check', keepFalse: true, help: 'Sans condition : coché = animée en permanence, décoché = fixe. Une image ou une icône simple pulse ; une icône animée bouge.' },
+      { k: 'cmdAnimB', l: 'Lien 2 : Animer seulement si l\'info…', f: 'cmd', filter: C_INFO, help: 'Option. Renseignée : animée quand la condition est vraie, sinon fixe (la case ci-dessus est alors ignorée).' },
+      { k: 'animOpB', l: 'Lien 2 : …a une valeur', f: 'sel', o: { '=': '=', '!=': '≠', '>': '>', '>=': '≥', '<': '<', '<=': '≤' }, keep: true, show: function (t) { return !!t.cmdAnimB; } },
+      { k: 'animValB', l: 'Lien 2 : Valeur', ph: '1', show: function (t) { return !!t.cmdAnimB; } }],
     image: [{ k: 'img', l: 'Adresse de l\'image', ph: 'plugins/…/logo.png' }, { k: 'fit', l: 'Ajustement', f: 'sel', o: { contain: 'Entière', cover: 'Remplir' } },
       { k: 'url', l: 'Lien au clic (option)' }],
     vide: [],
@@ -471,7 +488,7 @@
   };
 
   function hasAnimIcon(t) {
-    return ['icon', 'iconOff', 'iconActive'].some(function (k) { return /svg:a-/.test(t[k] || ''); }) ||
+    return ['icon', 'iconOff', 'iconActive', 'aIcon', 'bIcon'].some(function (k) { return /svg:a-/.test(t[k] || ''); }) || ['animOn', 'animOnA', 'animOnB'].some(function (k) { return t[k] === true; }) || !!(t.cmdAnim || t.cmdAnimA || t.cmdAnimB) ||
       (Array.isArray(t.lines) && t.lines.some(function (l) { return /svg:a-/.test(l.icon || ''); }));
   }
   var COMMON = [
