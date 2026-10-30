@@ -212,8 +212,8 @@
       { k: 'countVal', l: 'Valeur comptée', ph: '1', show: function (t) { return t.cmdList && t.cmdList.length; } },
       { k: 'cmdBadge', l: 'Ou : badge = valeur d\'une info', f: 'cmd', filter: C_INFO, show: function (t) { return !(t.cmdList && t.cmdList.length); } },
       { k: 'hideZero', l: 'Masquer le badge à 0', f: 'check' }, { k: 'thresholds', l: 'Couleur de l\'icône selon le compteur', f: 'thresholds' }],
-    lien2: [{ k: 'l2Dir', l: 'Disposition', f: 'sel', o: { '': 'Côte à côte', dessus: 'L\'un au-dessus de l\'autre' } }, { k: 'l2Sep', l: 'Trait de séparation', f: 'sel', o: { '': 'Oui', '0': 'Non' }, keep: true }, { k: 'l2Fit', l: 'Images', f: 'sel', o: { '': 'Entières', cover: 'Remplir la moitié (rognées)' } },
-      { k: 'aLabel', l: 'Lien 1 : texte', ph: 'ex. Salon' },
+    lien2: [{ k: 'l2Dir', l: 'Disposition', f: 'sel', o: { '': 'Côte à côte', dessus: 'L\'un au-dessus de l\'autre' } }, { k: 'l2Sep', l: 'Trait de séparation', f: 'sel', o: { '': 'Oui', non: 'Non' }, keep: true }, { k: 'l2Fit', l: 'Images', f: 'sel', o: { '': 'Entières', cover: 'Remplir la moitié (rognées)' } },
+      { k: 'aLabel', l: 'Lien 1 : texte', ph: 'aucun' },
       { k: 'aTarget', l: 'Lien 1 : ouvre', f: 'sel', o: { page: 'Une page Tuiles', home: 'L\'accueil', url: 'Une adresse (Design, dashboard…)', index: 'La liste des pages' }, keep: true },
       { k: 'aPage', l: 'Lien 1 : page', f: 'page', show: function (t) { return !t.aTarget || t.aTarget === 'page'; } },
       { k: 'aUrl', l: 'Lien 1 : adresse', ph: 'index.php?v=d&p=plan&plan_id=1', show: function (t) { return t.aTarget === 'url'; } },
@@ -221,7 +221,7 @@
       { k: 'aImg', l: 'Lien 1 : image (adresse)', ph: 'plugins/…/photo.jpg', help: 'Une image (photo, logo). Vide = l\'icône ci-dessous.' },
       { k: 'aIcon', l: 'Lien 1 : icône', f: 'icon', show: function (t) { return !t.aImg; } },
       { k: 'aColor', l: 'Lien 1 : couleur', f: 'color', ph: '#ffffff' },
-      { k: 'bLabel', l: 'Lien 2 : texte', ph: 'ex. Salon' },
+      { k: 'bLabel', l: 'Lien 2 : texte', ph: 'aucun' },
       { k: 'bTarget', l: 'Lien 2 : ouvre', f: 'sel', o: { page: 'Une page Tuiles', home: 'L\'accueil', url: 'Une adresse (Design, dashboard…)', index: 'La liste des pages' }, keep: true },
       { k: 'bPage', l: 'Lien 2 : page', f: 'page', show: function (t) { return !t.bTarget || t.bTarget === 'page'; } },
       { k: 'bUrl', l: 'Lien 2 : adresse', ph: 'index.php?v=d&p=plan&plan_id=1', show: function (t) { return t.bTarget === 'url'; } },
@@ -265,7 +265,7 @@
       { k: 'cmdReject', l: 'Action refuser', f: 'cmd', filter: C_ACTION, half: true },
       { k: 'cmdOpen', l: 'Action ouvrir la porte', f: 'cmd', filter: C_ACTION, half: true },
       { k: 'openLabel', l: 'Texte du bouton porte', ph: 'Ouvrir', half: true },
-      { k: 'doorConfirm', l: 'Confirmer l\'ouverture', f: 'sel', o: { '': 'Oui', '0': 'Non' }, keep: true },
+      { k: 'doorConfirm', l: 'Confirmer l\'ouverture', f: 'sel', o: { '': 'Oui', non: 'Non' }, keep: true },
       { k: 'cmdTalkUrl', l: 'Info lien Parler (two-way audio)', f: 'cmd', filter: C_INFO, help: 'Commande « Lien Parler » du plugin hikinterphone : ajoute un bouton Parler (micro de la tablette).' },
       { k: 'talkMode', l: 'Parler : mode', f: 'sel', o: { '': 'Appuyer pour parler', free: 'Mains libres' }, keep: true, show: function (t) { return !!t.cmdTalkUrl; } },
       { k: 'talkOnAnswer', l: 'Décrocher ouvre aussi Parler', f: 'check', show: function (t) { return !!t.cmdTalkUrl; } },
@@ -1886,7 +1886,7 @@
       case 'bouton': return Object.assign(base, { behavior: 'impulsion' });
       case 'ouvrant': return Object.assign(base, { kind: 'fenetre', openValue: '1' });
       case 'select': return Object.assign(base, { display: 'popup' });
-      case 'lien2': return Object.assign(base, { title: '', hideTitle: true, aTarget: 'page', bTarget: 'page', aLabel: 'Lien 1', bLabel: 'Lien 2', w: 2, h: 1 });
+      case 'lien2': return Object.assign(base, { title: '', hideTitle: true, aTarget: 'page', bTarget: 'page', w: 2, h: 1 });
       case 'lien': return Object.assign(base, { title: 'Accueil', target: 'home', icon: 'svg:home', titleColor: '#ffffff' });
       case 'horloge': return Object.assign(base, { title: '', hideTitle: true, w: 2, h: 0.5, format: 'date', align: 'gauche' });
       case 'texte': return Object.assign(base, { title: '', hideTitle: true, w: 2, h: 0.5, template: '{1}°C | {2}%' });

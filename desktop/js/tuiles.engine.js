@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.59.0';
+  var VERSION = '1.59.2';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -3380,7 +3380,7 @@
       if (!cleanId(id)) return;
       p.run(api, id, {}, { infoId: t.cmdEtat });
     };
-    var doorConfirm = t.doorConfirm !== false && t.doorConfirm !== '0';
+    var doorConfirm = t.doorConfirm !== false && t.doorConfirm !== '0' && t.doorConfirm !== 'non';
     // Parler : page « Parler » du plugin hikinterphone (two-way audio) dans une fenêtre
     var talk = null;
     var openTalk = function () {
@@ -5110,9 +5110,10 @@
   /* ---- Double lien : 2 images / icônes, 2 destinations dans une même tuile ---- */
   R.lien2 = function (p, t, api) {
     api.el.classList.add('tl-l2-tile');
-    var box = el('div', 'tl-l2 tl-l2-' + (t.l2Dir === 'dessus' ? 'col' : 'row') + (t.l2Sep === false || t.l2Sep === '0' ? '' : ' tl-l2-sep'));
+    var box = el('div', 'tl-l2 tl-l2-' + (t.l2Dir === 'dessus' ? 'col' : 'row') + (t.l2Sep === false || t.l2Sep === '0' || t.l2Sep === 'non' ? '' : ' tl-l2-sep'));
     ['a', 'b'].forEach(function (k) {
       var img = t[k + 'Img'], ico = t[k + 'Icon'], lab = t[k + 'Label'];
+      if (lab === 'Lien 1' || lab === 'Lien 2') lab = '';   // anciens textes par défaut : pas affichés
       var half = el('div', 'tl-l2-half' + (isSet(img) ? ' tl-l2-hasimg' : ''));
       var vis = isSet(img) ? '<img class="tl-l2-img tl-fit-' + (t.l2Fit === 'cover' ? 'cover' : 'contain') + '" src="' + esc(img) + '" alt="">' :
         '<div class="tl-l2-ico">' + iconHtml(ico || (k === 'a' ? 'fas fa-arrow-left' : 'fas fa-arrow-right')) + '</div>';
