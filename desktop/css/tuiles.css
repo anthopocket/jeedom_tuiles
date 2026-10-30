@@ -9,7 +9,7 @@
   --tl-pad: 12px;
   --tl-tile: #000000;
   --tl-radius: 14px;
-  --tl-c-title: #8f8f8f;
+  --tl-c-title: #ffffff;
   --tl-c-text: #9a9a9a;
   --tl-c-ok: #2ecc40;
   --tl-c-warn: #ff9800;
@@ -878,7 +878,7 @@ body.tl-kiosk #div_pageContainer { padding-top: 0 !important; margin-top: 0 !imp
 .tl-tico { display: inline-flex; width: 1.15em; height: 1.15em; margin-right: .35em; vertical-align: -0.18em; color: var(--tl-acc, currentColor); }
 .tl-tico svg, .tl-tico i, .tl-tico img { width: 100%; height: 100%; font-size: 1em; }
 .tl-skin { --tl-acc: #38bdf8; --sk-bg: #06101f; --sk-bg2: #0b1d36; --sk-line: rgba(56,189,248,.06);
-  --tl-c-title: color-mix(in srgb, var(--tl-acc) 55%, #e6f2ff); --tl-c-text: #d6e6f7; --tl-radius: 14px; --tl-sep: color-mix(in srgb, var(--tl-acc) 30%, transparent);
+  --tl-c-title: #ffffff; --tl-c-text: #d6e6f7; --tl-radius: 14px; --tl-sep: color-mix(in srgb, var(--tl-acc) 30%, transparent);
   background-color: var(--sk-bg);
   background-image: radial-gradient(1200px 600px at 20% -10%, var(--sk-bg2), transparent 70%); }
 .tl-skin-neon-vert { --tl-acc: #34d399; --sk-bg: #04120d; --sk-bg2: #0a2a1d; --sk-line: rgba(52,211,153,.06); }
@@ -971,14 +971,13 @@ body.tl-kiosk #div_pageContainer { padding-top: 0 !important; margin-top: 0 !imp
 @keyframes tl-aurore { 50% { transform: translate(4%, -3%) rotate(6deg) scale(1.08); } 100% { transform: translate(-4%, 3%) rotate(-5deg); } }
 .tl-skin-aurore .tl-tile { background: rgba(255,255,255,.055); border: 1px solid rgba(255,255,255,.10); box-shadow: 0 10px 40px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08); backdrop-filter: blur(18px) saturate(1.3); -webkit-backdrop-filter: blur(18px) saturate(1.3); }
 .tl-skin-aurore .tl-title { text-transform: none; letter-spacing: 0; font-size: max(11px, calc(var(--tl-s) * .08)); }
-.tl-skin-aurore .tl-title:not(.tl-title-custom) .tl-ttxt { background: linear-gradient(90deg, #5eead4, #a78bfa 60%, #f0abfc); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .tl-skin-aurore .tl-title::after { background: linear-gradient(135deg, #5eead4, #a78bfa); box-shadow: 0 0 8px #a78bfa; }
 .tl-skin-aurore .tl-tabs { background: transparent; }
 .tl-skin-aurore .tl-tabs-in { background: rgba(255,255,255,.06); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-radius: 999px; }
 .tl-skin-aurore .tl-tab { border-radius: 999px; }
 
 /* Cockpit : tableau de bord d'avion, tuiles en relief vissées, chiffres ambre */
-.tl-skin-cockpit { --tl-acc: #ffb000; --sk-bg: #0a0b0d; --tl-radius: 6px; --tl-c-text: #ffb000; --tl-c-title: #8d8a82;
+.tl-skin-cockpit { --tl-acc: #ffb000; --sk-bg: #0a0b0d; --tl-radius: 6px; --tl-c-text: #ffb000; --tl-c-title: #ffffff;
   background: radial-gradient(120% 90% at 50% 0%, #17191d, #0a0b0d 70%); }
 .tl-skin-cockpit .tl-tile { background:
     radial-gradient(circle at 7px 7px, #3a3d42 1.6px, transparent 2.2px), radial-gradient(circle at calc(100% - 7px) 7px, #3a3d42 1.6px, transparent 2.2px),
@@ -996,7 +995,7 @@ body.tl-kiosk #div_pageContainer { padding-top: 0 !important; margin-top: 0 !imp
 .tl-skin-cockpit .tl-tab.tl-on { background: #241c08; border-color: #6b4a00; color: #ffb000; box-shadow: inset 0 0 12px rgba(255,176,0,.25); }
 
 /* Ardoise : mat, sobre, une barre de couleur en haut de chaque tuile */
-.tl-skin-ardoise { --tl-acc: #ff7a59; --sk-bg: #1a1f26; --tl-radius: 18px; --tl-c-title: #b9c2cf; --tl-c-text: #eef2f7; background: #1a1f26; }
+.tl-skin-ardoise { --tl-acc: #ff7a59; --sk-bg: #1a1f26; --tl-radius: 18px; --tl-c-title: #ffffff; --tl-c-text: #eef2f7; background: #1a1f26; }
 .tl-skin-ardoise .tl-tile { background: #232a33; border: 0; box-shadow: 0 1px 0 rgba(255,255,255,.04) inset, 0 12px 28px rgba(0,0,0,.28); backdrop-filter: none; }
 .tl-skin-ardoise .tl-tile::before { content: ''; position: absolute; left: 18px; right: 18px; top: 0; height: 3px; border-radius: 0 0 3px 3px; background: var(--tl-tile-acc, var(--tl-acc)); opacity: .9; }
 .tl-skin-ardoise .tl-title { text-transform: none; letter-spacing: 0; font-weight: 600; font-size: max(11px, calc(var(--tl-s) * .08)); padding-top: 4px; }

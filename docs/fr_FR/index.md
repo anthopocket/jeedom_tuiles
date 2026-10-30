@@ -74,6 +74,12 @@ On peut aussi saisir la **Position : colonne / ligne** dans la tuile (1 = premi�
 
 Dans **Apparence**, comme dans Word : **Taille du nom (px)**, **Taille du texte (px)** (valeurs, textes, listes) et **Taille de l'icône (px)** (icône ou bouton rond). Vide = taille automatique selon la tuile. Un texte trop long pour la tuile rétrécit quand même pour ne pas déborder.
 
+## Réglages de la page
+
+Le bouton **Réglages de la page** (barre de l'éditeur) déplie les lignes Design, Style, Textes et Alertes ; replié, seule la ligne Grille reste, pour laisser la place à l'aperçu.
+
+**Textes** : une taille commune pour toute la page — **Noms**, **Textes / valeurs** et **Icônes / logos** (en px). Elle s'applique à toutes les tuiles qui n'ont pas leur propre taille (dans une tuile, le champ affiche « page : 22 »). Le bouton **Appliquer à toutes les tuiles** retire les tailles propres des tuiles pour que la page décide partout.
+
 ## Types de tuiles
 
 | Type | Usage |

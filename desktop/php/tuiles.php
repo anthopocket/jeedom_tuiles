@@ -106,6 +106,7 @@ $eqLogics = eqLogic::byType($plugin->getId());
 							<a class="btn btn-sm btn-danger" id="bt_tlDelete" title="{{Supprimer la tuile}}"><i class="fas fa-trash"></i></a>
 						</div>
 						<div class="tl-ed-group">
+							<a class="btn btn-sm btn-default" id="bt_tlPageConf" title="{{Design, style, tailles des textes et alertes de la page}}"><i class="fas fa-sliders-h"></i> {{Réglages de la page}}</a>
 							<label class="tl-ed-inline"><input type="checkbox" id="cb_tlMobile"> {{Aperçu mobile}}</label>
 							<a class="btn btn-sm btn-default" id="bt_tlJson" title="{{Exporter / importer la page en JSON}}"><i class="fas fa-code"></i> JSON</a>
 						</div>

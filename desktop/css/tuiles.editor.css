@@ -1,7 +1,7 @@
 /* Tuiles — styles de l'éditeur (page de configuration uniquement) */
 .tl-ed {
   padding-top: 10px;
-  --tl-c-title: #8f8f8f; --tl-c-text: #9a9a9a; --tl-c-ok: #2ecc40; --tl-c-warn: #ff9800; --tl-c-alert: #ff1a1a;
+  --tl-c-title: #ffffff; --tl-c-text: #9a9a9a; --tl-c-ok: #2ecc40; --tl-c-warn: #ff9800; --tl-c-alert: #ff1a1a;
   --tl-c-info: #2f6bff; --tl-c-neutral: #c8c8c8; --tl-c-on: #1fbf3a; --tl-c-off: #e00000;
 }
 .tl-ed-row-full { flex-direction: column; gap: 4px; }
@@ -55,7 +55,8 @@
 .tl-ed-picker::-webkit-color-swatch-wrapper { padding: 2px; }
 .tl-ed-picker::-webkit-color-swatch { border: none; border-radius: 4px; }
 .tl-ed-code { width: 84px !important; flex: none; font-family: monospace; text-transform: lowercase; }
-.tl-ed-color-auto .tl-ed-picker { opacity: .35; }
+.tl-ed-color-auto .tl-ed-picker { opacity: .75; }
+.tl-ed-color-auto .tl-ed-code::placeholder { opacity: .9; }
 .tl-ed-cclear { flex: none; }
 .tl-ed-icon { display: flex; align-items: center; gap: 4px; }
 .tl-ed-icon input { flex: 1; min-width: 0; }

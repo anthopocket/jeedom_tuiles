@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.49.2';
+  var VERSION = '1.50.2';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -1232,6 +1232,10 @@
     var self = this;
     // recto-verso : l'appui long sert à retourner la tuile
     if (t.flip && t.cmdLong && !this.opts.edit) t = Object.assign({}, t, { cmdLong: '' });
+    // tailles communes de la page (nom, texte, icône) : s'appliquent aux tuiles qui n'ont pas leur propre taille
+    var pg = (this.data.layout && this.data.layout.grid) || {}, inh = {};
+    ['titlePx', 'textPx', 'iconPx'].forEach(function (k) { if (!isNum(t[k]) && isNum(pg[k]) && parseFloat(pg[k]) > 0) inh[k] = parseFloat(pg[k]); });
+    if (Object.keys(inh).length) t = Object.assign({}, t, inh);
     var type = R[t.type] ? t.type : 'vide';
     var w = Math.min(clampSpan(t.w), maxCols), h = clampSpan(t.h);
     var tileEl = el('div', 'tl-tile tl-t-' + type);

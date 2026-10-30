@@ -224,7 +224,7 @@
       { k: 'cmdOn', l: 'Action allumer', f: 'cmd', filter: C_ACTION, half: true },
       { k: 'cmdOff', l: 'Action éteindre', f: 'cmd', filter: C_ACTION, half: true },
       { k: 'cmdToggle', l: 'Ou action basculer (toggle)', f: 'cmd', filter: C_ACTION },
-      { k: 'liColor', l: 'Couleur de la lumière', f: 'color', help: 'Vide = blanc chaud.' }],
+      { k: 'liColor', l: 'Couleur de la lumière', f: 'color', ph: '#ffc94a', help: 'Vide = blanc chaud.' }],
     variateur: [
       { k: 'cmdState', l: 'Info état (allumé / éteint)', f: 'cmd', filter: C_INFO, help: 'Retour d\'état : binaire 0/1. Vide sur un variateur = allumé si la luminosité est > 0.' },
       { k: 'onValue', l: 'Valeur « allumé » (option)', ph: '1', help: 'Si l\'info n\'est pas binaire (ex. ON).' },
@@ -236,7 +236,7 @@
       { k: 'liMin', l: 'Mini', f: 'num', ph: 'auto (0)', half: true },
       { k: 'liMax', l: 'Maxi', f: 'num', ph: 'auto (100)', half: true },
       { k: 'liStep', l: 'Pas', f: 'num', ph: '1', half: true },
-      { k: 'liColor', l: 'Couleur de la lumière', f: 'color', help: 'Vide = blanc chaud.' }],
+      { k: 'liColor', l: 'Couleur de la lumière', f: 'color', ph: '#ffc94a', help: 'Vide = blanc chaud.' }],
     interphone: [{ k: 'eqId', l: 'Équipement interphone', f: 'eq', pluginRe: /hik/i, help: 'Les commandes du plugin hikinterphone sont retrouvées automatiquement ; vérifiez-les ci-dessous.', onPick: function (t, e) { fillHik(t, e.id).then(function () { onTileChange({ f: 'sel' }); }).catch(fail); } },
       { k: 'cmdEtat', l: 'Info état appel', f: 'cmd', filter: C_INFO, half: true },
       { k: 'cmdRing', l: 'Info sonnerie', f: 'cmd', filter: C_INFO, half: true },
@@ -465,13 +465,18 @@
     { k: 'x', l: 'Position : colonne', f: 'pos', show: function (t) { return !t.stack; }, help: 'Placement libre. 1 = première colonne, 1.5 = milieu de la première case, 2.25… Vide = automatique. Plus simple : glissez la tuile dans l\'aperçu.' },
     { k: 'y', l: 'Position : ligne', f: 'pos', show: function (t) { return !t.stack; }, help: '1 = première ligne, 1.5 = sous une tuile de ½ de haut… Vide = automatique.' }
   ];
+  /** Texte d'aide des tailles d'une tuile : taille commune de la page, sinon automatique. */
+  function pagePx(k) {
+    var g = (E.layout && E.layout.grid) || {};
+    return U.isNum(g[k]) && parseFloat(g[k]) > 0 ? 'page : ' + g[k] : 'auto';
+  }
   var LOOK = [
     { k: 'hideTitle', l: 'Masquer le nom', f: 'check' },
     { k: 'titleIcon', l: 'Icône devant le nom', f: 'icon', help: 'Petite icône à gauche du nom (style des thèmes).' },
-    { k: 'titlePx', l: 'Taille du nom (px)', f: 'num', ph: 'auto', help: 'Taille fixe du nom, comme dans Word. Vide = automatique selon la tuile.' },
-    { k: 'textPx', l: 'Taille du texte (px)', f: 'num', ph: 'auto', help: 'Taille fixe des valeurs et textes de la tuile. Le texte ne rétrécit que s\'il dépasse de la tuile.' },
-    { k: 'iconPx', l: 'Taille de l\'icône (px)', f: 'num', ph: 'auto', help: 'Taille fixe de l\'icône ou du bouton rond' },
-    { k: 'titleColor', l: 'Couleur du nom', f: 'color' },
+    { k: 'titlePx', l: 'Taille du nom (px)', f: 'num', phFn: function () { return pagePx('titlePx'); }, help: 'Taille fixe du nom, comme dans Word. Vide = automatique selon la tuile.' },
+    { k: 'textPx', l: 'Taille du texte (px)', f: 'num', phFn: function () { return pagePx('textPx'); }, help: 'Taille fixe des valeurs et textes de la tuile. Le texte ne rétrécit que s\'il dépasse de la tuile.' },
+    { k: 'iconPx', l: 'Taille de l\'icône (px)', f: 'num', phFn: function () { return pagePx('iconPx'); }, help: 'Taille fixe de l\'icône ou du bouton rond' },
+    { k: 'titleColor', l: 'Couleur du nom', f: 'color', ph: 'title' },
     { k: 'bg', l: 'Fond de la tuile', f: 'color' },
     { k: 'radius', l: 'Arrondi (px)', f: 'num', ph: '14' }
   ];
@@ -830,8 +835,35 @@
     nav.val(g.nav === 'none' ? 'none' : '').on('change', function () { if (nav.val()) g.nav = nav.val(); else delete g.nav; delete g.navLabel; delete g.navOrder; delete g.navHide; delete g.navHome; modified(); renderPreview(); });
     line3.append($('<label class="tl-ed-inline" title="La barre d\'onglets est commune à toutes les pages ; elle peut être masquée sur une page."></label>').text('Onglets ').append(nav));
     line3.append($('<a class="btn btn-xs btn-primary"><i class="fas fa-grip-lines"></i> Régler la barre d\'onglets…</a>').on('click', function () { openNavEditor(); }));
-    box.append(line1).append(line2).append(line3);
-    box.append(alertsConf(g));
+    // tailles communes à toutes les tuiles de la page
+    var line4 = $('<div class="tl-ed-gridline"></div>');
+    line4.append('<b class="tl-ed-gl">Textes</b>');
+    var pxNum = function (k, label, title) {
+      var inp = $('<input type="number" class="form-control input-sm" style="width:70px" min="0" max="300" placeholder="auto">').val(U.isNum(g[k]) && parseFloat(g[k]) > 0 ? g[k] : '');
+      inp.on('change', function () { var v = parseFloat(inp.val()); if (v > 0) g[k] = v; else delete g[k]; modified(); renderPreview(); if (selTile()) renderProps(); });
+      line4.append($('<label class="tl-ed-inline"></label>').attr('title', title).text(label + ' ').append(inp));
+    };
+    pxNum('titlePx', 'Noms (px)', 'Même taille de nom pour toutes les tuiles de la page. Une tuile qui a sa propre taille la garde.');
+    pxNum('textPx', 'Textes / valeurs (px)', 'Même taille de texte pour toutes les tuiles de la page.');
+    pxNum('iconPx', 'Icônes / logos (px)', 'Même taille d\'icône pour toutes les tuiles de la page.');
+    var nOwn = E.layout.tiles.filter(function (t) { return ['titlePx', 'textPx', 'iconPx'].some(function (k) { return U.isNum(t[k]) && U.isNum(g[k]); }); }).length;
+    if (nOwn) {
+      line4.append($('<a class="btn btn-xs btn-warning"></a>').html('<i class="fas fa-magic"></i> Appliquer à toutes les tuiles (' + nOwn + ' ont leur propre taille)').on('click', function () {
+        T.ui.confirm('Retirer les tailles propres à chaque tuile pour utiliser celles de la page ?', function () {
+          E.layout.tiles.forEach(function (t) { ['titlePx', 'textPx', 'iconPx'].forEach(function (k) { if (U.isNum(g[k])) delete t[k]; }); });
+          modified(); renderPreview(); renderGridConf(); if (selTile()) renderProps();
+        });
+      }));
+    }
+    // Design, Style, Textes et Alertes sont repliés dans « Réglages de la page » pour laisser de la hauteur à l'aperçu
+    $('#bt_tlPageConf').toggleClass('active btn-primary', !!E.confOpen).toggleClass('btn-default', !E.confOpen);
+    if (E.confOpen) {
+      box.append(line1).append(line2).append(line3).append(line4);
+      box.append(alertsConf(g));
+    } else {
+      box.append(line2);
+      // garde les libellés utilisés ailleurs (taille de case, adapter à l'écran)
+    }
     syncGridConf();
   }
 
@@ -1143,7 +1175,7 @@
     return row;
   }
 
-  var THEME_HEX = { title: '#8f8f8f', text: '#9a9a9a', ok: '#2ecc40', warn: '#ff9800', alert: '#ff1a1a', info: '#2f6bff', neutral: '#c8c8c8', on: '#1fbf3a', off: '#e00000' };
+  var THEME_HEX = { title: '#ffffff', text: '#9a9a9a', ok: '#2ecc40', warn: '#ff9800', alert: '#ff1a1a', info: '#2f6bff', neutral: '#c8c8c8', on: '#1fbf3a', off: '#e00000' };
   /** Couleur en #rrggbb (les anciens noms ok, warn… sont convertis). */
   function toHex(v) {
     if (!isSet(v)) return '';
@@ -1161,10 +1193,15 @@
     var code = $('<input type="text" class="form-control input-sm tl-ed-code" maxlength="7" spellcheck="false">');
     var clear = $('<a class="btn btn-xs btn-default tl-ed-cclear" title="Couleur automatique"><i class="fas fa-times"></i></a>');
     var cur = toHex(val);
+    // couleur par défaut réellement utilisée quand le champ est vide (ex. ouvert = rouge)
+    var defHex = isSet(ph) && ph !== 'auto' ? toHex(ph) : '';
+    if (!/^#[0-9a-f]{6}$/i.test(defHex)) defHex = '';
+    var DEF_NAME = { alert: 'rouge', off: 'rouge', ok: 'vert', on: 'vert', warn: 'orange', info: 'bleu', neutral: 'gris', title: 'blanc', text: 'gris' };
+    var defTxt = defHex ? 'auto : ' + (DEF_NAME[ph] || defHex) : 'auto';
     var draw = function () {
       var hex = /^#[0-9a-f]{6}$/i.test(cur) ? cur : '';
-      pick.val(hex || '#000000');
-      code.val(cur).attr('placeholder', 'auto');
+      pick.val(hex || defHex || '#000000');
+      code.val(cur).attr('placeholder', defTxt);
       wrap.toggleClass('tl-ed-color-auto', !cur);
       clear.toggle(!!cur && !noClear);
     };
@@ -1798,6 +1835,7 @@
   });
   $('#cb_tlMobile').on('change', function () { E.mobile = $(this).is(':checked'); renderPreview(); });
   $('#bt_tlJson').on('click', function () { if (E.layout) openJson(); });
+  $('#bt_tlPageConf').on('click', function () { if (!E.layout) return; E.confOpen = !E.confOpen; renderGridConf(); });
   $('#bt_tlOpenPage').on('click', function () {
     if (E.eqId) window.open('index.php?v=d&m=tuiles&p=panel&page_id=' + E.eqId, '_blank');
   });
