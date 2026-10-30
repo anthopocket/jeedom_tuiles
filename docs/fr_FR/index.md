@@ -175,9 +175,10 @@ Renseignez l'**adresse Frigate** (ex. `http://192.168.1.50:5000`) et le **nom de
 
 | Mode | Adresse utilisée | Remarque |
 |---|---|---|
-| MJPEG Frigate | `/api/<cam>?fps=5&h=720` | Le plus simple, fluide, un peu de CPU côté Frigate |
-| Capture rafraîchie | `/api/<cam>/latest.jpg?h=720` | Très léger, idéal pour plusieurs caméras |
-| Direct go2rtc | `:1984/stream.html?src=<cam>` | Vrai direct WebRTC/MSE, faible latence |
+| **Images rapides** (conseillé) | `/api/<cam>/latest.jpg?h=720`, 3 images/s par défaut | Le plus fiable : rien ne reste ouvert, plusieurs caméras sur la même page, fonctionne via Jeedom |
+| MJPEG Frigate | `/api/<cam>?fps=5&h=720` | Flux continu ; un navigateur ne garde que 6 flux ouverts vers une même adresse, au-delà les images se figent |
+| Flux go2rtc | `:1984/api/stream.mjpeg?src=<cam>` | Flux MJPEG de go2rtc dans une image (la page WebRTC de go2rtc en cadre est bloquée par la sécurité de Jeedom) |
+| Capture lente | `/api/<cam>/latest.jpg?h=720` toutes les N s | Très léger |
 
 À savoir : si Jeedom est ouvert en **https**, le navigateur bloque un flux en **http** (contenu mixte) — passez Frigate en https ou par le même proxy. Le port 5000 (API sans authentification) ou 1984 (go2rtc) doit être joignable depuis l'appareil qui affiche la page (attention depuis l'extérieur / l'appli mobile hors du réseau local). Le nom de flux go2rtc doit être celui déclaré dans `go2rtc: streams:` (souvent le même que la caméra), sinon remplissez « Adresse go2rtc ».
 
@@ -318,7 +319,7 @@ Deux tuiles : **Éclairage on / off** et **Éclairage variateur**. L'ampoule s'a
 
 ## Icônes animées
 
-Le sélecteur « Tuiles » propose un groupe **Animées** : pompe piscine, pompe d'arrosage, arroseurs rotatif et oscillant, goutte-à-goutte, électrovanne, robot de piscine, cuve, ventilateur / VMI, radiateur, flamme, prise, panneau solaire, batterie, voiture en charge, lave-linge, sèche-linge, lave-vaisselle, robot aspirateur, portail, ampoule, sirène, sonnette, mangeoire, piège à moustiques, pompe à chaleur (unité extérieure et piscine), recharge et décharge batterie, caméra dôme.
+Le sélecteur « Tuiles » propose un groupe **Animées** : pompe piscine, pompe d'arrosage, arroseurs rotatif et oscillant, goutte-à-goutte, électrovanne, robot de piscine, cuve, ventilateur / VMI, radiateur, flamme, prise, panneau solaire, batterie, voiture en charge, lave-linge, sèche-linge, lave-vaisselle, robot aspirateur, portail, ampoule, sirène, sonnette, mangeoire, piège à moustiques, pompe à chaleur (unité extérieure et piscine), recharge et décharge batterie, caméra dôme, monitoring (baie serveur + batterie + cœur).
 
 - Elles s'utilisent comme n'importe quelle icône (info binaire, bouton, lien…).
 - Juste sous le choix de l'icône : **Icône animée : bouge** (quand la tuile est active, toujours, ou jamais) et **Icône animée : vitesse** (lente, normale, rapide).

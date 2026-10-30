@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.55.0';
+  var VERSION = '1.57.0';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -415,6 +415,20 @@
       '<g class="tla-mv" style="animation:tla-look calc(4s * var(--tla-d, 1)) ease-in-out infinite"><circle cx="50" cy="48" r="11" style="fill:var(--tl-tile,#000)" stroke="currentColor" stroke-width="4"/><circle class="tla-fl" cx="50" cy="48" r="4.5"/><circle cx="47" cy="45" r="1.8" fill="#fff" opacity=".8"/></g>' +
       '<circle class="tla-fx" cx="76" cy="23" r="3.8" fill="#ff3b30" style="animation:tla-rec calc(1s * var(--tla-d, 1)) steps(1) infinite"/>';
     out.push(['svg:a-camera-dome', 'Caméra dôme', '#4fc3f7']);
+    // monitoring : baie serveur (voyants), batterie qui se remplit, cœur qui bat
+    var D = function (sec, extra) { return 'animation:' + extra + ' calc(' + sec + 's * var(--tla-d, 1))'; };
+    ICONS['a-monitoring'] = [0, 1, 2].map(function (k) {
+      var y = 26 + k * 21;
+      return '<rect class="tla-ln" x="8" y="' + y + '" width="54" height="17" rx="4" style="stroke-width:4.5"/>' +
+        '<circle class="tla-fl" cx="18" cy="' + (y + 8.5) + '" r="2.8" style="' + D(0.6 + k * 0.35, 'tla-rec') + ' steps(1) infinite"/>' +
+        '<circle class="tla-fl" cx="27" cy="' + (y + 8.5) + '" r="2.8" style="' + D(0.9 + k * 0.2, 'tla-rec') + ' steps(1) infinite;animation-delay:.3s"/>' +
+        '<path class="tla-lt" d="M37 ' + (y + 8.5) + ' H54" opacity=".55"/>';
+    }).join('') + '<path class="tla-ln" d="M18 92 H52" style="stroke-width:4.5"/>' +
+      '<rect class="tla-ln" x="70" y="46" width="22" height="44" rx="4" style="stroke-width:4.5"/><rect class="tla-fl" x="76" y="41" width="10" height="5" rx="1.5"/>' +
+      [0, 1, 2].map(function (k) { return '<rect class="tla-fl" x="75" y="' + (79 - k * 12) + '" width="12" height="8" rx="1.5" style="' + D(2.4, 'tla-fill1') + ' steps(1) infinite;animation-delay:calc(' + (k * 0.4) + 's * var(--tla-d, 1))"/>'; }).join('') +
+      '<g class="tla-mv" style="transform-origin:76px 22px;' + D(1.2, 'tla-beat') + ' ease-in-out infinite"><path class="tla-fl" d="M76 38 C64 30 58 25 58 18 A8.5 8.5 0 0 1 76 14 A8.5 8.5 0 0 1 94 18 C94 25 88 30 76 38 Z"/>' +
+      '<path d="M61 22 H68 L71 16 L75 28 L78 22 H90" fill="none" style="stroke:var(--tl-tile,#000)" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round"/></g>';
+    out.push(['svg:a-monitoring', 'Monitoring', '#2ecc71']);
     return out;
   })();
 
@@ -3010,20 +3024,21 @@
     var proxy = (t.camProxy && !p.opts.edit && pid && t.id) ? PROXY_URL + '?page=' + encodeURIComponent(pid) + '&tile=' + encodeURIComponent(t.id) : '';
     var chips = el('div', 'tl-cam-chips');
 
-    if (fm === 'go2rtc' && !proxy) {
-      var g = String(t.go2rtcUrl || (fb ? fb.replace(/:\d+$/, '') + ':1984' : '')).replace(/\/+$/, '');
-      var live = g && cam ? g + '/stream.html?src=' + cam + '&mode=webrtc,mse,mjpeg' : '';
-      api.el.classList.add('tl-cam-web');
-      R.web(p, Object.assign({}, t, { webUrl: live, webInteractive: false, webZoom: 100, _lbExtra: function (lb) { ptzPanel(p, t, lb); } }), api);
-      if (t.camLive) camBadge(p, t, api.el, true);
-      api.el.appendChild(chips);
-      return camChips(p, t, chips);
+    // go2rtc : flux MJPEG de go2rtc dans une image (une page go2rtc en cadre est bloquée par la sécurité de Jeedom)
+    var g2 = String(t.go2rtcUrl || (fb ? fb.replace(/:\d+$/, '') + ':1984' : '')).replace(/\/+$/, '');
+    // « rapide » : captures enchaînées (aucune connexion gardée ouverte : le plus fiable, plusieurs caméras sur la même page)
+    var rapid = fm === 'rapide';
+    var stream = fm !== 'snapshot' && !rapid;
+    var direct, snapUrl;
+    if (fm === 'go2rtc' && g2 && cam) {
+      direct = g2 + '/api/stream.mjpeg?src=' + cam;
+      snapUrl = g2 + '/api/frame.jpeg?src=' + cam;
+    } else {
+      direct = fb && cam ? (stream ? fb + '/api/' + cam + '?fps=' + fps + '&h=' + hh : fb + '/api/' + cam + '/latest.jpg?h=' + hh) : '';
+      snapUrl = fb && cam ? fb + '/api/' + cam + '/latest.jpg?h=' + hh : '';
     }
-
-    var stream = fm !== 'snapshot';
-    var direct = fb && cam ? (stream ? fb + '/api/' + cam + '?fps=' + fps + '&h=' + hh : fb + '/api/' + cam + '/latest.jpg?h=' + hh) : '';
-    var url = proxy || direct;
-    var snapUrl = proxy ? proxy + '&snap=1' : (fb && cam ? fb + '/api/' + cam + '/latest.jpg?h=' + hh : '');
+    if (proxy) snapUrl = proxy + '&snap=1';
+    var url = proxy ? (stream ? proxy : proxy + '&snap=1') : direct;
 
     var box = el('div', 'tl-cam-box');
     var img = el('img', 'tl-cam-img' + (t.camFit === 'contain' ? ' tl-fit-contain' : ''));
@@ -3081,7 +3096,7 @@
     img.onload = function () { msg.style.display = 'none'; if (badge.get() === 'wait') badge.set('live'); };
     img.onerror = function () { if (stream && !paused) { msg.textContent = 'Flux injoignable'; msg.style.display = ''; badge.set('off', 'Flux injoignable'); } };
     refresh();
-    var every = Math.max(1, num(t.camRefresh, 5));
+    var every = rapid ? Math.max(0.15, 1 / Math.max(0.2, num(t.frigateFps, 3))) : Math.max(1, num(t.camRefresh, 5));
     if (!stream) p.timers.push(setInterval(function () { if (!document.hidden) refresh(); }, every * 1000));
     if (t.camZoom !== false && t.camZoom !== '0') {
       p.press(api.el, function () {
