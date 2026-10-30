@@ -563,6 +563,7 @@
     { k: 'cmdOn', l: 'Action', f: 'cmd', filter: C_ACTION, show: function (l) { return l.kind === 'button'; } },
     { k: 'cmdOff', l: 'Action Off (option)', f: 'cmd', filter: C_ACTION, show: function (l) { return l.kind === 'button'; } },
     { k: 'icon', l: 'Icône', f: 'icon', show: function (l) { return l.kind === 'button' || l.kind === 'icon'; } },
+    { k: 'confirm', l: 'Confirmation (option)', ph: 'vide = aucune', help: 'Texte demandé avant d\'envoyer l\'action (ex. remise à zéro).', show: function (l) { return l.kind === 'button'; } },
     { k: 'thresholds', l: 'Couleurs selon la valeur', f: 'thresholds', show: function (l) { return l.kind !== 'title' && (l.kind !== 'button' || l.cmdInfo); } },
     { k: 'color', l: 'Couleur', f: 'color' }
   ];
@@ -595,7 +596,7 @@
   }
   function tileById(id) { return (E.layout.tiles || []).filter(function (t) { return t.id === id; })[0] || null; }
   function selTile() { return E.sel ? tileById(E.sel) : null; }
-  function toast(m, k) { T.ui.toast(m, k); }
+  function toast(m, k) { if (E.quiet && k !== 'error') return; T.ui.toast(m, k); }
   function fail(e) { toast(e && e.message ? e.message : String(e), 'error'); }
 
   function ensureMetas(ids) {
@@ -1582,12 +1583,13 @@
       ['cmdPtzHome', 'action', NEVER, [/home|origine|accueil/], /record|enregistr|detect/],
       ['cmdPtzStop', 'action', NEVER, [/stop/], /record|enregistr|detect|audio|snapshot/]]
   };
-  function autoFill(obj, f) {
+  function autoFill(obj, f, done) {
+    done = done || function () {};
     var map = AUTO[obj && obj.type];
     var src = cleanIdE(getPath(obj, f.k));
-    if (!map || !src || !map.some(function (m) { return m[0] === f.k; })) return;
+    if (!map || !src || !map.some(function (m) { return m[0] === f.k; })) return done();
     var empty = map.filter(function (m) { return m[0] !== f.k && !cleanIdE(obj[m[0]]); });
-    if (!empty.length) return;
+    if (!empty.length) return done();
     ensureMetas([src]).then(function () {
       var meta = E.cmds[src];
       if (!meta || !meta.eqId) return null;
@@ -1624,7 +1626,7 @@
         modified();
         return ensureMetas(map.map(function (m) { return obj[m[0]]; })).then(function () { onTileChange({ f: 'sel' }); });
       }
-    }).catch(function () { /* remplissage facultatif */ });
+    }).catch(function () { /* remplissage facultatif */ }).then(function () { done(); });
   }
   function cleanIdE(v) { return String(isSet(v) ? v : '').replace(/#/g, '').trim(); }
 
@@ -1915,6 +1917,55 @@
     return base;
   }
 
+  /* ---------- import JSON : noms lisibles et commandes complétées ----------
+   * Dans le JSON, une commande peut s'écrire « #[Objet][Équipement][Commande]# » et un équipement
+   * « #[Objet][Équipement]# » (eqId) : ils sont convertis en id. Ensuite, comme dans l'éditeur, les
+   * commandes manquantes sont reprises de l'équipement (volets, lumières, caméras, alarme, interphone…). */
+  var EQ_FILL = { alarme: function (t, id) { return fillRisco(t, id); }, zones: function (t, id) { return fillRisco(t, id); }, vigieau: function (t, id) { return fillVigieau(t, id); },
+    interphone: function (t, id) { return fillHik(t, id); }, bonspoints: function (t, id) { return fillBonsPoints(t, id); }, reveil: function (t, id) { return fillReveil(t, id); } };
+  function importRefs(data) {
+    var refs = [], slots = [];
+    E.quiet = true;
+    var isRef = function (v) { return typeof v === 'string' && /^#?\[.+\]#?$/.test(v.trim()); };
+    var walk = function (node) {
+      if (!node || typeof node !== 'object') return;
+      Object.keys(node).forEach(function (k) {
+        var v = node[k];
+        if (/^cmd[A-Z]/.test(k) || k === 'eqId') {
+          if (Array.isArray(v)) v.forEach(function (x, i) { if (isRef(x)) { refs.push(x.trim()); slots.push([v, i, x.trim()]); } });
+          else if (isRef(v)) { refs.push(v.trim()); slots.push([node, k, v.trim()]); }
+        } else if (v && typeof v === 'object') walk(v);
+      });
+    };
+    walk(data.tiles);
+    walk((data.grid || {}).alerts || []);
+    var step = refs.length ? T.ajax('resolveRefs', { refs: JSON.stringify(refs.filter(function (x, i) { return refs.indexOf(x) === i; })) }) : Promise.resolve({});
+    return step.catch(function (e) { E.quiet = false; throw e; }).then(function (map) {
+      var missing = [];
+      slots.forEach(function (s) {
+        var id = map && map[s[2]];
+        if (id) s[0][s[1]] = String(id);
+        else { if (missing.indexOf(s[2]) < 0) missing.push(s[2]); if (Array.isArray(s[0])) s[0][s[1]] = ''; else delete s[0][s[1]]; }
+      });
+      data.tiles.forEach(function (t) { if (Array.isArray(t.cmdList)) t.cmdList = t.cmdList.filter(Boolean); });
+      // compléter les tuiles : équipement (alarme, interphone…) ou commandes sœurs (volet, lumière, caméra…)
+      var jobs = data.tiles.map(function (t) {
+        if (cleanIdE(t.eqId) && EQ_FILL[t.type]) return EQ_FILL[t.type](t, t.eqId).catch(function () {});
+        var map2 = AUTO[t.type];
+        if (!map2) return null;
+        var known = map2.filter(function (m) { return cleanIdE(t[m[0]]); })[0];
+        if (!known) return null;
+        return new Promise(function (res) { autoFill(t, { k: known[0] }, res); });
+      }).filter(Boolean);
+      return Promise.all(jobs).then(function () {
+        E.quiet = false;
+        if (missing.length) {
+          T.ui.modal({ title: 'Import : commandes introuvables', body: '<p>Ces noms ne correspondent à aucune commande ou aucun équipement de Jeedom (vérifiez l\'objet, l\'équipement et la commande, majuscules et accents compris). Les cases correspondantes sont restées vides : choisissez-les dans l\'éditeur.</p><ul>' + missing.map(function (m) { return '<li><code>' + esc(m) + '</code></li>'; }).join('') + '</ul>' });
+        } else if (refs.length) toast(refs.length + ' commandes / équipements reconnus');
+      });
+    });
+  }
+
   function openJson() {
     var area = $('<textarea class="form-control tl-ed-json" spellcheck="false"></textarea>').val(JSON.stringify(E.layout, null, 2));
     var body = $('<div><p>Copiez ce texte pour sauvegarder ou recopier la page ailleurs. Collez un autre JSON puis « Appliquer » pour l\'importer.</p></div>').append(area);
@@ -1929,7 +1980,9 @@
           E.layout = data;
           E.sel = null;
           modified();
-          ensureMetas(U.collectIds([data.tiles, (data.grid || {}).alerts || []])).then(function () { renderGridConf(); renderAll(); }).catch(fail);
+          importRefs(data).then(function () {
+            return ensureMetas(U.collectIds([data.tiles, (data.grid || {}).alerts || []]));
+          }).then(function () { renderGridConf(); renderAll(); }).catch(fail);
         }
       }]
     });
