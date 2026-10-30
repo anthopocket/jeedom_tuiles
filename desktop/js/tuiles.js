@@ -1501,6 +1501,8 @@
   /* ---------- remplissage automatique des commandes d'un même équipement ----------
    * Dès qu'une commande est choisie sur un volet, un bouton ou un éclairage, les autres
    * commandes vides sont cherchées dans le même équipement (type générique Jeedom, sinon nom). */
+  var NEVER = /(?!)/, RX_ON = /(^|[^a-z])(on|activ\w*|enable\w*|start\w*|demarr\w*)([^a-z]|$)/, RX_OFF = /desactiv|disable|(^|[^a-z])(off|stop\w*|arret\w*)([^a-z]|$)/;
+  var RX_CAMX = /record|enregistr|detect|zoom|preset|snapshot|audio/;
   var AUTO = {
     volet: [
       ['cmdInfo', 'info', /^FLAP_STATE/, /position|etat|state|niveau|level/],
@@ -1520,7 +1522,23 @@
       ['cmdState', 'info', /^LIGHT_STATE$|^ENERGY_STATE$/, /etat|state|statut|status/],
       ['cmdOn', 'action', /_ON$/, /(^|[^a-z])(on|allum\w*)([^a-z]|$)/],
       ['cmdOff', 'action', /_OFF$/, /(^|[^a-z])(off|etein\w*)([^a-z]|$)/],
-      ['cmdSlider', 'slider', /SLIDER$/, /luminosit|intensit|brightness|niveau|level|dim/]]
+      ['cmdSlider', 'slider', /SLIDER$/, /luminosit|intensit|brightness|niveau|level|dim/]],
+    // caméra (plugin Frigate…) : [clé, type, générique, nom (toutes doivent correspondre), nom à exclure]
+    camera: [
+      ['cmdRec', 'info', NEVER, [/record|enregistr/], /(^|[^a-z])(on|off)([^a-z]|$)/],
+      ['cmdDet', 'info', NEVER, [/detect/], /(^|[^a-z])(on|off)([^a-z]|$)/],
+      ['cmdRecOn', 'action', NEVER, [/record|enregistr/, RX_ON], RX_OFF],
+      ['cmdRecOff', 'action', NEVER, [/record|enregistr/, RX_OFF]],
+      ['cmdDetOn', 'action', NEVER, [/detect/, RX_ON], RX_OFF],
+      ['cmdDetOff', 'action', NEVER, [/detect/, RX_OFF]],
+      ['cmdPtzIn', 'action', NEVER, [/zoom/, /(^|[^a-z])(in|avant|plus)([^a-z]|$)|\+/], /out|arriere|moins|-/],
+      ['cmdPtzOut', 'action', NEVER, [/zoom/, /(^|[^a-z])(out|arriere|moins)([^a-z]|$)|-/]],
+      ['cmdPtzUp', 'action', NEVER, [/(^|[^a-z])(up|haut|monte\w*)([^a-z]|$)/], RX_CAMX],
+      ['cmdPtzDown', 'action', NEVER, [/(^|[^a-z])(down|bas|descen\w*)([^a-z]|$)/], RX_CAMX],
+      ['cmdPtzLeft', 'action', NEVER, [/(^|[^a-z])(left|gauche)([^a-z]|$)/], RX_CAMX],
+      ['cmdPtzRight', 'action', NEVER, [/(^|[^a-z])(right|droite)([^a-z]|$)/], RX_CAMX],
+      ['cmdPtzHome', 'action', NEVER, [/home|origine|accueil/], /record|enregistr|detect/],
+      ['cmdPtzStop', 'action', NEVER, [/stop/], /record|enregistr|detect|audio|snapshot/]]
   };
   function autoFill(obj, f) {
     var map = AUTO[obj && obj.type];
@@ -1539,8 +1557,12 @@
       var ok = function (c, kind) { return kind === 'info' ? c.type === 'info' : (c.type === 'action' && (kind === 'slider' ? c.subType === 'slider' : c.subType !== 'slider')); };
       empty.forEach(function (m) {
         var cands = r.cmds.filter(function (c) { return !used[String(c.id)] && ok(c, m[1]); });
+        var res = Array.isArray(m[3]) ? m[3] : [m[3]];
         var c = cands.filter(function (x) { return x.generic && m[2].test(x.generic); })[0] ||
-          cands.filter(function (x) { return m[3].test(normName(x.name + ' ' + (x.logicalId || ''))); })[0];
+          cands.filter(function (x) {
+            var n = normName(x.name + ' ' + (x.logicalId || '').replace(/_/g, ' '));
+            return res.every(function (re) { return re.test(n); }) && !(m[4] && m[4].test(n));
+          })[0];
         // info : celle liée aux actions (valeur de retour), sinon la seule info numérique / binaire
         if (!c && m[1] === 'info') {
           var linked = r.cmds.filter(function (x) { return x.type === 'action' && x.value; }).map(function (x) { return String(x.value).replace(/#/g, ''); })[0];
@@ -1548,6 +1570,13 @@
         }
         if (c) { obj[m[0]] = String(c.id); used[String(c.id)] = true; got.push(c.name); }
       });
+      if (obj.type === 'camera') {
+        if (!(obj.options || []).length) {
+          var pre = r.cmds.filter(function (c) { return c.type === 'action' && !used[String(c.id)] && /preset|prepos/.test(normName(c.name + ' ' + (c.logicalId || ''))); });
+          if (pre.length) { obj.options = pre.map(function (c) { return { label: c.name.replace(/^.*?(preset|prepos\w*)\s*[:\-]?\s*/i, '') || c.name, cmdAction: String(c.id) }; }); got.push(pre.length + ' position(s) prédéfinie(s)'); }
+        }
+        if (!obj.frigateCam && r.plugin === 'frigate' && r.logicalId && /^[\w-]+$/.test(r.logicalId)) { obj.frigateCam = r.logicalId; got.push('nom de caméra « ' + r.logicalId + ' »'); }
+      }
       if (got.length) {
         toast('Commandes reprises de l\'équipement : ' + got.join(', '));
         modified();

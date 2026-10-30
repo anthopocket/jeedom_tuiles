@@ -84,7 +84,7 @@ Le bouton **Réglages de la page** (barre de l'éditeur) déplie les lignes Desi
 
 ## Remplissage automatique des commandes
 
-Sur les tuiles **Volet**, **Bouton**, **Éclairage** et **Éclairage variateur**, dès qu'une commande est choisie (par exemple l'info position d'un volet), les autres commandes vides sont cherchées dans le **même équipement** : monter, descendre, stop, position pour un volet ; on / off pour un bouton ou un éclairage ; variation pour un variateur. La recherche utilise le type générique Jeedom, sinon le nom de la commande (monter / descendre / stop, on / off…). Les commandes déjà choisies ne sont jamais remplacées ; un message liste celles qui ont été reprises.
+Sur les tuiles **Volet**, **Bouton**, **Éclairage**, **Éclairage variateur** et **Caméra**, dès qu'une commande est choisie (par exemple l'info position d'un volet), les autres commandes vides sont cherchées dans le **même équipement** : monter, descendre, stop, position pour un volet ; on / off pour un bouton ou un éclairage ; variation pour un variateur ; pour une caméra (plugin Frigate) : infos et actions enregistrement / détection, commandes PTZ (haut, bas, gauche, droite, zoom, origine, stop), positions prédéfinies (presets) et nom de la caméra. La recherche utilise le type générique Jeedom, sinon le nom de la commande (monter / descendre / stop, on / off…). Les commandes déjà choisies ne sont jamais remplacées ; un message liste celles qui ont été reprises.
 
 ## Types de tuiles
 
@@ -318,7 +318,7 @@ Deux tuiles : **Éclairage on / off** et **Éclairage variateur**. L'ampoule s'a
 
 ## Icônes animées
 
-Le sélecteur « Tuiles » propose un groupe **Animées** : pompe piscine, pompe d'arrosage, arroseurs rotatif et oscillant, goutte-à-goutte, électrovanne, robot de piscine, cuve, ventilateur / VMI, radiateur, flamme, prise, panneau solaire, batterie, voiture en charge, lave-linge, sèche-linge, lave-vaisselle, robot aspirateur, portail, ampoule, sirène, sonnette, mangeoire, piège à moustiques, pompe à chaleur (unité extérieure et piscine), recharge et décharge batterie.
+Le sélecteur « Tuiles » propose un groupe **Animées** : pompe piscine, pompe d'arrosage, arroseurs rotatif et oscillant, goutte-à-goutte, électrovanne, robot de piscine, cuve, ventilateur / VMI, radiateur, flamme, prise, panneau solaire, batterie, voiture en charge, lave-linge, sèche-linge, lave-vaisselle, robot aspirateur, portail, ampoule, sirène, sonnette, mangeoire, piège à moustiques, pompe à chaleur (unité extérieure et piscine), recharge et décharge batterie, caméra dôme.
 
 - Elles s'utilisent comme n'importe quelle icône (info binaire, bouton, lien…).
 - Juste sous le choix de l'icône : **Icône animée : bouge** (quand la tuile est active, toujours, ou jamais) et **Icône animée : vitesse** (lente, normale, rapide).

@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.53.1';
+  var VERSION = '1.55.0';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -410,6 +410,11 @@
       ICONS['a-' + slugs[i]] = body;
       out.push(['svg:a-' + slugs[i], it[0], it[1]]);
     });
+    // caméra dôme : l'objectif regarde autour de lui, voyant REC qui clignote
+    ICONS['a-camera-dome'] = '<path class="tla-ln" d="M12 30 H88"/><path class="tla-ln" d="M20 30 V36 H80 V30"/><path class="tla-ln" d="M22 36 A28 28 0 0 0 78 36"/>' +
+      '<g class="tla-mv" style="animation:tla-look calc(4s * var(--tla-d, 1)) ease-in-out infinite"><circle cx="50" cy="48" r="11" style="fill:var(--tl-tile,#000)" stroke="currentColor" stroke-width="4"/><circle class="tla-fl" cx="50" cy="48" r="4.5"/><circle cx="47" cy="45" r="1.8" fill="#fff" opacity=".8"/></g>' +
+      '<circle class="tla-fx" cx="76" cy="23" r="3.8" fill="#ff3b30" style="animation:tla-rec calc(1s * var(--tla-d, 1)) steps(1) infinite"/>';
+    out.push(['svg:a-camera-dome', 'Caméra dôme', '#4fc3f7']);
     return out;
   })();
 

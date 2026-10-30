@@ -885,9 +885,9 @@ class tuiles extends eqLogic {
 		}
 		$out = array();
 		foreach ($eq->getCmd() as $cmd) {
-			$out[] = array('id' => $cmd->getId(), 'name' => $cmd->getName(), 'logicalId' => $cmd->getLogicalId(), 'type' => $cmd->getType(), 'subType' => $cmd->getSubType());
+			$out[] = array('id' => $cmd->getId(), 'name' => $cmd->getName(), 'logicalId' => $cmd->getLogicalId(), 'type' => $cmd->getType(), 'subType' => $cmd->getSubType(), 'generic' => $cmd->getGeneric_type(), 'value' => $cmd->getValue());
 		}
-		return array('id' => $eq->getId(), 'name' => $eq->getName(), 'plugin' => $eq->getEqType_name(), 'cmds' => $out);
+		return array('id' => $eq->getId(), 'name' => $eq->getName(), 'logicalId' => $eq->getLogicalId(), 'plugin' => $eq->getEqType_name(), 'cmds' => $out);
 	}
 
 	/** Liste des équipements (sélecteur de l'éditeur). */
