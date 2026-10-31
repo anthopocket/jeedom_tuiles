@@ -321,6 +321,9 @@ class tuiles extends eqLogic {
 				'veille' => isset($c['veille']) && is_numeric($c['veille']) ? max(0, min(240, floatval($c['veille']))) : 0,
 				'veilleDate' => !empty($c['veilleDate']) && $c['veilleDate'] !== 'false',
 				'veilleLogo' => isset($c['veilleLogo']) ? substr(trim((string) $c['veilleLogo']), 0, 300) : '',
+				'homeZone' => isset($c['homeZone']) && in_array($c['homeZone'], array('tl', 'tr', 'bl', 'br'), true) ? $c['homeZone'] : '',
+				'homeZoneSize' => isset($c['homeZoneSize']) && is_numeric($c['homeZoneSize']) ? max(30, min(200, intval($c['homeZoneSize']))) : 70,
+				'homeZoneShow' => !empty($c['homeZoneShow']) && $c['homeZoneShow'] !== 'false',
 				'items' => $dItems,
 			);
 		}

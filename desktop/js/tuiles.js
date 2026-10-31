@@ -1015,6 +1015,7 @@
           homeLabel: c.homeLabel !== undefined ? c.homeLabel : (nav.homeLabel || ''), homeIcon: c.homeIcon !== undefined ? c.homeIcon : (nav.homeIcon || ''),
           swipeHome: c.swipeHome !== undefined ? !!c.swipeHome : !!nav.swipeHome, swipeDist: c.swipeDist || nav.swipeDist || 100, idleHome: c.idleHome !== undefined ? c.idleHome : (nav.idleHome || 0),
           veille: c.veille !== undefined ? c.veille : (nav.veille || 0), veilleDate: c.veilleDate !== undefined ? !!c.veilleDate : !!nav.veilleDate, veilleLogo: c.veilleLogo !== undefined ? c.veilleLogo : (nav.veilleLogo || ''),
+          homeZone: c.homeZone !== undefined ? c.homeZone : (nav.homeZone || ''), homeZoneSize: c.homeZoneSize || nav.homeZoneSize || 70, homeZoneShow: c.homeZoneShow !== undefined ? !!c.homeZoneShow : !!nav.homeZoneShow,
           full: c.full !== undefined ? !!c.full : d[0] === 'mobile'
         };
         items[d[0]] = all.filter(function (it) { return it.device === d[0]; });
@@ -1068,6 +1069,14 @@
         back.append($('<label class="tl-ed-inline"></label>').text('Distance à parcourir avec le doigt : ').append(swd).append(' px minimum (100 par défaut, 30 à 600)'));
         var idl = $('<input type="number" min="0" max="240" step="1" class="form-control input-sm" style="width:70px" placeholder="0">').val(c.idleHome > 0 ? c.idleHome : '').on('input', function () { c.idleHome = parseFloat($(this).val()) || 0; });
         back.append($('<label class="tl-ed-inline"></label>').text('Retour automatique à l\'accueil après ').append(idl).append(' min sans toucher (vide = jamais)'));
+        var hz = $('<select class="form-control input-sm" style="width:auto;display:inline-block"></select>');
+        [['', 'aucun'], ['tl', 'en haut à gauche'], ['tr', 'en haut à droite'], ['bl', 'en bas à gauche'], ['br', 'en bas à droite']].forEach(function (o) { hz.append($('<option>').val(o[0]).text(o[1])); });
+        hz.val(c.homeZone || '').on('change', function () { c.homeZone = hz.val(); });
+        back.append($('<label class="tl-ed-inline"></label>').text('Bouton caché (appui → page d\'accueil) : ').append(hz));
+        var hzs = $('<input type="number" min="30" max="200" step="5" class="form-control input-sm" style="width:70px">').val(c.homeZoneSize || 70).on('input', function () { c.homeZoneSize = parseInt($(this).val(), 10) || 70; });
+        var hzv = $('<input type="checkbox">').prop('checked', !!c.homeZoneShow).on('change', function () { c.homeZoneShow = hzv.is(':checked'); });
+        back.append($('<label class="tl-ed-inline"></label>').text('Taille de la zone : ').append(hzs).append(' px'));
+        back.append($('<label class="tl-ed-inline"></label>').append(hzv).append(' Montrer une maison très discrète (sinon zone invisible)'));
         pane.append($('<div class="tl-ed-navopt"><b>Retour à l\'accueil sans bouton :</b></div>')).append(back);
         var vb = $('<div class="tl-ed-navhome"></div>');
         var vmin = $('<input type="number" min="0" max="240" step="1" class="form-control input-sm" style="width:70px" placeholder="0">').val(c.veille > 0 ? c.veille : '').on('input', function () { c.veille = parseFloat($(this).val()) || 0; });
@@ -1128,7 +1137,7 @@
           var dev = {}, flat = [];
           DEVS.forEach(function (d) {
             var c = conf[d[0]];
-            dev[d[0]] = { size: c.size || 100, full: !!c.full, home: !!c.home, homeLabel: c.homeLabel || '', homeIcon: c.homeIcon || '', swipeHome: !!c.swipeHome, swipeDist: c.swipeDist || 100, idleHome: c.idleHome || 0, veille: c.veille || 0, veilleDate: !!c.veilleDate, veilleLogo: c.veilleLogo || '', items: items[d[0]].map(mapIt) };
+            dev[d[0]] = { size: c.size || 100, full: !!c.full, home: !!c.home, homeLabel: c.homeLabel || '', homeIcon: c.homeIcon || '', swipeHome: !!c.swipeHome, swipeDist: c.swipeDist || 100, idleHome: c.idleHome || 0, veille: c.veille || 0, veilleDate: !!c.veilleDate, veilleLogo: c.veilleLogo || '', homeZone: c.homeZone || '', homeZoneSize: c.homeZoneSize || 70, homeZoneShow: !!c.homeZoneShow, items: items[d[0]].map(mapIt) };
             flat = flat.concat(items[d[0]].map(mapIt));
           });
           var c0 = conf[DEVS[0][0]];

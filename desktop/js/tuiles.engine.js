@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.69.8';
+  var VERSION = '1.70.0';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -653,7 +653,7 @@
       this.timers.push(setInterval(function () { self.resync(); }, Math.max(5, num(self.data.poll, 0)) * 1000));
     }
     this.timers.push(setInterval(function () { self.tiles.forEach(function (a) { self.markAge(a); }); }, 60000));
-    if (!this.opts.edit) { this.setupHomeReturn(); this.setupVeille(); }
+    if (!this.opts.edit) { this.setupHomeReturn(); this.setupHomeZone(); this.setupVeille(); }
   }
 
   /** Retour à la page d'accueil sans bouton : glisser depuis le bord gauche, et / ou retour automatique après inactivité. */
@@ -667,14 +667,20 @@
     var offs = this.homeOffs = [];
     var on = function (target, ev, fn, opt) { target.addEventListener(ev, fn, opt); offs.push(function () { target.removeEventListener(ev, fn, opt); }); };
     if (nav.swipeHome) {
+      // le navigateur ne doit pas s'emparer des glissés horizontaux (sinon il coupe le geste au hasard)
+      this.root.classList.add('tl-swipe-on'); offs.push(function () { self.root.classList.remove('tl-swipe-on'); });
       // Glisser vers la droite n'importe où sur la page, sur une distance réglable (nav.swipeDist, en px d'écran).
       // Ignoré sur les curseurs / volets / anneaux (ils capturent le doigt), les barres qui défilent de côté,
       // les champs et les fenêtres ouvertes. Si le navigateur annule le toucher (touchcancel), on décide avec le dernier mouvement.
       var DIST = Math.max(30, Math.min(600, num(nav.swipeDist, 100))), st = null, hint = null, last = null;
+      var dbgBox = /swipedebug/.test(location.search) ? el('div', 'tl-swipe-dbg') : null, nMove = 0;
+      if (dbgBox) { document.body.appendChild(dbgBox); offs.push(function () { if (dbgBox.parentNode) dbgBox.parentNode.removeChild(dbgBox); }); }
+      var dbg = function (m) { if (!dbgBox) return; dbgBox.textContent = (m + '\n' + dbgBox.textContent).split('\n').slice(0, 8).join('\n'); };
       var clear = function () { st = null; last = null; if (hint && hint.parentNode) hint.parentNode.removeChild(hint); hint = null; };
       var decide = function (x, y) {
         if (!st) return;
         var dx = x - st.x, dy = Math.abs(y - st.y), quick = Date.now() - st.at < 2500;
+        dbg('fin dx=' + Math.round(dx) + ' dy=' + Math.round(dy) + ' ' + (Date.now() - st.at) + 'ms moves=' + nMove + ' → ' + (dx >= DIST && dy < Math.max(80, dx * 0.5) && quick ? 'ACCUEIL' : 'non'));
         clear();
         if (dx >= DIST && dy < Math.max(80, dx * 0.5) && quick) go();
       };
@@ -694,14 +700,16 @@
         if (e.touches.length !== 1) return;
         var t = e.touches[0], tg = e.target;
         if (tg && tg.closest && tg.closest('input, textarea, select, .tl-modal-ov, .tl-lb, .tl-pop')) return;
-        if (sideScroll(tg) || dragZone(tg)) return;
+        if (sideScroll(tg) || dragZone(tg)) { dbg('ignoré (curseur / barre)'); return; }
+        nMove = 0; dbg('départ x=' + Math.round(t.clientX));
         st = { x: t.clientX, y: t.clientY, at: Date.now() }; last = { x: t.clientX, y: t.clientY };
       }, { passive: true, capture: true });
       on(document, 'touchmove', function (e) {
         if (!st) return;
         if (e.touches.length !== 1) { clear(); return; }
         var t = e.touches[0], dx = t.clientX - st.x, dy = Math.abs(t.clientY - st.y);
-        last = { x: t.clientX, y: t.clientY };
+        last = { x: t.clientX, y: t.clientY }; nMove++;
+        if ((dx < -30 || (dy > 80 && dy > dx)) && dbgBox) dbg('annulé : ' + (dx < -30 ? 'vers la gauche' : 'trop vertical'));
         if (dx < -30 || (dy > 80 && dy > dx)) { clear(); return; }
         if (dx > 12) {
           if (!hint) { hint = el('div', 'tl-swipe-home', iconHtml('svg:home')); hint.style.top = Math.max(10, st.y - 30) + 'px'; document.body.appendChild(hint); }
@@ -715,7 +723,7 @@
         var t = e.changedTouches[0];
         decide(t.clientX, t.clientY);
       }, { passive: true, capture: true });
-      on(document, 'touchcancel', function () { if (last) decide(last.x, last.y); else clear(); }, { passive: true, capture: true });
+      on(document, 'touchcancel', function () { dbg('touchcancel (navigateur)'); if (last) decide(last.x, last.y); else clear(); }, { passive: true, capture: true });
     }
     if (idle > 0) {
       var last = Date.now();
@@ -726,6 +734,28 @@
         if (Date.now() - last >= idle * 60000) { bump(); go(); }
       }, 10000));
     }
+  };
+
+  /** Bouton caché : un coin de l'écran, invisible (ou à peine visible), qui ramène à la page d'accueil. */
+  Page.prototype.setupHomeZone = function () {
+    var dev = this.data.device === 'mobile' ? 'mobile' : 'tablette', self = this, nav = navFor(this.data.nav, dev);
+    var corner = String(nav.homeZone || '');
+    if (!/^(tl|tr|bl|br)$/.test(corner)) return;
+    var hp = String(((nav.homePages || {})[dev]) || ''), cur = String(this.data.id || '');
+    if (hp && hp === cur) return;                       // déjà sur l'accueil
+    var size = Math.max(30, Math.min(200, num(nav.homeZoneSize, 70)));
+    var z = el('div', 'tl-homezone tl-homezone-' + corner + (nav.homeZoneShow ? ' tl-homezone-show' : ''));
+    z.style.width = z.style.height = size + 'px';
+    if (nav.homeZoneShow) z.innerHTML = iconHtml(nav.homeIcon || 'svg:home');
+    ['pointerdown', 'mousedown', 'touchstart'].forEach(function (ev) { z.addEventListener(ev, function (e) { e.stopPropagation(); }, { passive: true }); });
+    z.addEventListener('click', function (e) {
+      e.preventDefault(); e.stopPropagation();
+      z.classList.add('tl-homezone-hit');
+      if (hp) self.navigate({ target: 'page', page: hp }); else self.navigate({ target: 'home' });
+    });
+    document.body.appendChild(z);
+    var offs = this.homeOffs = this.homeOffs || [];
+    offs.push(function () { if (z.parentNode) z.parentNode.removeChild(z); });
   };
 
   /** Écran de veille : après N minutes sans toucher, horloge plein écran ; un appui ramène à la page d'accueil. */
@@ -1049,7 +1079,7 @@
   /** Barre d'onglets : les pages du même appareil, la page courante en surbrillance. */
   /** Liste ordonnée des onglets : réglage commun (ordre, nom, icône, visible), puis les pages non classées. */
   /** Réglages de la barre pour un appareil : ceux de l'appareil (nav.dev[dev]) priment sur les réglages communs. */
-  var NAV_DEV_KEYS = ['size', 'home', 'homeLabel', 'homeIcon', 'swipeHome', 'swipeDist', 'idleHome', 'full', 'veille', 'veilleDate', 'veilleLogo'];
+  var NAV_DEV_KEYS = ['size', 'home', 'homeLabel', 'homeIcon', 'swipeHome', 'swipeDist', 'idleHome', 'full', 'veille', 'veilleDate', 'veilleLogo', 'homeZone', 'homeZoneSize', 'homeZoneShow'];
   function navFor(nav, dev) {
     nav = nav || {};
     var out = {}, d = (nav.dev && nav.dev[dev]) || {};
