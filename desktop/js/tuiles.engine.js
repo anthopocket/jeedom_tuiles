@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.65.0';
+  var VERSION = '1.65.1';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -1018,7 +1018,7 @@
       });
       inner.appendChild(home);
     }
-    navItems(this.data).filter(function (it) { return it.device === dev && (it.show || it.id === cur) && !(hp && it.id === hp && (nav.home || g.navHome)); }).forEach(function (it) {
+    navItems(this.data).filter(function (it) { return it.device === dev && it.show && !(hp && it.id === hp && (nav.home || g.navHome)); }).forEach(function (it) {
       var b = el('button', 'tl-tab' + (it.id === cur ? ' tl-on' : ''),
         '<span class="tl-tab-ico">' + iconHtml(it.icon || it.pageIcon || 'fas fa-th-large') + '</span><span class="tl-tab-txt">' + esc(it.label || it.name) + '</span>');
       b.type = 'button';
