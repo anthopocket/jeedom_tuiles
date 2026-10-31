@@ -25,6 +25,13 @@
       zones: 'Zones d\'alarme (Risco)',
       vigieau: 'VigiEau (restrictions d\'eau)'
     }],
+    ['Énergie', {
+      kpi: 'Chiffre clé (grosse valeur + petite ligne)',
+      batterie2: 'Batterie (charge, autonomie, Marche / Arrêt)',
+      bilanjour: 'Bilan énergie du jour',
+      prevsolaire: 'Prévision solaire (Solcast…)',
+      conseils: 'Conseils (energIA…) et mode'
+    }],
     ['Commander', {
       bouton: 'Bouton',
       slider: 'Slider',
@@ -209,6 +216,43 @@
       { k: 'page', l: 'Page', f: 'page', show: function (t) { return t.ovMode === 'resume' && t.target !== 'home'; } },
       { k: 'colorOpen', l: 'Couleur ouvert', f: 'color', ph: '#ffa726' }, { k: 'colorClosed', l: 'Couleur fermé', f: 'color', ph: '#2ecc71' },
       { k: 'items', l: 'Ouvrants', f: 'lines', schema: 'ouv', help: 'Un « Titre de groupe » (RDC, Étage…) commence une nouvelle carte. Baie et fenêtre 2 vantaux : 2 contacts (gauche, droite).' }],
+    kpi: [{ k: 'kpiCalc', l: 'Valeur', f: 'sel', o: { '': 'Une info', autonomie: 'Autonomie % (calculée : conso et achat)', autoconso: 'Autoconsommation % (calculée : production et revente)' }, rebuild: true },
+      { k: 'cmdInfo', l: 'Info', f: 'cmd', filter: C_INFO, show: function (t) { return !t.kpiCalc; } },
+      { k: 'cmdConso', l: 'Info conso du jour', f: 'cmd', filter: C_INFO, show: function (t) { return t.kpiCalc === 'autonomie'; } },
+      { k: 'cmdBuy', l: 'Info achat réseau du jour', f: 'cmd', filter: C_INFO, show: function (t) { return t.kpiCalc === 'autonomie'; } },
+      { k: 'cmdProd', l: 'Info production du jour', f: 'cmd', filter: C_INFO, show: function (t) { return t.kpiCalc === 'autoconso'; } },
+      { k: 'cmdSell', l: 'Info revente du jour', f: 'cmd', filter: C_INFO, show: function (t) { return t.kpiCalc === 'autoconso'; } },
+      { k: 'unit', l: 'Unité', ph: 'auto (W passe en kW au-delà de 1000)', show: function (t) { return !t.kpiCalc; } },
+      { k: 'decimals', l: 'Décimales', f: 'num', ph: 'auto', show: function (t) { return !t.kpiCalc; } },
+      { k: 'accent', l: 'Couleur', f: 'color', ph: '#ffb000' },
+      { k: 'subText', l: 'Petite ligne', ph: '{1} kWh aujourd\'hui', help: '{1} = valeur de l\'info ci-dessous (Wh converti en kWh).' },
+      { k: 'cmdSub', l: 'Info de la petite ligne (option)', f: 'cmd', filter: C_INFO },
+      { k: 'subDecimals', l: 'Décimales de la petite ligne', f: 'num', ph: '1' },
+      { k: 'thresholds', l: 'Couleurs selon la valeur', f: 'thresholds' },
+      { k: 'details', l: 'Courbe au toucher', f: 'sel', o: { '': 'Oui', non: 'Non' } }],
+    batterie2: [{ k: 'cmdSoc', l: 'Info charge (%)', f: 'cmd', filter: C_INFO }, { k: 'cmdPower', l: 'Info puissance batterie (W)', f: 'cmd', filter: C_INFO },
+      { k: 'powerSign', l: 'Sens de la puissance', f: 'sel', o: { '': 'Positive = charge', inv: 'Positive = décharge' } },
+      { k: 'capacity', l: 'Capacité (kWh)', f: 'num', ph: 'ex. 14.2', help: 'Pour « énergie stockée », « pleine vers » et « tiendra jusqu\'à ».' },
+      { k: 'minSoc', l: 'Charge mini utilisable (%)', f: 'num', ph: '0', help: 'Ex. SOC mini ESS : « tiendra jusqu\'à » s\'arrête à ce niveau.' },
+      { k: 'socLow', l: 'Rouge sous (%)', f: 'num', ph: '20' }, { k: 'socMid', l: 'Orange sous (%)', f: 'num', ph: '50' },
+      { k: 'cmdOn', l: 'Action Marche (option)', f: 'cmd', filter: C_ACTION }, { k: 'cmdOff', l: 'Action Arrêt (option)', f: 'cmd', filter: C_ACTION },
+      { k: 'cmdState', l: 'Info état Marche / Arrêt (option)', f: 'cmd', filter: C_INFO }, { k: 'onValue', l: 'Valeur « Marche »', ph: '1 / On' },
+      { k: 'labelOn', l: 'Texte bouton Marche', ph: 'Marche' }, { k: 'labelOff', l: 'Texte bouton Arrêt', ph: 'Arrêt' },
+      { k: 'confirmOff', l: 'Confirmation avant Arrêt', ph: 'Arrêter la batterie ?' },
+      { k: 'details', l: 'Courbe au toucher', f: 'sel', o: { '': 'Oui', non: 'Non' } }],
+    bilanjour: [{ k: 'cmdProd', l: 'Production du jour', f: 'cmd', filter: C_INFO }, { k: 'cmdForecast', l: 'Prévision du jour (option)', f: 'cmd', filter: C_INFO },
+      { k: 'cmdConso', l: 'Consommation du jour', f: 'cmd', filter: C_INFO }, { k: 'cmdBuy', l: 'Achat réseau du jour', f: 'cmd', filter: C_INFO },
+      { k: 'cmdSell', l: 'Revente du jour (option)', f: 'cmd', filter: C_INFO }, { k: 'cmdBatIn', l: 'Énergie mise en batterie du jour (option)', f: 'cmd', filter: C_INFO },
+      { k: 'decimals', l: 'Décimales', f: 'num', ph: '1' }, { k: 'details', l: 'Courbe au toucher', f: 'sel', o: { '': 'Oui', non: 'Non' } }],
+    prevsolaire: [{ k: 'cmdToday', l: 'Produit aujourd\'hui', f: 'cmd', filter: C_INFO }, { k: 'cmdForecast', l: 'Prévu aujourd\'hui (option)', f: 'cmd', filter: C_INFO },
+      { k: 'cmdRemain', l: 'Encore à venir aujourd\'hui (option)', f: 'cmd', filter: C_INFO }, { k: 'cmdTomorrow', l: 'Demain', f: 'cmd', filter: C_INFO },
+      { k: 'cmdAfter', l: 'Après-demain (option)', f: 'cmd', filter: C_INFO }, { k: 'color', l: 'Couleur', f: 'color', ph: '#ffb000' },
+      { k: 'decimals', l: 'Décimales', f: 'num', ph: '1' }, { k: 'details', l: 'Courbe au toucher', f: 'sel', o: { '': 'Oui', non: 'Non' } }],
+    conseils: [{ k: 'cmdText', l: 'Info texte des conseils', f: 'cmd', filter: C_INFO, help: 'Une ligne par conseil (retour à la ligne, « | » ou « ; »).' },
+      { k: 'okText', l: 'Texte s\'il n\'y a rien', ph: 'Aucun conseil pour le moment' },
+      { k: 'cmdMode', l: 'Info mode (option)', f: 'cmd', filter: C_INFO },
+      { k: 'options', l: 'Boutons de mode (libellé = valeur du mode)', f: 'options' },
+      { k: 'confirm', l: 'Confirmation avant de changer de mode', ph: 'vide = aucune' }],
     lignes: [{ k: 'lnAlign', l: 'Présentation', f: 'sel', o: { '': 'Tableau : libellés à gauche, valeurs alignées à droite', centre: 'Centrée (libellé : valeur)' } }, { k: 'lines', l: 'Lignes', f: 'lines' }],
     texte: [{ k: 'template', l: 'Texte', f: 'area', ph: '{1}°C | {2}%', help: '{1} à {4} sont remplacés par les infos ci-dessous' },
       { k: 'cmdV1', l: 'Info {1}', f: 'cmd', filter: C_INFO }, { k: 'cmdV2', l: 'Info {2}', f: 'cmd', filter: C_INFO },
@@ -1976,6 +2020,11 @@
       case 'demons': return Object.assign(base, { title: 'Démons', w: 2, h: 1.5 });
       case 'alarme': return Object.assign(base, { title: 'Alarme', rsPart: 1, w: 1.5, h: 2 });
       case 'zones': return Object.assign(base, { title: 'Zones', w: 2, h: 2 });
+      case 'kpi': return Object.assign(base, { title: 'Production', w: 1, h: 0.75 });
+      case 'batterie2': return Object.assign(base, { title: 'Batterie', w: 2, h: 2 });
+      case 'bilanjour': return Object.assign(base, { title: 'Bilan d\'aujourd\'hui', w: 2, h: 1.5 });
+      case 'prevsolaire': return Object.assign(base, { title: 'Prévision solaire', w: 2, h: 1.5 });
+      case 'conseils': return Object.assign(base, { title: 'energIA · conseils', w: 2, h: 1.5 });
       case 'ouvrants': return Object.assign(base, { title: 'Ouvrants', hideTitle: true, w: 2, h: 3, items: [{ kind: 'title', label: 'RDC' }, { kind: 'fenetre', label: '', openValue: '1' }] });
       case 'vigieau': return Object.assign(base, { title: 'VigiEau', w: 2, h: 1.5 });
       case 'reveil': return Object.assign(base, { title: 'Réveil', w: 1.5, h: 1 });

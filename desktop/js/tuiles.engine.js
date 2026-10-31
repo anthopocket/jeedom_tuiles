@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.67.2';
+  var VERSION = '1.68.0';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -5166,6 +5166,239 @@
             .forEach(function (row) { gr.list.appendChild(row.el); });
         }
       });
+    };
+  };
+
+  /* ================================================================== */
+  /*  Énergie : chiffre clé, batterie, bilan du jour, prévision solaire, */
+  /*  conseils. Pas de courbe en direct : toucher une valeur = historique */
+  /* ================================================================== */
+
+  /** Valeur numérique d'une info, convertie en kWh si l'info est en Wh. */
+  function enVal(p, id) {
+    var m = cleanId(id) ? p.meta(id) : null;
+    if (!m || !isNum(m.value)) return null;
+    var v = parseFloat(m.value);
+    if (/^wh$/i.test(String(m.unite || '').trim())) v = v / 1000;
+    return v;
+  }
+  function enNum(v, dec) {
+    if (v === null || v === undefined || !isFinite(v)) return '…';
+    return v.toFixed(dec).replace('.', ',');
+  }
+  /** Puissance lisible : W, ou kW au-delà de 1000 W. */
+  function enPower(v) {
+    if (v === null) return { v: '…', u: '' };
+    var a = Math.abs(v);
+    return a >= 1000 ? { v: enNum(v / 1000, 2), u: 'kW' } : { v: String(Math.round(v)), u: 'W' };
+  }
+  /** Une valeur cliquable : ouvre la courbe 24 h / 7 j / 30 j de l'info. */
+  function enClick(p, t, node, id, unit) {
+    if (!cleanId(id) || t.details === 'non' || p.opts.edit) return;
+    node.classList.add('tl-en-click');
+    node.addEventListener('click', function (e) { e.stopPropagation(); p.details(cleanId(id), { unit: unit || '' }); });
+  }
+  function enBig(cls) {
+    return el('div', 'tl-en-big ' + (cls || ''), '<span class="tl-en-v">…</span><span class="tl-en-u"></span>');
+  }
+  function enSet(node, v, u, col) {
+    node.querySelector('.tl-en-v').textContent = v;
+    node.querySelector('.tl-en-u').textContent = u || '';
+    if (col !== undefined) node.style.color = col;
+  }
+  function hhmm(ms) { var d = new Date(Date.now() + ms); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+
+  /* ---- Chiffre clé : grosse valeur + petite ligne, liseré de couleur ---- */
+  R.kpi = function (p, t, api) {
+    var col = color(t.accent || t.color || '#ffb000');
+    api.el.classList.add('tl-en-kpi');
+    api.el.style.setProperty('--en-acc', col);
+    var box = el('div', 'tl-en');
+    var big = enBig();
+    var sub = el('div', 'tl-en-sub');
+    box.appendChild(big); box.appendChild(sub);
+    api.body.appendChild(box);
+    var calc = t.kpiCalc || '';
+    if (!calc) enClick(p, t, big, t.cmdInfo, t.unit);
+    if (cleanId(t.cmdSub)) enClick(p, t, sub, t.cmdSub);
+    return function () {
+      var v = null, u = '', dec = isNum(t.decimals) ? parseInt(t.decimals, 10) : null, txt;
+      if (calc === 'autonomie' || calc === 'autoconso') {
+        // autonomie = part de la conso non achetée ; autoconsommation = part de la production non revendue
+        var a = enVal(p, calc === 'autonomie' ? t.cmdConso : t.cmdProd), b = enVal(p, calc === 'autonomie' ? t.cmdBuy : t.cmdSell);
+        v = a && a > 0 && b !== null ? Math.max(0, Math.min(100, (a - b) / a * 100)) : null;
+        txt = v === null ? '…' : String(Math.round(v)); u = '%';
+      } else {
+        var m = p.meta(t.cmdInfo), raw = m ? m.value : undefined;
+        u = isSet(t.unit) ? t.unit : ((m && m.unite) || '');
+        if (isNum(raw)) {
+          v = parseFloat(raw);
+          if (u === 'W' && t.autoKw !== false && Math.abs(v) >= 1000 && dec === null) { var pw = enPower(v); txt = pw.v; u = pw.u; }
+          else txt = enNum(v, dec === null ? (Math.abs(v) < 10 && v % 1 ? 1 : 0) : dec);
+        } else txt = isSet(raw) ? fmt(t, m, raw).text : '…';
+      }
+      var r = evalRules(rulesFor(t, p.presets), v);
+      enSet(big, txt, u, r && r.color ? color(r.color) : col);
+      // petite ligne : texte avec {1} = valeur de l'info secondaire
+      var st = isSet(t.subText) ? String(t.subText) : '';
+      if (cleanId(t.cmdSub)) {
+        var sv = enVal(p, t.cmdSub), sm = p.meta(t.cmdSub);
+        var s = sv === null ? (sm && isSet(sm.value) ? String(sm.value) : '…') : enNum(sv, isNum(t.subDecimals) ? parseInt(t.subDecimals, 10) : 1);
+        st = st.indexOf('{1}') >= 0 ? st.replace('{1}', s) : (st ? st + ' ' : '') + s;
+      }
+      if (!cleanId(t.cmdSub) && st.indexOf('{1}') >= 0) st = '';
+      sub.textContent = st;
+      sub.style.display = st ? '' : 'none';
+    };
+  };
+
+  /* ---- Batterie : charge, puissance, pleine vers / tiendra jusqu'à, Marche / Arrêt ---- */
+  R.batterie2 = function (p, t, api) {
+    var box = el('div', 'tl-en tl-en-bat');
+    var top = el('div', 'tl-en-battop');
+    var ring = el('div', 'tl-en-ring', '<svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="40" class="tl-en-rbg"/><circle cx="50" cy="50" r="40" class="tl-en-rfg" transform="rotate(-90 50 50)"/>' +
+      '<text x="50" y="57" text-anchor="middle" class="tl-en-rtx">…</text></svg>');
+    var info = el('div', 'tl-en-batinfo');
+    var state = el('div', 'tl-en-batstate');
+    var lines = el('div', 'tl-en-batlines');
+    info.appendChild(state); info.appendChild(lines);
+    top.appendChild(ring); top.appendChild(info);
+    box.appendChild(top);
+    enClick(p, t, ring, t.cmdSoc, '%');
+    enClick(p, t, state, t.cmdPower, 'W');
+    var btns = null, bOn = null, bOff = null;
+    if (cleanId(t.cmdOn) || cleanId(t.cmdOff)) {
+      btns = el('div', 'tl-en-batbtns');
+      bOn = el('div', 'tl-en-bbtn tl-en-bon', '<span>⏻</span> ' + esc(t.labelOn || 'Marche'));
+      bOff = el('div', 'tl-en-bbtn tl-en-boff', '<span>⏻</span> ' + esc(t.labelOff || 'Arrêt'));
+      if (cleanId(t.cmdOn)) { btns.appendChild(bOn); p.press(bOn, function () { p.run(api, t.cmdOn, {}, { confirm: t.confirmOn, infoId: t.cmdState }); }); }
+      if (cleanId(t.cmdOff)) {
+        btns.appendChild(bOff);
+        p.press(bOff, function () { p.run(api, t.cmdOff, {}, { confirm: t.confirmOff === undefined ? 'Arrêter la batterie ?' : t.confirmOff, infoId: t.cmdState }); });
+      }
+      box.appendChild(btns);
+    }
+    api.body.appendChild(box);
+    var fg = ring.querySelector('.tl-en-rfg'), rtx = ring.querySelector('.tl-en-rtx'), circ = 2 * Math.PI * 40;
+    fg.style.strokeDasharray = circ;
+    return function () {
+      var soc = enVal(p, t.cmdSoc), pw = enVal(p, t.cmdPower);
+      if (pw !== null && t.powerSign === 'inv') pw = -pw;
+      var cap = num(t.capacity, 0), minSoc = num(t.minSoc, 0);
+      var low = num(t.socLow, 20), mid = num(t.socMid, 50);
+      var col = soc === null ? color('neutral') : (soc < low ? '#ef5350' : (soc < mid ? '#ffa726' : '#7ee081'));
+      fg.style.strokeDashoffset = circ * (1 - (soc === null ? 0 : Math.max(0, Math.min(1, soc / 100))));
+      fg.style.stroke = col;
+      rtx.textContent = soc === null ? '…' : Math.round(soc) + ' %';
+      var idle = pw === null || Math.abs(pw) < num(t.idleW, 30);
+      var pp = enPower(pw === null ? null : Math.abs(pw));
+      state.textContent = pw === null ? '…' : (idle ? 'Au repos' : (pw > 0 ? 'En charge · +' : 'En décharge · −') + pp.v + ' ' + pp.u);
+      state.style.color = idle ? color('neutral') : (pw > 0 ? '#7ee081' : '#ffa726');
+      var L = [];
+      if (cap > 0 && soc !== null) {
+        L.push('Énergie stockée <b>' + enNum(cap * soc / 100, 1) + ' / ' + enNum(cap, 1) + ' kWh</b>');
+        if (!idle && pw > 0 && soc < 99.5) L.push('Pleine vers <b>' + hhmm((100 - soc) / 100 * cap * 1000 / pw * 3600000) + '</b>');
+        if (!idle && pw < 0 && soc > minSoc) L.push('Tiendra jusqu\'à <b>' + hhmm((soc - minSoc) / 100 * cap * 1000 / -pw * 3600000) + '</b>' + (minSoc ? ' (' + minSoc + ' %)' : ''));
+      }
+      lines.innerHTML = L.join('<br>');
+      if (btns) {
+        var on = cleanId(t.cmdState) ? isActive(p.val(t.cmdState), t.onValue, t.invert) : null;
+        bOn.classList.toggle('tl-on', on === true);
+        bOff.classList.toggle('tl-on', on === false);
+      }
+    };
+  };
+
+  /* ---- Bilan du jour : produit, consommé, acheté, revendu + où est partie la production ---- */
+  R.bilanjour = function (p, t, api) {
+    var box = el('div', 'tl-en tl-en-bilan');
+    var grid = el('div', 'tl-en-g4');
+    var defs = [
+      ['cmdProd', '#ffb000', 'produits'], ['cmdConso', '#26c6da', 'consommés'],
+      ['cmdBuy', '#4fc3f7', 'achetés au réseau'], ['cmdSell', '#9aa4b2', 'revendus']];
+    var cells = [];
+    defs.forEach(function (d) {
+      if (!cleanId(t[d[0]])) return;
+      var c = el('div', 'tl-en-cell'), b = enBig(), s = el('div', 'tl-en-sub', esc(d[2]));
+      b.style.color = d[1];
+      c.appendChild(b); c.appendChild(s); grid.appendChild(c);
+      enClick(p, t, c, t[d[0]], 'kWh');
+      cells.push({ k: d[0], big: b, sub: s, lab: d[2] });
+    });
+    box.appendChild(grid);
+    var bar = el('div', 'tl-en-split'), leg = el('div', 'tl-en-leg');
+    box.appendChild(bar); box.appendChild(leg);
+    api.body.appendChild(box);
+    var dec = isNum(t.decimals) ? parseInt(t.decimals, 10) : 1;
+    return function () {
+      var V = {};
+      ['cmdProd', 'cmdConso', 'cmdBuy', 'cmdSell', 'cmdBatIn', 'cmdForecast'].forEach(function (k) { V[k] = enVal(p, t[k]); });
+      cells.forEach(function (c) {
+        enSet(c.big, enNum(V[c.k], dec), 'kWh');
+        c.sub.textContent = c.lab + (c.k === 'cmdProd' && V.cmdForecast !== null ? ' · prévu ' + enNum(V.cmdForecast, 1) : '');
+      });
+      // production répartie : maison / batterie / revendu
+      var prod = V.cmdProd;
+      if (prod && prod > 0 && (V.cmdSell !== null || V.cmdBatIn !== null)) {
+        var sell = Math.max(0, V.cmdSell || 0), bat = Math.max(0, V.cmdBatIn || 0), home = Math.max(0, prod - sell - bat);
+        var tot = home + bat + sell || 1, P = function (x) { return Math.round(x / tot * 100); };
+        bar.innerHTML = '<i style="width:' + (home / tot * 100) + '%;background:#26c6da"></i><i style="width:' + (bat / tot * 100) + '%;background:#7ee081"></i><i style="width:' + (sell / tot * 100) + '%;background:#4fc3f7;opacity:.6"></i>';
+        leg.innerHTML = '<span><b style="color:#26c6da">■</b> maison ' + P(home) + ' %</span>' + (V.cmdBatIn !== null ? '<span><b style="color:#7ee081">■</b> batterie ' + P(bat) + ' %</span>' : '') +
+          (V.cmdSell !== null ? '<span><b style="color:#4fc3f7">■</b> revendu ' + P(sell) + ' %</span>' : '');
+        bar.style.display = leg.style.display = '';
+      } else { bar.style.display = leg.style.display = 'none'; }
+    };
+  };
+
+  /* ---- Prévision solaire (Solcast…) ---- */
+  R.prevsolaire = function (p, t, api) {
+    var box = el('div', 'tl-en tl-en-prev');
+    var grid = el('div', 'tl-en-g4');
+    var defs = [['cmdToday', t.labToday || 'aujourd\'hui'], ['cmdRemain', t.labRemain || 'encore à venir'], ['cmdTomorrow', t.labTomorrow || 'demain'], ['cmdAfter', t.labAfter || 'après-demain']];
+    var cells = [];
+    defs.forEach(function (d) {
+      if (!cleanId(t[d[0]])) return;
+      var c = el('div', 'tl-en-cell'), b = enBig(), s = el('div', 'tl-en-sub', esc(d[1]));
+      b.style.color = color(t.color || '#ffb000');
+      c.appendChild(b); c.appendChild(s); grid.appendChild(c);
+      enClick(p, t, c, t[d[0]], 'kWh');
+      cells.push({ k: d[0], big: b, sub: s, lab: d[1] });
+    });
+    box.appendChild(grid);
+    api.body.appendChild(box);
+    var dec = isNum(t.decimals) ? parseInt(t.decimals, 10) : 1;
+    return function () {
+      cells.forEach(function (c) {
+        enSet(c.big, enNum(enVal(p, t[c.k]), dec), 'kWh');
+        var f = c.k === 'cmdToday' && cleanId(t.cmdForecast) ? enVal(p, t.cmdForecast) : null;
+        c.sub.textContent = c.lab + (f !== null ? ' (prévu ' + enNum(f, 1) + ')' : '');
+      });
+    };
+  };
+
+  /* ---- Conseils (IA) : texte d'une info, une ligne par conseil, et choix du mode ---- */
+  R.conseils = function (p, t, api) {
+    var box = el('div', 'tl-en tl-en-ia');
+    var txt = el('div', 'tl-en-iatxt');
+    var modes = el('div', 'tl-en-iamodes');
+    box.appendChild(txt); box.appendChild(modes);
+    api.body.appendChild(box);
+    var list = (Array.isArray(t.options) ? t.options : []).filter(function (o) { return o && cleanId(o.cmdAction); });
+    var chips = list.map(function (o) {
+      var c = el('div', 'tl-en-chip', esc(o.label || 'Mode'));
+      p.press(c, function () { p.run(api, o.cmdAction, {}, { confirm: t.confirm, infoId: t.cmdMode }); });
+      modes.appendChild(c);
+      return { o: o, el: c };
+    });
+    var cur = cleanId(t.cmdMode) && !chips.length ? el('div', 'tl-en-chip tl-on') : null;
+    if (cur) modes.appendChild(cur);
+    return function () {
+      var v = p.val(t.cmdText);
+      var lines = isSet(v) && String(v).trim() ? String(v).split(/\r?\n|\s*\|\s*|;\s+/).filter(function (s) { return s.trim(); }) : [];
+      txt.innerHTML = lines.length ? lines.map(function (s) { return '<div>' + esc(s.trim()) + '</div>'; }).join('') : '<div class="tl-en-dim">' + esc(t.okText || 'Aucun conseil pour le moment') + '</div>';
+      var mv = String(p.val(t.cmdMode) || '');
+      chips.forEach(function (c) { c.el.classList.toggle('tl-on', !!mv && mv.toLowerCase().indexOf(String(c.o.label || '').toLowerCase()) >= 0); });
+      if (cur) cur.textContent = mv ? 'Mode ' + mv : '';
     };
   };
 

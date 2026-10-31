@@ -270,6 +270,18 @@ Dans les réglages de la page, ligne **Style** :
   - **Ardoise** : mat et sobre, une barre corail en haut de chaque tuile, onglet actif plein. Les couleurs réglées sur une tuile (fond, nom…) restent prioritaires. Option de tuile **Icône devant le nom**.
 - **Barre d'onglets commune** : elle se règle une seule fois pour toutes les pages, avec le bouton **Barre d'onglets** de la liste des pages (ou « Régler la barre d'onglets… » dans la ligne Style d'une page). On y coche sur quels appareils la barre s'affiche (**Tablette / Mobile**) la **taille des onglets** (60 à 300 %, avec aperçu) et « Bouton accueil », puis pour chaque page : visible ou non, nom d'onglet court, icône (sinon celle de la page), et l'ordre en **glissant les lignes** (ou flèches). Chaque page n'affiche que les onglets de son appareil (tablette, mobile). Une page peut masquer la barre (Style → Onglets → Pas de barre sur cette page). Une nouvelle page apparaît automatiquement à la fin. **Bouton accueil** : choisissez la page qu'il ouvre pour chaque appareil (Accueil Tablette / Mobile, sinon l'accueil du plugin), son texte (vide = icône seule) et son icône. Cette page d'accueil n'est alors plus répétée dans les onglets, et le bouton est en surbrillance quand on est dessus.
 
+## Énergie : chiffre clé, batterie, bilan, prévision, conseils
+
+Famille **Énergie** du catalogue, pour un tableau de bord sans courbe en direct : **toucher une valeur** ouvre sa courbe 24 h / 7 j / 30 j (l'info doit être historisée ; « Courbe au toucher » = Non pour désactiver). Les infos en Wh sont converties en kWh.
+
+- **Chiffre clé** : grosse valeur (W passe en kW au-delà de 1000) + petite ligne (« {1} kWh aujourd'hui » avec une 2ᵉ info), liseré de couleur en haut. Peut aussi calculer **Autonomie %** (conso et achat du jour) ou **Autoconsommation %** (production et revente).
+- **Batterie** : anneau de charge (rouge / orange / vert), en charge / en décharge avec la puissance, énergie stockée, « pleine vers » et « tiendra jusqu'à » (avec la capacité en kWh et la charge mini utilisable), boutons **Marche / Arrêt** avec confirmation et état allumé.
+- **Bilan énergie du jour** : produit (et prévu), consommé, acheté, revendu, et une barre « où est partie la production » (maison / batterie / revendu).
+- **Prévision solaire** : aujourd'hui (et prévu), encore à venir, demain, après-demain (Solcast ou autre).
+- **Conseils** : texte d'une info (une ligne par conseil : retour à la ligne, « | » ou « ; ») et boutons de mode (ex. Conseil / Auto, le bouton du mode actif est allumé).
+
+Le schéma de flux existant s'intègre avec la tuile **Widget Jeedom** (équipement, ajustement « remplir », fond transparent).
+
 ## Carte puissance
 
 Fonction **Afficher une info → Carte puissance** : petit titre, icône éclair et valeur en grand, texte dessous, **anneau** en % d'un maxi (ex. 6000 W) et **courbe des dernières heures en fond** (commande historisée). Couleur fixe, du thème, ou selon des seuils. Clic : courbe et détails.

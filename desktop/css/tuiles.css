@@ -1557,3 +1557,44 @@ body.tl-kiosk #div_pageContainer { padding-top: 0 !important; margin-top: 0 !imp
 .tl-tabs-full .tl-tab { flex: 1 1 0; min-width: max-content; justify-content: center; }
 .tl-tabs-full .tl-tab-home { flex: 0 0 auto; min-width: 0; }
 .tl-is-mobile .tl-tabs-full .tl-tab { padding: 0 8px; }
+/* groupe de volets : le texte ne doit jamais élargir la tuile */
+.tl-vgrp .tl-v-info { min-width: 0; overflow: hidden; }
+.tl-vgrp .tl-v-state { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+
+/* ---------- Énergie ---------- */
+.tl-en { width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; gap: .35em; font-size: clamp(12px, calc(var(--tl-s) * .085), 22px); text-align: left; min-height: 0; }
+.tl-en-big { display: flex; align-items: baseline; gap: .25em; line-height: 1; font-weight: 800; }
+.tl-en-big .tl-en-v { font-size: 2.6em; }
+.tl-en-big .tl-en-u { font-size: 1.1em; font-weight: 600; }
+.tl-en-sub { color: #9aa4b2; font-size: .95em; }
+.tl-en-click { cursor: pointer; border-radius: 8px; }
+.tl-en-click:active { background: rgba(255,255,255,.05); }
+.tl-tile.tl-en-kpi { border-top: 4px solid var(--en-acc, #ffb000); }
+.tl-en-kpi .tl-en { padding: 0 .3em; }
+.tl-en-g4 { display: grid; grid-template-columns: 1fr 1fr; gap: .7em 1em; }
+.tl-en-cell { padding: .15em .2em; }
+.tl-en-g4 .tl-en-big .tl-en-v { font-size: 2.1em; }
+.tl-en-split { display: flex; height: .8em; border-radius: 1em; overflow: hidden; margin-top: .6em; background: rgba(255,255,255,.06); }
+.tl-en-split i { display: block; height: 100%; }
+.tl-en-leg { display: flex; justify-content: space-between; gap: .6em; font-size: .8em; color: #9aa4b2; }
+.tl-en-bat { justify-content: space-between; }
+.tl-en-battop { display: flex; align-items: center; gap: 1em; flex: 1 1 auto; min-height: 0; }
+.tl-en-ring { width: 42%; max-width: 12em; flex: none; aspect-ratio: 1; }
+.tl-en-ring svg { width: 100%; height: 100%; display: block; }
+.tl-en-rbg { fill: none; stroke: rgba(255,255,255,.08); stroke-width: 9; }
+.tl-en-rfg { fill: none; stroke-width: 9; stroke-linecap: round; transition: stroke-dashoffset .6s, stroke .3s; }
+.tl-en-rtx { fill: #fff; font-size: 19px; font-weight: 800; }
+.tl-en-batinfo { flex: 1; min-width: 0; }
+.tl-en-batstate { font-size: 1.25em; font-weight: 800; margin-bottom: .3em; }
+.tl-en-batlines { font-size: .95em; line-height: 1.6; color: #9aa4b2; }
+.tl-en-batlines b { color: #fff; }
+.tl-en-batbtns { display: flex; gap: .6em; }
+.tl-en-bbtn { flex: 1; text-align: center; padding: .65em .4em; border-radius: .6em; background: rgba(255,255,255,.06); color: #9aa4b2; font-weight: 800; font-size: 1.15em; cursor: pointer; user-select: none; border: 1px solid rgba(255,255,255,.08); }
+.tl-en-bon.tl-on { background: #2ecc71; color: #06210f; border-color: #2ecc71; }
+.tl-en-boff.tl-on { background: #ef5350; color: #2a0605; border-color: #ef5350; }
+.tl-en-ia { justify-content: flex-start; }
+.tl-en-iatxt { color: #e6edf3; font-size: 1.05em; line-height: 1.55; overflow: auto; min-height: 0; }
+.tl-en-dim { opacity: .55; }
+.tl-en-iamodes { display: flex; flex-wrap: wrap; gap: .5em; margin-top: auto; padding-top: .4em; }
+.tl-en-chip { padding: .3em .9em; border-radius: 999px; background: rgba(255,255,255,.06); color: #9aa4b2; font-weight: 700; font-size: .9em; cursor: pointer; }
+.tl-en-chip.tl-on { background: #2b1d3a; color: #c792ea; }
