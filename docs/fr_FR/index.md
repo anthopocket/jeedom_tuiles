@@ -126,6 +126,20 @@ Bouton **JSON** de l'éditeur : collez une page puis « Appliquer ». Les comman
 | Envoi de date, Saisie | envoie une date ou une valeur à une commande message ou slider |
 | Image, Vide | logo, réserve |
 
+## Liste d'ouvrants
+
+La tuile **Liste d'ouvrants** regroupe toutes les portes et fenêtres dans une seule tuile, pratique sur mobile :
+
+- un **bandeau** « Tout est fermé » (vert) ou « 2 ouverts » (orange) avec le nom des ouvrants ouverts (« Baie ouest (gauche), Chambre Armand ») ;
+- des **groupes** (RDC, Étage, Garage…) : un ouvrant de type « Titre de groupe » commence une nouvelle carte ;
+- pour chaque ouvrant : le nom, l'état en toutes lettres (« Fermée », « Ouverte à gauche ») et le dessin.
+
+Chaque ouvrant a son propre réglage : contact, **Inverser (0 = ouvert)**, valeur « ouvert ». Une baie coulissante ou une fenêtre 2 vantaux accepte 2 contacts (gauche, droite). L'accord (Ouverte / Ouvert) est automatique selon le type et peut être forcé.
+
+Option « Ouvrants ouverts en tête de leur groupe ».
+
+Affichage **Résumé** : la même liste dans une petite tuile (icône + « Tout fermé » / « Chambre Armand » / « 2 ouverts »), qui ouvre la page choisie au toucher. Idéal sur la page d'accueil : copiez la tuile (JSON) et passez-la en Résumé.
+
 ## Boutons
 
 Le **type de bouton** se choisit explicitement :

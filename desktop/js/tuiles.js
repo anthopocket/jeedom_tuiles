@@ -13,6 +13,7 @@
       valeur: 'Info numérique / texte',
       icone: 'Info icône (binaire ou états : prêt / en cours / terminé)',
       ouvrant: 'Info ouvrant (porte, fenêtre, portail, garage)',
+      ouvrants: 'Liste d\'ouvrants (bandeau « N ouverts » + liste par étage)',
       jauge: 'Info jauge (cuve, barre, anneau)',
       lignes: 'Plusieurs infos (lignes)',
       texte: 'Texte avec infos',
@@ -192,6 +193,14 @@
       { k: 'thresholds', l: 'Couleurs selon la valeur', f: 'thresholds', help: 'Jusqu\'à 10 lignes. Un nombre = à partir de cette valeur ; un texte = si égal. Remplace les couleurs par défaut.' }],
     jauge: [F.info, { k: 'style', l: 'Style', f: 'sel', o: { cuve: 'Cuve', barre: 'Barre', anneau: 'Anneau' } },
       { k: 'gMin', l: 'Min', f: 'num', ph: 'auto (0)' }, { k: 'gMax', l: 'Max', f: 'num', ph: 'auto (100)' }, F.unit, F.decimals, F.th, { k: 'details', l: 'Courbe et détails', f: 'sel', o: { '': 'Non', clic: 'Au clic (appui long si la tuile a une action)', long: 'Appui long seulement' }, help: 'Fenêtre avec la courbe 24 h / 7 j / 30 j, min / moyenne / max et la dernière mise à jour. La commande doit être historisée.' }],
+    ouvrants: [{ k: 'ovMode', l: 'Affichage', f: 'sel', o: { '': 'Liste complète (bandeau + groupes)', resume: 'Résumé (icône + « 2 ouverts »), pour l\'accueil' }, rebuild: true },
+      { k: 'ovSum', l: 'Bandeau « N ouverts »', f: 'sel', o: { '': 'Afficher', non: 'Masquer' }, show: function (t) { return t.ovMode !== 'resume'; } },
+      { k: 'okText', l: 'Sous-texte quand tout est fermé', ph: 'vide = rien', show: function (t) { return t.ovMode !== 'resume' && t.ovSum !== 'non'; } },
+      { k: 'ovOpenFirst', l: 'Ouvrants ouverts en tête de leur groupe', f: 'check', show: function (t) { return t.ovMode !== 'resume'; } },
+      { k: 'target', l: 'Au toucher, ouvre', f: 'sel', o: { page: 'Une page', home: 'L\'accueil' }, show: function (t) { return t.ovMode === 'resume'; } },
+      { k: 'page', l: 'Page', f: 'page', show: function (t) { return t.ovMode === 'resume' && t.target !== 'home'; } },
+      { k: 'colorOpen', l: 'Couleur ouvert', f: 'color', ph: '#ffa726' }, { k: 'colorClosed', l: 'Couleur fermé', f: 'color', ph: '#2ecc71' },
+      { k: 'items', l: 'Ouvrants', f: 'lines', schema: 'ouv', help: 'Un « Titre de groupe » (RDC, Étage…) commence une nouvelle carte. Baie et fenêtre 2 vantaux : 2 contacts (gauche, droite).' }],
     lignes: [{ k: 'lnAlign', l: 'Présentation', f: 'sel', o: { '': 'Tableau : libellés à gauche, valeurs alignées à droite', centre: 'Centrée (libellé : valeur)' } }, { k: 'lines', l: 'Lignes', f: 'lines' }],
     texte: [{ k: 'template', l: 'Texte', f: 'area', ph: '{1}°C | {2}%', help: '{1} à {4} sont remplacés par les infos ci-dessous' },
       { k: 'cmdV1', l: 'Info {1}', f: 'cmd', filter: C_INFO }, { k: 'cmdV2', l: 'Info {2}', f: 'cmd', filter: C_INFO },
@@ -552,6 +561,15 @@
     { k: 'mobile.hide', l: 'Masquer sur mobile', f: 'check' },
     { k: 'mobile.split', l: 'Sur mobile, une tuile par ligne', f: 'check', show: function (t) { return t.type === 'lignes'; } },
     { k: 'mobile.order', l: 'Ordre sur mobile', f: 'num', ph: 'même ordre' }
+  ];
+  var OUV_LINE_SCHEMA = [
+    { k: 'kind', l: 'Type', f: 'sel', o: { fenetre: 'Fenêtre', fenetre2: 'Fenêtre 2 vantaux (2 contacts)', baie: 'Baie coulissante (1 ou 2 contacts)', porte: 'Porte', hublot: 'Hublot', portail: 'Portail', garage: 'Porte de garage', title: 'Titre de groupe (RDC, Étage…)' }, keep: true, rebuild: true },
+    { k: 'label', l: 'Nom' },
+    { k: 'cmdInfo', l: 'Contact (gauche si 2 contacts)', f: 'cmd', filter: C_INFO, show: function (l) { return l.kind !== 'title'; } },
+    { k: 'cmdInfo2', l: 'Contact droit (option)', f: 'cmd', filter: C_INFO, show: function (l) { return l.kind === 'baie' || l.kind === 'fenetre2'; } },
+    { k: 'openValue', l: 'Valeur « ouvert »', ph: '1', show: function (l) { return l.kind !== 'title'; } },
+    { k: 'invert', l: 'Inverser (0 = ouvert)', f: 'check', show: function (l) { return l.kind !== 'title'; } },
+    { k: 'genre', l: 'Accord', f: 'sel', o: { '': 'Auto', f: 'Ouverte / Fermée', m: 'Ouvert / Fermé' }, show: function (l) { return l.kind !== 'title'; } }
   ];
   var LINE_SCHEMA = [
     { k: 'kind', l: 'Type de ligne', f: 'sel', o: { value: 'Libellé : valeur', title: 'Sous-titre', button: 'Libellé : bouton', icon: 'Libellé : icône' }, rebuild: true },
@@ -1000,7 +1018,9 @@
           var payload = { enabled: nav.devices.pc || nav.devices.tablette || nav.devices.mobile, devices: nav.devices, home: hm.is(':checked'), homePages: nav.homePages, size: nav.size || 100, homeLabel: nav.homeLabel || '', homeIcon: nav.homeIcon || '', swipeHome: !!nav.swipeHome, idleHome: nav.idleHome || 0, items: items.map(function (it) { return { id: it.id, label: it.label || '', icon: it.icon || '', show: !!it.show }; }) };
           T.ajax('saveNav', { nav: payload }).then(function (saved) {
             E.nav = saved;
-            toast('Barre d\'onglets enregistrée');
+            if (payload.swipeHome && !(saved && saved.swipeHome)) {
+              toast('Le serveur n\'a pas gardé le retour par geste : remplacez core/class/tuiles.class.php par celui de la dernière mise à jour.', 'error');
+            } else toast('Barre d\'onglets enregistrée');
             renderPreview();
             close();
           }).catch(fail);
@@ -1201,7 +1221,7 @@
         ctrl = thresholdsField(obj, onChange, f.k, f.base);
         break;
       case 'lines':
-        ctrl = linesField(obj, onChange);
+        ctrl = f.schema === 'ouv' ? linesField(obj, onChange, { key: f.k, schema: OUV_LINE_SCHEMA, add: { kind: 'fenetre', label: '', openValue: '1' }, word: 'Ouvrant', title: function (l) { return l.kind === 'title' ? 'Groupe : ' + (l.label || '') : (l.label || ''); } }) : linesField(obj, onChange);
         break;
       case 'options':
         ctrl = optionsField(obj, onChange);
@@ -1766,26 +1786,27 @@
     return wrap;
   }
 
-  function linesField(obj, onChange) {
+  function linesField(obj, onChange, o) {
+    o = o || { key: 'lines', schema: LINE_SCHEMA, add: { kind: 'value', label: '' }, word: 'Ligne' };
     var wrap = $('<div class="tl-ed-lines"></div>');
-    var lines = obj.lines = Array.isArray(obj.lines) ? obj.lines : [];
+    var lines = obj[o.key] = Array.isArray(obj[o.key]) ? obj[o.key] : [];
     lines.forEach(function (l, i) {
       var card = $('<div class="tl-ed-card"></div>');
-      var head = $('<div class="tl-ed-cardhead"></div>').text('Ligne ' + (i + 1));
+      var head = $('<div class="tl-ed-cardhead"></div>').text(o.word + ' ' + (i + 1) + (o.title && o.title(l) ? ' · ' + o.title(l) : ''));
       var up = $('<a class="btn btn-xs btn-default"><i class="fas fa-arrow-up"></i></a>').on('click', function () {
         if (i > 0) { lines.splice(i - 1, 0, lines.splice(i, 1)[0]); onChange({ f: 'sel' }); }
       });
       var del = $('<a class="btn btn-xs btn-danger"><i class="fas fa-times"></i></a>').on('click', function () { lines.splice(i, 1); onChange({ f: 'sel' }); });
       head.append($('<span class="pull-right"></span>').append(up).append(' ').append(del));
       card.append(head);
-      LINE_SCHEMA.forEach(function (f) {
+      o.schema.forEach(function (f) {
         if (f.show && !f.show(l)) return;
         card.append(field(l, f, function (ff) { onChange(ff && (ff.f === 'cmd' || ff.f === 'sel' || ff.rebuild) ? { f: 'sel' } : { f: 'text' }); }));
       });
       wrap.append(card);
     });
-    wrap.append($('<a class="btn btn-xs btn-default"><i class="fas fa-plus"></i> Ligne</a>').on('click', function () {
-      lines.push({ kind: 'value', label: '' });
+    wrap.append($('<a class="btn btn-xs btn-default"><i class="fas fa-plus"></i> ' + o.word + '</a>').on('click', function () {
+      lines.push(JSON.parse(JSON.stringify(o.add)));
       onChange({ f: 'sel' });
     }));
     return wrap;
@@ -1893,6 +1914,7 @@
       case 'demons': return Object.assign(base, { title: 'Démons', w: 2, h: 1.5 });
       case 'alarme': return Object.assign(base, { title: 'Alarme', rsPart: 1, w: 1.5, h: 2 });
       case 'zones': return Object.assign(base, { title: 'Zones', w: 2, h: 2 });
+      case 'ouvrants': return Object.assign(base, { title: 'Ouvrants', hideTitle: true, w: 2, h: 3, items: [{ kind: 'title', label: 'RDC' }, { kind: 'fenetre', label: '', openValue: '1' }] });
       case 'vigieau': return Object.assign(base, { title: 'VigiEau', w: 2, h: 1.5 });
       case 'reveil': return Object.assign(base, { title: 'Réveil', w: 1.5, h: 1 });
       case 'reveils': return Object.assign(base, { title: 'Réveils', w: 2, h: 1 });

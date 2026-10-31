@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.62.0';
+  var VERSION = '1.63.0';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -1228,7 +1228,7 @@
   }
 
   /** Tailles fixes en px (comme dans Word) : nom, texte. Le texte ne rétrécit que s'il déborde. */
-  var TEXT_SEL = '.tl-val, .tl-text, .tl-lines, .tl-popsel-val, .tl-vstate, .tl-sl-val, .tl-sub, .tl-list .tl-item, .tl-seg .tl-item, .tl-bar-txt, .tl-badge, .tl-selectbox, .tl-input';
+  var TEXT_SEL = '.tl-val, .tl-text, .tl-lines, .tl-ov, .tl-popsel-val, .tl-vstate, .tl-sl-val, .tl-sub, .tl-list .tl-item, .tl-seg .tl-item, .tl-bar-txt, .tl-badge, .tl-selectbox, .tl-input';
   function applyPx(api) {
     var t = api.t;
     var set = function (e, px) { e.setAttribute('data-fs', px); e.style.fontSize = px; };
@@ -5004,6 +5004,114 @@
   };
 
   /* ---- Lignes ---- */
+  /* ---- Liste d'ouvrants : bandeau « N ouverts », groupes, état en texte + dessin ----
+   * items : [{ kind: 'title', label } | { kind: porte|fenetre|fenetre2|baie|hublot|portail|garage, label,
+   *            cmdInfo, cmdInfo2 (2e contact baie / 2 vantaux), invert, openValue, genre: ''|m|f }]
+   * ovMode 'resume' : tuile compacte (icône + « Tout fermé » / « 2 ouverts »), clic → page choisie. */
+  var OUV_FEM = { porte: 1, fenetre: 1, fenetre2: 1, baie: 1, garage: 1 };
+  function ovItems(t) {
+    return (Array.isArray(t.items) ? t.items : []).filter(function (it) { return it && (it.kind === 'title' || cleanId(it.cmdInfo)); });
+  }
+  function ovRead(p, it) {
+    var st = ouvState(p, it), f = it.genre ? it.genre === 'f' : !!OUV_FEM[it.kind || 'fenetre'];
+    var txt = st.open === null ? '…' : (st.open ? (f ? 'Ouverte' : 'Ouvert') : (f ? 'Fermée' : 'Fermé'));
+    var side = st.open && st.two && st.side !== 'lr' ? (st.side === 'l' ? 'gauche' : 'droite') : '';
+    if (side) txt += ' à ' + side;
+    var kind = it.kind || 'fenetre', name = kind;
+    if (st.open) name += (kind === 'fenetre2' || (kind === 'baie' && st.two)) ? '-' + st.side : '-open';
+    return { open: st.open, txt: txt, side: side, icon: 'svg:' + name };
+  }
+  function ovCount(p, items) {
+    var open = [], known = 0;
+    items.forEach(function (it) {
+      if (it.kind === 'title') return;
+      var r = ovRead(p, it);
+      if (r.open !== null) known++;
+      if (r.open) open.push((it.label || '') + (r.side ? ' (' + r.side + ')' : ''));
+    });
+    return { open: open, known: known };
+  }
+  function ovHead(n) { return n === 0 ? 'Tout est fermé' : n + (n > 1 ? ' ouverts' : ' ouvert'); }
+  R.ouvrants = function (p, t, api) {
+    var items = ovItems(t);
+    var cOpen = t.colorOpen || '#ffa726', cClosed = t.colorClosed || '#2ecc71';
+    if (t.ovMode === 'resume') {
+      var ico = el('div', 'tl-ico'), st = {}, sub = el('div', 'tl-sub tl-fit');
+      api.body.appendChild(ico); api.body.appendChild(sub);
+      if (t.page || t.target === 'home') p.press(api.el, function () { p.navigate({ target: t.target || 'page', page: t.page }); });
+      return function () {
+        var c = ovCount(p, items), n = c.open.length;
+        setIcon(ico, n ? (t.icon ? t.icon : 'svg:fenetre-open') : (t.icon || 'svg:fenetre'), st);
+        var col = !c.known ? 'neutral' : (n ? cOpen : cClosed);
+        paint(api, ico, col);
+        sub.textContent = !c.known ? '…' : (n ? (n === 1 ? c.open[0] : ovHead(n)) : 'Tout fermé');
+        sub.style.color = ico.style.color;
+        api.el.classList.toggle('tl-is-open', n > 0);
+      };
+    }
+    api.el.classList.add('tl-ov-tile');
+    var box = el('div', 'tl-ov');
+    api.body.appendChild(box);
+    var sum = null, sumIco = null, sumSt = {}, sumH, sumS;
+    if (t.ovSum !== 'non') {
+      sum = el('div', 'tl-ov-card tl-ov-sum');
+      sumIco = el('div', 'tl-ov-sico');
+      var tx = el('div', 'tl-ov-stx');
+      sumH = el('div', 'tl-ov-sh'); sumS = el('div', 'tl-ov-ss');
+      tx.appendChild(sumH); tx.appendChild(sumS);
+      sum.appendChild(sumIco); sum.appendChild(tx);
+      box.appendChild(sum);
+    }
+    // groupes : un titre ouvre une nouvelle carte ; des lignes sans titre au début → carte sans titre
+    var groups = [], g = null;
+    items.forEach(function (it) {
+      if (it.kind === 'title' || !g) {
+        g = { el: el('div', 'tl-ov-card'), rows: [] };
+        if (it.kind === 'title') g.el.appendChild(el('div', 'tl-ov-gt', esc(it.label || '')));
+        g.list = el('div', 'tl-ov-list');
+        g.el.appendChild(g.list);
+        box.appendChild(g.el);
+        groups.push(g);
+        if (it.kind === 'title') return;
+      }
+      var r = el('div', 'tl-ov-row');
+      var lab = el('span', 'tl-ov-lab', esc(it.label || ''));
+      var right = el('span', 'tl-ov-r');
+      var val = el('b', 'tl-ov-val'), ic = el('span', 'tl-ov-ico');
+      right.appendChild(val); right.appendChild(ic);
+      r.appendChild(lab); r.appendChild(right);
+      g.list.appendChild(r);
+      g.rows.push({ it: it, el: r, val: val, ico: ic, st: {}, idx: g.rows.length });
+    });
+    return function () {
+      var c = ovCount(p, items), n = c.open.length;
+      if (sum) {
+        var col = color(!c.known ? 'neutral' : (n ? cOpen : cClosed));
+        setIcon(sumIco, n ? 'svg:fenetre-open' : 'svg:fenetre', sumSt);
+        sumIco.style.color = col;
+        sumH.textContent = !c.known ? '…' : ovHead(n);
+        sumH.style.color = col;
+        sumS.textContent = n ? c.open.join(', ') : (c.known ? (t.okText || '') : '');
+        sumS.style.display = sumS.textContent ? '' : 'none';
+      }
+      groups.forEach(function (gr) {
+        gr.rows.forEach(function (row) {
+          var r = ovRead(p, row.it), col = color(r.open === null ? 'neutral' : (r.open ? cOpen : cClosed));
+          row.val.textContent = r.txt;
+          row.val.style.color = col;
+          setIcon(row.ico, r.icon, row.st);
+          row.ico.style.color = col;
+          row.open = !!r.open;
+          row.el.classList.toggle('tl-ov-open', !!r.open);
+        });
+        if (t.ovOpenFirst) {
+          gr.rows.slice().sort(function (a, b) { return (b.open - a.open) || (a.idx - b.idx); })
+            .forEach(function (row) { gr.list.appendChild(row.el); });
+        }
+      });
+    };
+  };
+
   R.lignes = function (p, t, api) {
     // tableau (par défaut) : libellés à gauche, valeurs / boutons alignés à droite ; « centré » : ancienne présentation
     var table = t.lnAlign !== 'centre';

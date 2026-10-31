@@ -282,6 +282,8 @@ class tuiles extends eqLogic {
 			'size' => isset($nav['size']) && is_numeric($nav['size']) ? max(50, min(400, intval($nav['size']))) : 100,
 			'homeLabel' => isset($nav['homeLabel']) ? substr(trim((string) $nav['homeLabel']), 0, 40) : '',
 			'homeIcon' => isset($nav['homeIcon']) ? substr(trim((string) $nav['homeIcon']), 0, 200) : '',
+			'swipeHome' => !empty($nav['swipeHome']) && $nav['swipeHome'] !== 'false',
+			'idleHome' => isset($nav['idleHome']) && is_numeric($nav['idleHome']) ? max(0, min(240, floatval($nav['idleHome']))) : 0,
 		);
 		config::save('nav', json_encode($clean), 'tuiles');
 		return self::nav();
@@ -462,7 +464,7 @@ class tuiles extends eqLogic {
 		$fps = isset($tile['frigateFps']) && is_numeric($tile['frigateFps']) ? intval($tile['frigateFps']) : 5;
 		$mode = isset($tile['frigateMode']) ? $tile['frigateMode'] : 'mjpeg';
 		$stream = false;
-		if ($wantSnap || $mode == 'snapshot' || $tile['type'] == 'interphone') {
+		if ($wantSnap || $mode == 'snapshot' || $mode == 'rapide' || $tile['type'] == 'interphone') {
 			$url = $base . '/api/' . $cam . '/latest.jpg?h=' . $h;
 		} else {
 			$url = $base . '/api/' . $cam . '?fps=' . $fps . '&h=' . $h; // MJPEG (go2rtc relayé en MJPEG)
@@ -888,6 +890,46 @@ class tuiles extends eqLogic {
 			$out[] = array('id' => $cmd->getId(), 'name' => $cmd->getName(), 'logicalId' => $cmd->getLogicalId(), 'type' => $cmd->getType(), 'subType' => $cmd->getSubType(), 'generic' => $cmd->getGeneric_type(), 'value' => $cmd->getValue());
 		}
 		return array('id' => $eq->getId(), 'name' => $eq->getName(), 'logicalId' => $eq->getLogicalId(), 'plugin' => $eq->getEqType_name(), 'cmds' => $out);
+	}
+
+	/**
+	 * Import JSON : noms lisibles -> id.
+	 * « #[Objet][Équipement][Commande]# » -> id de commande, « #[Objet][Équipement]# » -> id d'équipement.
+	 */
+	public static function resolveRefs($refs) {
+		$out = array();
+		foreach ((array) $refs as $ref) {
+			$ref = trim((string) $ref);
+			if (!preg_match_all('/\[([^\]]*)\]/', $ref, $m) || count($m[1]) < 2) {
+				$out[$ref] = '';
+				continue;
+			}
+			$parts = $m[1];
+			$id = '';
+			try {
+				if (count($parts) >= 3) {
+					$cmd = cmd::byId(str_replace('#', '', cmd::humanReadableToCmd('#[' . $parts[0] . '][' . $parts[1] . '][' . $parts[2] . ']#')));
+					if (is_object($cmd)) {
+						$id = (string) $cmd->getId();
+					}
+				} else {
+					$objName = $parts[0] === '' || strtolower($parts[0]) === 'aucun' ? __('Aucun', __FILE__) : $parts[0];
+					$eqs = eqLogic::byObjectNameEqLogicName($objName, $parts[1]);
+					if (is_object($eqs)) {
+						$id = (string) $eqs->getId();
+					} elseif (is_array($eqs)) {
+						$eq = reset($eqs);
+						if (is_object($eq)) {
+							$id = (string) $eq->getId();
+						}
+					}
+				}
+			} catch (Throwable $e) {
+				$id = '';
+			}
+			$out[$ref] = $id;
+		}
+		return $out;
 	}
 
 	/** Liste des équipements (sélecteur de l'éditeur). */
