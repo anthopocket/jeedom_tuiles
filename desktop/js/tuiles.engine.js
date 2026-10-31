@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.70.0';
+  var VERSION = '1.70.1';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -758,6 +758,38 @@
     offs.push(function () { if (z.parentNode) z.parentNode.removeChild(z); });
   };
 
+  /** Écran de veille : construction (partagée avec l'aperçu de l'éditeur). */
+  function veilleBuild(nav) {
+    var ov = el('div', 'tl-veille');
+    var logo = String(nav.veilleLogo || '').trim();
+    var col = /^#[0-9a-f]{3,8}$/i.test(String(nav.veilleColor || '')) ? nav.veilleColor : '#8a8a8a';
+    var bg = /^#[0-9a-f]{3,8}$/i.test(String(nav.veilleBg || '')) ? nav.veilleBg : '#000000';
+    var lum = Math.max(5, Math.min(100, num(nav.veilleLum, 100))), size = Math.max(40, Math.min(200, num(nav.veilleSize, 100)));
+    ov.style.setProperty('--vc', col); ov.style.setProperty('--vl', String(lum / 100)); ov.style.setProperty('--vs', String(size / 100));
+    ov.style.background = bg;
+    ov.innerHTML = '<div class="tl-veille-mid"><div class="tl-veille-time"></div>' + (nav.veilleDate ? '<div class="tl-veille-date"></div>' : '') + '</div>' +
+      (logo ? '<img class="tl-veille-logo" alt="">' : '');
+    if (logo) ov.querySelector('.tl-veille-logo').src = logo;
+    veillePaint(ov);
+    return ov;
+  }
+  function veillePaint(ov) {
+    var d = new Date();
+    ov.querySelector('.tl-veille-time').textContent = pad(d.getHours()) + ':' + pad(d.getMinutes());
+    var de = ov.querySelector('.tl-veille-date');
+    if (de) { var ds = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }); de.textContent = ds.charAt(0).toUpperCase() + ds.slice(1); }
+    // léger déplacement chaque minute pour ne pas marquer l'écran
+    var k = d.getMinutes() % 6, dx = [0, 14, -10, 8, -14, 6][k], dy = [0, -8, 10, 6, -6, 12][k];
+    ov.querySelector('.tl-veille-mid').style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+  }
+  /** Aperçu depuis l'éditeur : affiche la veille avec ces réglages, un appui la ferme. */
+  function veillePreview(nav) {
+    var ov = veilleBuild(nav || {});
+    ov.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); if (ov.parentNode) ov.parentNode.removeChild(ov); });
+    document.body.appendChild(ov);
+    return ov;
+  }
+
   /** Écran de veille : après N minutes sans toucher, horloge plein écran ; un appui ramène à la page d'accueil. */
   Page.prototype.setupVeille = function () {
     var dev = this.data.device === 'mobile' ? 'mobile' : 'tablette', self = this, nav = navFor(this.data.nav, dev);
@@ -769,16 +801,7 @@
     var last = Date.now(), ov = null, tick = null;
     var bump = function () { last = Date.now(); };
     ['pointerdown', 'touchstart', 'keydown', 'wheel'].forEach(function (ev) { on(document, ev, bump, { passive: true, capture: true }); });
-    var paint = function () {
-      if (!ov) return;
-      var d = new Date();
-      ov.querySelector('.tl-veille-time').textContent = pad(d.getHours()) + ':' + pad(d.getMinutes());
-      var de = ov.querySelector('.tl-veille-date');
-      if (de) { var ds = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }); de.textContent = ds.charAt(0).toUpperCase() + ds.slice(1); }
-      // léger déplacement chaque minute pour ne pas marquer l'écran
-      var k = d.getMinutes() % 6, dx = [0, 14, -10, 8, -14, 6][k], dy = [0, -8, 10, 6, -6, 12][k];
-      ov.querySelector('.tl-veille-mid').style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
-    };
+    var paint = function () { if (ov) veillePaint(ov); };
     var hide = function () {
       if (!ov) return;
       var o = ov; ov = null; clearInterval(tick); tick = null;
@@ -795,11 +818,7 @@
     };
     var show = function () {
       if (ov || self.destroyed) return;
-      ov = el('div', 'tl-veille');
-      var logo = String(nav.veilleLogo || '').trim();
-      ov.innerHTML = '<div class="tl-veille-mid"><div class="tl-veille-time"></div>' + (nav.veilleDate ? '<div class="tl-veille-date"></div>' : '') + '</div>' +
-        (logo ? '<img class="tl-veille-logo" alt="">' : '');
-      if (logo) ov.querySelector('.tl-veille-logo').src = logo;
+      ov = veilleBuild(nav);
       ['pointerdown', 'mousedown', 'touchstart'].forEach(function (ev) { ov.addEventListener(ev, function (e) { e.stopPropagation(); }, { passive: true }); });
       ov.addEventListener('click', wake);
       document.body.appendChild(ov);
@@ -1079,7 +1098,7 @@
   /** Barre d'onglets : les pages du même appareil, la page courante en surbrillance. */
   /** Liste ordonnée des onglets : réglage commun (ordre, nom, icône, visible), puis les pages non classées. */
   /** Réglages de la barre pour un appareil : ceux de l'appareil (nav.dev[dev]) priment sur les réglages communs. */
-  var NAV_DEV_KEYS = ['size', 'home', 'homeLabel', 'homeIcon', 'swipeHome', 'swipeDist', 'idleHome', 'full', 'veille', 'veilleDate', 'veilleLogo', 'homeZone', 'homeZoneSize', 'homeZoneShow'];
+  var NAV_DEV_KEYS = ['size', 'home', 'homeLabel', 'homeIcon', 'swipeHome', 'swipeDist', 'idleHome', 'full', 'veille', 'veilleDate', 'veilleLogo', 'veilleColor', 'veilleLum', 'veilleSize', 'veilleBg', 'homeZone', 'homeZoneSize', 'homeZoneShow'];
   function navFor(nav, dev) {
     nav = nav || {};
     var out = {}, d = (nav.dev && nav.dev[dev]) || {};
@@ -5804,6 +5823,7 @@
     ui: UI,
     icons: ICONS,
     iconHtml: iconHtml,
+    veillePreview: veillePreview,
     animIcons: ANIM_ICONS,
     coreIconClass: coreIconClass,
     sliderRange: sliderRange,

@@ -1015,6 +1015,7 @@
           homeLabel: c.homeLabel !== undefined ? c.homeLabel : (nav.homeLabel || ''), homeIcon: c.homeIcon !== undefined ? c.homeIcon : (nav.homeIcon || ''),
           swipeHome: c.swipeHome !== undefined ? !!c.swipeHome : !!nav.swipeHome, swipeDist: c.swipeDist || nav.swipeDist || 100, idleHome: c.idleHome !== undefined ? c.idleHome : (nav.idleHome || 0),
           veille: c.veille !== undefined ? c.veille : (nav.veille || 0), veilleDate: c.veilleDate !== undefined ? !!c.veilleDate : !!nav.veilleDate, veilleLogo: c.veilleLogo !== undefined ? c.veilleLogo : (nav.veilleLogo || ''),
+          veilleColor: c.veilleColor || nav.veilleColor || '#8a8a8a', veilleLum: c.veilleLum || nav.veilleLum || 100, veilleSize: c.veilleSize || nav.veilleSize || 100, veilleBg: c.veilleBg || nav.veilleBg || '#000000',
           homeZone: c.homeZone !== undefined ? c.homeZone : (nav.homeZone || ''), homeZoneSize: c.homeZoneSize || nav.homeZoneSize || 70, homeZoneShow: c.homeZoneShow !== undefined ? !!c.homeZoneShow : !!nav.homeZoneShow,
           full: c.full !== undefined ? !!c.full : d[0] === 'mobile'
         };
@@ -1085,6 +1086,16 @@
         vb.append($('<label class="tl-ed-inline"></label>').append(vdt).append(' Afficher la date sous l\'heure'));
         var vlg = $('<input type="text" class="form-control input-sm" style="width:340px" placeholder="vide = pas d\'image">').val(c.veilleLogo || '').on('input', function () { c.veilleLogo = $(this).val().trim(); });
         vb.append($('<label class="tl-ed-inline"></label>').text('Image en bas à droite (adresse) : ').append(vlg));
+        var vcol = $('<input type="color" style="width:46px;height:28px;padding:0;border:0;vertical-align:middle">').val(c.veilleColor || '#8a8a8a').on('input', function () { c.veilleColor = $(this).val(); });
+        var vbg = $('<input type="color" style="width:46px;height:28px;padding:0;border:0;vertical-align:middle">').val(c.veilleBg || '#000000').on('input', function () { c.veilleBg = $(this).val(); });
+        vb.append($('<label class="tl-ed-inline"></label>').text('Couleur du texte : ').append(vcol).append('&nbsp;&nbsp; Fond : ').append(vbg));
+        var vlumOut = $('<b style="min-width:44px;display:inline-block"></b>').text((c.veilleLum || 100) + ' %');
+        var vlum = $('<input type="range" min="5" max="100" step="5" style="width:200px;display:inline-block;vertical-align:middle">').val(c.veilleLum || 100).on('input', function () { c.veilleLum = parseInt($(this).val(), 10) || 100; vlumOut.text(c.veilleLum + ' %'); });
+        vb.append($('<label class="tl-ed-inline"></label>').text('Luminosité : ').append(vlum).append(' ').append(vlumOut));
+        var vsz = $('<input type="number" min="40" max="200" step="10" class="form-control input-sm" style="width:70px">').val(c.veilleSize || 100).on('input', function () { c.veilleSize = parseInt($(this).val(), 10) || 100; });
+        vb.append($('<label class="tl-ed-inline"></label>').text('Taille de l\'heure : ').append(vsz).append(' %'));
+        var vprev = $('<a class="btn btn-default btn-sm"><i class="fas fa-eye"></i> Voir la veille</a>').on('click', function () { if (window.Tuiles && Tuiles.veillePreview) Tuiles.veillePreview(c); });
+        vb.append($('<div style="margin-top:6px"></div>').append(vprev).append(' <span class="tl-ed-hint" style="display:inline">un appui la ferme</span>'));
         pane.append($('<div class="tl-ed-navopt"><b>Écran de veille :</b></div>')).append(vb);
         pane.append('<div class="tl-ed-hint">Onglets : glissez les lignes pour changer l\'ordre, décochez pour masquer. Une page peut masquer la barre dans ses réglages (Style → Onglets).</div>');
         var listEl = $('<div class="tl-ed-navlist"></div>');
@@ -1137,7 +1148,7 @@
           var dev = {}, flat = [];
           DEVS.forEach(function (d) {
             var c = conf[d[0]];
-            dev[d[0]] = { size: c.size || 100, full: !!c.full, home: !!c.home, homeLabel: c.homeLabel || '', homeIcon: c.homeIcon || '', swipeHome: !!c.swipeHome, swipeDist: c.swipeDist || 100, idleHome: c.idleHome || 0, veille: c.veille || 0, veilleDate: !!c.veilleDate, veilleLogo: c.veilleLogo || '', homeZone: c.homeZone || '', homeZoneSize: c.homeZoneSize || 70, homeZoneShow: !!c.homeZoneShow, items: items[d[0]].map(mapIt) };
+            dev[d[0]] = { size: c.size || 100, full: !!c.full, home: !!c.home, homeLabel: c.homeLabel || '', homeIcon: c.homeIcon || '', swipeHome: !!c.swipeHome, swipeDist: c.swipeDist || 100, idleHome: c.idleHome || 0, veille: c.veille || 0, veilleDate: !!c.veilleDate, veilleLogo: c.veilleLogo || '', veilleColor: c.veilleColor || '#8a8a8a', veilleLum: c.veilleLum || 100, veilleSize: c.veilleSize || 100, veilleBg: c.veilleBg || '#000000', homeZone: c.homeZone || '', homeZoneSize: c.homeZoneSize || 70, homeZoneShow: !!c.homeZoneShow, items: items[d[0]].map(mapIt) };
             flat = flat.concat(items[d[0]].map(mapIt));
           });
           var c0 = conf[DEVS[0][0]];
