@@ -933,99 +933,135 @@
   function openNavEditor() {
     editorInit().then(function () {
       var nav = JSON.parse(JSON.stringify(E.nav || { enabled: false, home: false, items: [] }));
-      var items = T.navItems({ nav: nav, pages: E.pages });
-      var DEV = { tablette: 'Tablette', mobile: 'Mobile' };
-      var body = $('<div class="tl-ed-nav"></div>');
+      var all = T.navItems({ nav: nav, pages: E.pages });
+      var devOf = function (pg) { return pg.device === 'mobile' ? 'mobile' : 'tablette'; };
+      // seulement les appareils qui ont des pages
+      var DEVS = [['tablette', 'Tablette', '🖥'], ['mobile', 'Mobile', '📱']].filter(function (d) { return E.pages.some(function (pg) { return devOf(pg) === d[0]; }); });
+      if (!DEVS.length) DEVS = [['tablette', 'Tablette', '🖥']];
       nav.devices = nav.devices || { tablette: !!nav.enabled, mobile: !!nav.enabled };
       delete nav.devices.pc;
-      var hm = $('<input type="checkbox">').prop('checked', !!nav.home);
-      // seulement les appareils qui ont des pages
-      var DEVS = [['tablette', 'Tablette'], ['mobile', 'Mobile']].filter(function (d) { return E.pages.some(function (pg) { return (pg.device === 'mobile' ? 'mobile' : 'tablette') === d[0]; }); });
-      var devRow = $('<div class="tl-ed-navopt"><b>Afficher la barre sur les pages :</b> </div>');
-      DEVS.forEach(function (d) {
-        var c = $('<input type="checkbox">').prop('checked', !!nav.devices[d[0]]).on('change', function () { nav.devices[d[0]] = c.is(':checked'); });
-        devRow.append($('<label class="tl-ed-inline" style="margin-left:10px"></label>').append(c).append(' ' + d[1]));
-      });
-      body.append(devRow);
-      var sz = $('<input type="range" min="60" max="300" step="10" style="width:220px;display:inline-block;vertical-align:middle">').val(nav.size || 100);
-      var szv = $('<b style="display:inline-block;width:50px;text-align:right"></b>').text((nav.size || 100) + ' %');
-      var szPrev = $('<div class="tl-ed-navprev tl-root"></div>');
-      var drawPrev = function () {
-        var k = (nav.size || 100) / 100;
-        szPrev.html('<div class="tl-tabs" style="--tk:' + k + '"><div class="tl-tabs-in"><button type="button" class="tl-tab tl-tab-home">' + T.iconHtml('svg:home') + '</button><button type="button" class="tl-tab tl-on"><span class="tl-tab-ico">' + T.iconHtml('fas fa-th-large') + '</span><span class="tl-tab-txt">Maison</span></button><button type="button" class="tl-tab"><span class="tl-tab-ico">' + T.iconHtml('svg:thermo') + '</span><span class="tl-tab-txt">Chauffage</span></button></div></div>');
-      };
-      sz.on('input', function () { nav.size = parseInt(sz.val(), 10); szv.text(nav.size + ' %'); drawPrev(); });
-      body.append($('<div class="tl-ed-navopt"></div>').append('<b>Taille des onglets :</b> ').append(sz).append(szv));
-      body.append(szPrev);
-      drawPrev();
-      body.append($('<label class="tl-ed-navopt"></label>').append(hm).append(' Bouton accueil au début de la barre'));
       nav.homePages = nav.homePages || {};
-      var homeBox = $('<div class="tl-ed-navhome"></div>');
+      nav.dev = nav.dev || {};
+      // réglages propres à chaque appareil (repris des réglages communs la première fois)
+      var conf = {}, items = {};
       DEVS.forEach(function (d) {
+        var c = nav.dev[d[0]] || {};
+        conf[d[0]] = {
+          size: c.size || nav.size || 100, home: c.home !== undefined ? !!c.home : !!nav.home,
+          homeLabel: c.homeLabel !== undefined ? c.homeLabel : (nav.homeLabel || ''), homeIcon: c.homeIcon !== undefined ? c.homeIcon : (nav.homeIcon || ''),
+          swipeHome: c.swipeHome !== undefined ? !!c.swipeHome : !!nav.swipeHome, idleHome: c.idleHome !== undefined ? c.idleHome : (nav.idleHome || 0)
+        };
+        items[d[0]] = all.filter(function (it) { return it.device === d[0]; });
+      });
+      var body = $('<div class="tl-ed-nav"></div>');
+      var sw = $('<div class="tl-ed-navsw"></div>');
+      body.append($('<div class="tl-ed-navopt"><b>Menu de l\'appareil :</b> </div>').append(sw));
+      body.append('<div class="tl-ed-hint">Chaque appareil a son propre menu : ses onglets, leur ordre, la taille, le bouton accueil et le retour à l\'accueil.</div>');
+      var panes = {};
+      DEVS.forEach(function (d) {
+        var dev = d[0], c = conf[dev], list = items[dev];
+        var pane = panes[dev] = $('<div class="tl-ed-navpane"></div>');
+        var on = $('<input type="checkbox">').prop('checked', !!nav.devices[dev]).on('change', function () { nav.devices[dev] = on.is(':checked'); });
+        pane.append($('<label class="tl-ed-navopt"></label>').append(on).append(' <b>Afficher la barre d\'onglets sur les pages ' + d[1].toLowerCase() + '</b>'));
+        var sz = $('<input type="range" min="60" max="300" step="10" style="width:220px;display:inline-block;vertical-align:middle">').val(c.size);
+        var szv = $('<b style="display:inline-block;width:50px;text-align:right"></b>').text(c.size + ' %');
+        var szPrev = $('<div class="tl-ed-navprev tl-root"></div>');
+        var drawPrev = function () {
+          var k = c.size / 100, shown = list.filter(function (it) { return it.show; }).slice(0, 4);
+          var html = '<div class="tl-tabs" style="--tk:' + k + '"><div class="tl-tabs-in">';
+          if (c.home) html += '<button type="button" class="tl-tab tl-tab-home' + (c.homeLabel ? ' tl-tab-homelab' : '') + '"><span class="tl-tab-ico">' + T.iconHtml(c.homeIcon || 'svg:home') + '</span>' + (c.homeLabel ? '<span class="tl-tab-txt">' + $('<i>').text(c.homeLabel).html() + '</span>' : '') + '</button>';
+          (shown.length ? shown : [{ name: 'Page', icon: '', pageIcon: '' }]).forEach(function (it, i) {
+            html += '<button type="button" class="tl-tab' + (i === 0 ? ' tl-on' : '') + '"><span class="tl-tab-ico">' + T.iconHtml(it.icon || it.pageIcon || 'fas fa-th-large') + '</span><span class="tl-tab-txt">' + $('<i>').text(it.label || it.name).html() + '</span></button>';
+          });
+          szPrev.html(html + '</div></div>');
+        };
+        sz.on('input', function () { c.size = parseInt(sz.val(), 10); szv.text(c.size + ' %'); drawPrev(); });
+        pane.append($('<div class="tl-ed-navopt"></div>').append('<b>Taille des onglets :</b> ').append(sz).append(szv));
+        pane.append(szPrev);
+        var hm = $('<input type="checkbox">').prop('checked', c.home).on('change', function () { c.home = hm.is(':checked'); syncHome(); drawPrev(); });
+        pane.append($('<label class="tl-ed-navopt"></label>').append(hm).append(' Bouton accueil au début de la barre'));
+        var homeBox = $('<div class="tl-ed-navhome"></div>');
         var sel = $('<select class="form-control input-sm" style="width:auto"></select>');
         sel.append('<option value="">Accueil du plugin</option>');
-        E.pages.filter(function (pg) { return (pg.device === 'mobile' ? 'mobile' : 'tablette') === d[0]; }).forEach(function (pg) { sel.append($('<option></option>').val(String(pg.id)).text(pg.name)); });
-        sel.val(String(nav.homePages[d[0]] || '')).on('change', function () { nav.homePages[d[0]] = sel.val(); });
-        homeBox.append($('<label class="tl-ed-inline"></label>').text('Accueil ' + d[1] + ' ').append(sel));
-      });
-      var hl = $('<input type="text" class="form-control input-sm" style="width:110px" placeholder="icône seule">').val(nav.homeLabel || '').on('input', function () { nav.homeLabel = $(this).val(); });
-      homeBox.append($('<label class="tl-ed-inline"></label>').text('Texte du bouton ').append(hl));
-      homeBox.append($('<div class="tl-ed-navhicon"></div>').append('<span>Icône du bouton </span>').append(iconField(nav.homeIcon, 'svg:home', function (v) { nav.homeIcon = v; })));
-      homeBox.append('<div class="tl-ed-hint">Le bouton accueil ouvre la page choisie pour l\'appareil (une page d\'accueil particulière : météo, résumé, alertes…). Cette page n\'est alors plus répétée dans les onglets.</div>');
-      body.append(homeBox);
-      var syncHome = function () { homeBox.toggle(hm.is(':checked')); };
-      hm.on('change', syncHome);
-      syncHome();
-      var back = $('<div class="tl-ed-navhome"></div>');
-      var sw = $('<input type="checkbox">').prop('checked', !!nav.swipeHome).on('change', function () { nav.swipeHome = sw.is(':checked'); });
-      back.append($('<label class="tl-ed-inline"></label>').append(sw).append(' Glisser du bord gauche vers la droite → page d\'accueil'));
-      var idl = $('<input type="number" min="0" max="240" step="1" class="form-control input-sm" style="width:70px" placeholder="0">').val(nav.idleHome > 0 ? nav.idleHome : '').on('input', function () { nav.idleHome = parseFloat($(this).val()) || 0; });
-      back.append($('<label class="tl-ed-inline"></label>').text('Retour automatique à l\'accueil après ').append(idl).append(' min sans toucher (vide = jamais)'));
-      back.append('<div class="tl-ed-hint">Aucun bouton à l\'écran : le geste et le retour automatique ramènent à la page d\'accueil choisie ci-dessus pour l\'appareil (sinon à l\'accueil du plugin). Rien ne se passe sur la page d\'accueil elle-même ni dans l\'éditeur.</div>');
-      body.append($('<div class="tl-ed-navopt"><b>Retour à l\'accueil sans bouton :</b></div>')).append(back);
-      body.append('<div class="tl-ed-hint">Glissez les lignes pour changer l\'ordre. Chaque page n\'affiche que les onglets de son appareil (tablette ou mobile). Une page peut masquer la barre dans ses réglages (Style → Onglets).</div>');
-      var list = $('<div class="tl-ed-navlist"></div>');
-      body.append(list);
-      var drag = null;
-      var draw = function () {
-        list.empty();
-        items.forEach(function (it, i) {
-          var row = $('<div class="tl-ed-navrow" draggable="true"></div>').toggleClass('tl-ed-navoff', !it.show);
-          row.append('<span class="tl-ed-navgrip" title="Glisser"><i class="fas fa-grip-vertical"></i></span>');
-          var cb = $('<input type="checkbox" title="Afficher dans la barre">').prop('checked', !!it.show).on('change', function () { it.show = cb.is(':checked'); row.toggleClass('tl-ed-navoff', !it.show); });
-          row.append(cb);
-          row.append($('<span class="tl-ed-navname"></span>').text(it.name)).append($('<span class="tl-ed-navdev"></span>').text(DEV[it.device] || it.device));
-          row.append($('<input type="text" class="form-control input-sm tl-ed-navlab" placeholder="Nom d\'onglet">').val(it.label || '').on('input', function () { it.label = $(this).val(); }));
-          row.append(iconField(it.icon, it.pageIcon || 'fas fa-th-large', function (v) { it.icon = v; }));
-          var up = $('<a class="btn btn-xs btn-default" title="Monter"><i class="fas fa-arrow-up"></i></a>').on('click', function () { if (i > 0) { items.splice(i - 1, 0, items.splice(i, 1)[0]); draw(); } });
-          var dn = $('<a class="btn btn-xs btn-default" title="Descendre"><i class="fas fa-arrow-down"></i></a>').on('click', function () { if (i < items.length - 1) { items.splice(i + 1, 0, items.splice(i, 1)[0]); draw(); } });
-          row.append($('<span class="tl-ed-navarrows"></span>').append(up).append(dn));
-          row.on('dragstart', function (e) { drag = i; row.addClass('tl-ed-navdrag'); if (e.originalEvent.dataTransfer) e.originalEvent.dataTransfer.setData('text/plain', String(i)); });
-          row.on('dragend', function () { row.removeClass('tl-ed-navdrag'); list.find('.tl-ed-navover').removeClass('tl-ed-navover'); });
-          row.on('dragover', function (e) { e.preventDefault(); list.find('.tl-ed-navover').removeClass('tl-ed-navover'); row.addClass('tl-ed-navover'); });
-          row.on('drop', function (e) {
-            e.preventDefault();
-            if (drag === null || drag === i) return;
-            var moved = items.splice(drag, 1)[0];
-            items.splice(i, 0, moved);
-            drag = null;
-            draw();
+        E.pages.filter(function (pg) { return devOf(pg) === dev; }).forEach(function (pg) { sel.append($('<option></option>').val(String(pg.id)).text(pg.name)); });
+        sel.val(String(nav.homePages[dev] || '')).on('change', function () { nav.homePages[dev] = sel.val(); });
+        homeBox.append($('<label class="tl-ed-inline"></label>').text('Page d\'accueil ').append(sel));
+        var hl = $('<input type="text" class="form-control input-sm" style="width:110px" placeholder="icône seule">').val(c.homeLabel).on('input', function () { c.homeLabel = $(this).val(); drawPrev(); });
+        homeBox.append($('<label class="tl-ed-inline"></label>').text('Texte du bouton ').append(hl));
+        homeBox.append($('<div class="tl-ed-navhicon"></div>').append('<span>Icône du bouton </span>').append(iconField(c.homeIcon, 'svg:home', function (v) { c.homeIcon = v; drawPrev(); })));
+        homeBox.append('<div class="tl-ed-hint">La page d\'accueil sert aussi au geste et au retour automatique ci-dessous. Elle n\'est plus répétée dans les onglets quand le bouton accueil est affiché.</div>');
+        pane.append(homeBox);
+        var syncHome = function () { homeBox.find('.tl-ed-navhicon, .tl-ed-inline:nth-child(2)').toggle(c.home); };
+        syncHome();
+        var back = $('<div class="tl-ed-navhome"></div>');
+        var swc = $('<input type="checkbox">').prop('checked', c.swipeHome).on('change', function () { c.swipeHome = swc.is(':checked'); });
+        back.append($('<label class="tl-ed-inline"></label>').append(swc).append(' Glisser du bord gauche vers la droite → page d\'accueil'));
+        var idl = $('<input type="number" min="0" max="240" step="1" class="form-control input-sm" style="width:70px" placeholder="0">').val(c.idleHome > 0 ? c.idleHome : '').on('input', function () { c.idleHome = parseFloat($(this).val()) || 0; });
+        back.append($('<label class="tl-ed-inline"></label>').text('Retour automatique à l\'accueil après ').append(idl).append(' min sans toucher (vide = jamais)'));
+        pane.append($('<div class="tl-ed-navopt"><b>Retour à l\'accueil sans bouton :</b></div>')).append(back);
+        pane.append('<div class="tl-ed-hint">Onglets : glissez les lignes pour changer l\'ordre, décochez pour masquer. Une page peut masquer la barre dans ses réglages (Style → Onglets).</div>');
+        var listEl = $('<div class="tl-ed-navlist"></div>');
+        pane.append(listEl);
+        var drag = null;
+        var draw = function () {
+          listEl.empty();
+          if (!list.length) listEl.append('<div class="tl-ed-hint">Aucune page ' + d[1].toLowerCase() + '.</div>');
+          list.forEach(function (it, i) {
+            var row = $('<div class="tl-ed-navrow" draggable="true"></div>').toggleClass('tl-ed-navoff', !it.show);
+            row.append('<span class="tl-ed-navgrip" title="Glisser"><i class="fas fa-grip-vertical"></i></span>');
+            var cb = $('<input type="checkbox" title="Afficher dans la barre">').prop('checked', !!it.show).on('change', function () { it.show = cb.is(':checked'); row.toggleClass('tl-ed-navoff', !it.show); drawPrev(); });
+            row.append(cb);
+            row.append($('<span class="tl-ed-navname"></span>').text(it.name));
+            row.append($('<input type="text" class="form-control input-sm tl-ed-navlab" placeholder="Nom d\'onglet">').val(it.label || '').on('input', function () { it.label = $(this).val(); drawPrev(); }));
+            row.append(iconField(it.icon, it.pageIcon || 'fas fa-th-large', function (v) { it.icon = v; drawPrev(); }));
+            var up = $('<a class="btn btn-xs btn-default" title="Monter"><i class="fas fa-arrow-up"></i></a>').on('click', function () { if (i > 0) { list.splice(i - 1, 0, list.splice(i, 1)[0]); draw(); drawPrev(); } });
+            var dn = $('<a class="btn btn-xs btn-default" title="Descendre"><i class="fas fa-arrow-down"></i></a>').on('click', function () { if (i < list.length - 1) { list.splice(i + 1, 0, list.splice(i, 1)[0]); draw(); drawPrev(); } });
+            row.append($('<span class="tl-ed-navarrows"></span>').append(up).append(dn));
+            row.on('dragstart', function (e) { drag = i; row.addClass('tl-ed-navdrag'); if (e.originalEvent.dataTransfer) e.originalEvent.dataTransfer.setData('text/plain', String(i)); });
+            row.on('dragend', function () { row.removeClass('tl-ed-navdrag'); listEl.find('.tl-ed-navover').removeClass('tl-ed-navover'); });
+            row.on('dragover', function (e) { e.preventDefault(); listEl.find('.tl-ed-navover').removeClass('tl-ed-navover'); row.addClass('tl-ed-navover'); });
+            row.on('drop', function (e) {
+              e.preventDefault();
+              if (drag === null || drag === i) return;
+              list.splice(i, 0, list.splice(drag, 1)[0]);
+              drag = null;
+              draw(); drawPrev();
+            });
+            row.find('input, a, .tl-ed-icon').on('mousedown', function () { row.attr('draggable', 'false'); }).on('mouseup blur', function () { row.attr('draggable', 'true'); });
+            listEl.append(row);
           });
-          // les champs restent utilisables (pas de glisser depuis un champ)
-          row.find('input, a, .tl-ed-icon').on('mousedown', function () { row.attr('draggable', 'false'); }).on('mouseup blur', function () { row.attr('draggable', 'true'); });
-          list.append(row);
-        });
+        };
+        draw();
+        drawPrev();
+        body.append(pane);
+      });
+      var curDev = ((E.layout && E.layout.grid) || {}).device === 'mobile' && panes.mobile ? 'mobile' : DEVS[0][0];
+      var showDev = function (dev) {
+        curDev = dev;
+        Object.keys(panes).forEach(function (k) { panes[k].toggle(k === dev); });
+        sw.find('a').each(function () { $(this).toggleClass('btn-primary', $(this).data('dev') === dev).toggleClass('btn-default', $(this).data('dev') !== dev); });
       };
-      draw();
+      DEVS.forEach(function (d) { sw.append($('<a class="btn btn-sm"></a>').data('dev', d[0]).text(d[2] + ' ' + d[1]).on('click', function () { showDev(d[0]); })).append(' '); });
+      showDev(curDev);
       T.ui.modal({
-        title: 'Barre d\'onglets (toutes les pages)', body: body[0], wide: true,
+        title: 'Barres d\'onglets (menu tablette / menu mobile)', body: body[0], wide: true,
         buttons: [{ label: 'Annuler' }, { label: 'Enregistrer', primary: true, click: function (close) {
-          var payload = { enabled: nav.devices.pc || nav.devices.tablette || nav.devices.mobile, devices: nav.devices, home: hm.is(':checked'), homePages: nav.homePages, size: nav.size || 100, homeLabel: nav.homeLabel || '', homeIcon: nav.homeIcon || '', swipeHome: !!nav.swipeHome, idleHome: nav.idleHome || 0, items: items.map(function (it) { return { id: it.id, label: it.label || '', icon: it.icon || '', show: !!it.show }; }) };
+          var mapIt = function (it) { return { id: it.id, label: it.label || '', icon: it.icon || '', show: !!it.show }; };
+          var dev = {}, flat = [];
+          DEVS.forEach(function (d) {
+            var c = conf[d[0]];
+            dev[d[0]] = { size: c.size || 100, home: !!c.home, homeLabel: c.homeLabel || '', homeIcon: c.homeIcon || '', swipeHome: !!c.swipeHome, idleHome: c.idleHome || 0, items: items[d[0]].map(mapIt) };
+            flat = flat.concat(items[d[0]].map(mapIt));
+          });
+          var c0 = conf[DEVS[0][0]];
+          var payload = { enabled: !!(nav.devices.tablette || nav.devices.mobile), devices: nav.devices, homePages: nav.homePages, dev: dev,
+            // réglages communs (anciennes versions du moteur) : ceux du premier appareil
+            home: !!c0.home, size: c0.size || 100, homeLabel: c0.homeLabel || '', homeIcon: c0.homeIcon || '', swipeHome: !!c0.swipeHome, idleHome: c0.idleHome || 0, items: flat };
           T.ajax('saveNav', { nav: payload }).then(function (saved) {
             E.nav = saved;
-            if (payload.swipeHome && !(saved && saved.swipeHome)) {
-              toast('Le serveur n\'a pas gardé le retour par geste : remplacez core/class/tuiles.class.php par celui de la dernière mise à jour.', 'error');
-            } else toast('Barre d\'onglets enregistrée');
+            if (!(saved && saved.dev)) {
+              toast('Le serveur n\'a pas gardé les menus par appareil : remplacez core/class/tuiles.class.php par celui de la dernière mise à jour.', 'error');
+            } else toast('Menus enregistrés');
             renderPreview();
             close();
           }).catch(fail);

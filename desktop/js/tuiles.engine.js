@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.64.2';
+  var VERSION = '1.65.0';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -658,7 +658,7 @@
 
   /** Retour à la page d'accueil sans bouton : glisser depuis le bord gauche, et / ou retour automatique après inactivité. */
   Page.prototype.setupHomeReturn = function () {
-    var self = this, nav = this.data.nav || {}, dev = this.data.device === 'mobile' ? 'mobile' : 'tablette';
+    var dev = this.data.device === 'mobile' ? 'mobile' : 'tablette', self = this, nav = navFor(this.data.nav, dev);
     var hp = String(((nav.homePages || {})[dev]) || ''), cur = String(this.data.id || '');
     if (hp && hp === cur) return;                       // déjà sur l'accueil
     var idle = num(nav.idleHome, 0);
@@ -967,10 +967,22 @@
 
   /** Barre d'onglets : les pages du même appareil, la page courante en surbrillance. */
   /** Liste ordonnée des onglets : réglage commun (ordre, nom, icône, visible), puis les pages non classées. */
+  /** Réglages de la barre pour un appareil : ceux de l'appareil (nav.dev[dev]) priment sur les réglages communs. */
+  var NAV_DEV_KEYS = ['size', 'home', 'homeLabel', 'homeIcon', 'swipeHome', 'idleHome'];
+  function navFor(nav, dev) {
+    nav = nav || {};
+    var out = {}, d = (nav.dev && nav.dev[dev]) || {};
+    Object.keys(nav).forEach(function (k) { out[k] = nav[k]; });
+    NAV_DEV_KEYS.forEach(function (k) { if (d[k] !== undefined && d[k] !== null) out[k] = d[k]; });
+    return out;
+  }
   function navItems(data) {
     var nav = data.nav || {}, pages = data.pages || [], byId = {}, out = [], seen = {};
     pages.forEach(function (pg) { byId[String(pg.id)] = pg; });
-    (nav.items || []).forEach(function (it) {
+    var list = (nav.items || []).slice();
+    // ordre propre à chaque appareil (nav.dev.tablette.items / nav.dev.mobile.items) avant l'ordre commun
+    ['tablette', 'mobile'].forEach(function (d) { var di = nav.dev && nav.dev[d] && nav.dev[d].items; if (Array.isArray(di)) list = di.concat(list); });
+    list.forEach(function (it) {
       var pg = byId[String(it.id)];
       if (!pg || seen[pg.id]) return;
       seen[pg.id] = true;
@@ -985,7 +997,7 @@
 
   /** Barre d'onglets commune : les pages du même appareil, la page courante en surbrillance. */
   Page.prototype.buildTabs = function () {
-    var self = this, cur = String(this.data.id || ''), dev = this.data.device === 'mobile' ? 'mobile' : 'tablette', nav = this.data.nav || {};
+    var self = this, cur = String(this.data.id || ''), dev = this.data.device === 'mobile' ? 'mobile' : 'tablette', nav = navFor(this.data.nav, dev);
     var g = (this.data.layout && this.data.layout.grid) || {};
     var bar = this.navEl = el('div', 'tl-tabs');
     bar.style.setProperty('--tk', Math.max(0.5, Math.min(4, num(nav.size, 100) / 100)));
@@ -5326,6 +5338,7 @@
     version: VERSION,
     ajax: ajax,
     navItems: navItems,
+    navFor: navFor,
     ui: UI,
     icons: ICONS,
     iconHtml: iconHtml,

@@ -253,6 +253,9 @@ class tuiles extends eqLogic {
 		$nav['homeLabel'] = isset($nav['homeLabel']) ? (string) $nav['homeLabel'] : '';
 		$nav['homeIcon'] = isset($nav['homeIcon']) ? (string) $nav['homeIcon'] : '';
 		$nav['items'] = isset($nav['items']) && is_array($nav['items']) ? array_values($nav['items']) : array();
+		if (isset($nav['dev']) && !is_array($nav['dev'])) {
+			unset($nav['dev']);
+		}
 		return $nav;
 	}
 
@@ -284,7 +287,40 @@ class tuiles extends eqLogic {
 			'homeIcon' => isset($nav['homeIcon']) ? substr(trim((string) $nav['homeIcon']), 0, 200) : '',
 			'swipeHome' => !empty($nav['swipeHome']) && $nav['swipeHome'] !== 'false',
 			'idleHome' => isset($nav['idleHome']) && is_numeric($nav['idleHome']) ? max(0, min(240, floatval($nav['idleHome']))) : 0,
+			'dev' => array(),
 		);
+		// menu propre à chaque appareil (tablette / mobile)
+		foreach (array('tablette', 'mobile') as $d) {
+			if (!isset($nav['dev'][$d]) || !is_array($nav['dev'][$d])) {
+				continue;
+			}
+			$c = $nav['dev'][$d];
+			$dItems = array();
+			foreach ((isset($c['items']) && is_array($c['items']) ? $c['items'] : array()) as $it) {
+				$id = self::cleanId(isset($it['id']) ? $it['id'] : '');
+				if ($id === '') {
+					continue;
+				}
+				$dItems[] = array(
+					'id' => $id,
+					'label' => isset($it['label']) ? substr(trim((string) $it['label']), 0, 60) : '',
+					'icon' => isset($it['icon']) ? substr(trim((string) $it['icon']), 0, 200) : '',
+					'show' => !isset($it['show']) || ($it['show'] !== false && $it['show'] !== 'false' && $it['show'] !== '0' && $it['show'] !== 0),
+				);
+			}
+			$clean['dev'][$d] = array(
+				'size' => isset($c['size']) && is_numeric($c['size']) ? max(50, min(400, intval($c['size']))) : 100,
+				'home' => !empty($c['home']) && $c['home'] !== 'false',
+				'homeLabel' => isset($c['homeLabel']) ? substr(trim((string) $c['homeLabel']), 0, 40) : '',
+				'homeIcon' => isset($c['homeIcon']) ? substr(trim((string) $c['homeIcon']), 0, 200) : '',
+				'swipeHome' => !empty($c['swipeHome']) && $c['swipeHome'] !== 'false',
+				'idleHome' => isset($c['idleHome']) && is_numeric($c['idleHome']) ? max(0, min(240, floatval($c['idleHome']))) : 0,
+				'items' => $dItems,
+			);
+		}
+		if (!count($clean['dev'])) {
+			unset($clean['dev']);
+		}
 		config::save('nav', json_encode($clean), 'tuiles');
 		return self::nav();
 	}

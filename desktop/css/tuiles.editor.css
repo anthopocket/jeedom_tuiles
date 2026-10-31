@@ -164,3 +164,5 @@
 .tl-ed-navhome .tl-ed-hint { flex: 1 1 100%; margin: 0; }
 .tl-ed-navprev { background: #111; border-radius: 10px; padding: 8px; margin: 4px 0 10px; overflow-x: auto; }
 .tl-ed-navprev .tl-tabs { position: static; padding: 0; background: none; }
+.tl-ed-navsw { display: inline-block; margin-left: 8px; }
+.tl-ed-navpane { border-top: 1px solid rgba(127,127,127,.25); padding-top: 8px; margin-top: 4px; }
