@@ -310,6 +310,7 @@ class tuiles extends eqLogic {
 			}
 			$clean['dev'][$d] = array(
 				'size' => isset($c['size']) && is_numeric($c['size']) ? max(50, min(400, intval($c['size']))) : 100,
+				'full' => !empty($c['full']) && $c['full'] !== 'false',
 				'home' => !empty($c['home']) && $c['home'] !== 'false',
 				'homeLabel' => isset($c['homeLabel']) ? substr(trim((string) $c['homeLabel']), 0, 40) : '',
 				'homeIcon' => isset($c['homeIcon']) ? substr(trim((string) $c['homeIcon']), 0, 200) : '',

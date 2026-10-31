@@ -1551,3 +1551,9 @@ body.tl-kiosk #div_pageContainer { padding-top: 0 !important; margin-top: 0 !imp
 .tl-ov-r { display: flex; align-items: center; gap: .55em; flex: none; }
 .tl-ov-val { font-weight: 700; }
 .tl-ov-ico { width: 1.4em; height: 1.4em; display: inline-block; }
+
+/* barre d'onglets sur toute la largeur : onglets de même largeur, centrés */
+.tl-tabs-full .tl-tabs-in { width: 100%; margin: 0; }
+.tl-tabs-full .tl-tab { flex: 1 1 0; min-width: max-content; justify-content: center; }
+.tl-tabs-full .tl-tab-home { flex: 0 0 auto; min-width: 0; }
+.tl-is-mobile .tl-tabs-full .tl-tab { padding: 0 8px; }

@@ -949,7 +949,8 @@
         conf[d[0]] = {
           size: c.size || nav.size || 100, home: c.home !== undefined ? !!c.home : !!nav.home,
           homeLabel: c.homeLabel !== undefined ? c.homeLabel : (nav.homeLabel || ''), homeIcon: c.homeIcon !== undefined ? c.homeIcon : (nav.homeIcon || ''),
-          swipeHome: c.swipeHome !== undefined ? !!c.swipeHome : !!nav.swipeHome, idleHome: c.idleHome !== undefined ? c.idleHome : (nav.idleHome || 0)
+          swipeHome: c.swipeHome !== undefined ? !!c.swipeHome : !!nav.swipeHome, idleHome: c.idleHome !== undefined ? c.idleHome : (nav.idleHome || 0),
+          full: c.full !== undefined ? !!c.full : d[0] === 'mobile'
         };
         items[d[0]] = all.filter(function (it) { return it.device === d[0]; });
       });
@@ -968,7 +969,7 @@
         var szPrev = $('<div class="tl-ed-navprev tl-root"></div>');
         var drawPrev = function () {
           var k = c.size / 100, shown = list.filter(function (it) { return it.show; }).slice(0, 4);
-          var html = '<div class="tl-tabs" style="--tk:' + k + '"><div class="tl-tabs-in">';
+          var html = '<div class="tl-tabs' + (c.full ? ' tl-tabs-full' : '') + '" style="--tk:' + k + '"><div class="tl-tabs-in">';
           if (c.home) html += '<button type="button" class="tl-tab tl-tab-home' + (c.homeLabel ? ' tl-tab-homelab' : '') + '"><span class="tl-tab-ico">' + T.iconHtml(c.homeIcon || 'svg:home') + '</span>' + (c.homeLabel ? '<span class="tl-tab-txt">' + $('<i>').text(c.homeLabel).html() + '</span>' : '') + '</button>';
           (shown.length ? shown : [{ name: 'Page', icon: '', pageIcon: '' }]).forEach(function (it, i) {
             html += '<button type="button" class="tl-tab' + (i === 0 ? ' tl-on' : '') + '"><span class="tl-tab-ico">' + T.iconHtml(it.icon || it.pageIcon || 'fas fa-th-large') + '</span><span class="tl-tab-txt">' + $('<i>').text(it.label || it.name).html() + '</span></button>';
@@ -978,6 +979,8 @@
         sz.on('input', function () { c.size = parseInt(sz.val(), 10); szv.text(c.size + ' %'); drawPrev(); });
         pane.append($('<div class="tl-ed-navopt"></div>').append('<b>Taille des onglets :</b> ').append(sz).append(szv));
         pane.append(szPrev);
+        var fu = $('<input type="checkbox">').prop('checked', c.full).on('change', function () { c.full = fu.is(':checked'); drawPrev(); });
+        pane.append($('<label class="tl-ed-navopt"></label>').append(fu).append(' Onglets sur toute la largeur (même largeur pour chaque onglet)'));
         var hm = $('<input type="checkbox">').prop('checked', c.home).on('change', function () { c.home = hm.is(':checked'); syncHome(); drawPrev(); });
         pane.append($('<label class="tl-ed-navopt"></label>').append(hm).append(' Bouton accueil au début de la barre'));
         var homeBox = $('<div class="tl-ed-navhome"></div>');
@@ -1050,7 +1053,7 @@
           var dev = {}, flat = [];
           DEVS.forEach(function (d) {
             var c = conf[d[0]];
-            dev[d[0]] = { size: c.size || 100, home: !!c.home, homeLabel: c.homeLabel || '', homeIcon: c.homeIcon || '', swipeHome: !!c.swipeHome, idleHome: c.idleHome || 0, items: items[d[0]].map(mapIt) };
+            dev[d[0]] = { size: c.size || 100, full: !!c.full, home: !!c.home, homeLabel: c.homeLabel || '', homeIcon: c.homeIcon || '', swipeHome: !!c.swipeHome, idleHome: c.idleHome || 0, items: items[d[0]].map(mapIt) };
             flat = flat.concat(items[d[0]].map(mapIt));
           });
           var c0 = conf[DEVS[0][0]];

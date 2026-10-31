@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.65.1';
+  var VERSION = '1.65.2';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -968,7 +968,7 @@
   /** Barre d'onglets : les pages du même appareil, la page courante en surbrillance. */
   /** Liste ordonnée des onglets : réglage commun (ordre, nom, icône, visible), puis les pages non classées. */
   /** Réglages de la barre pour un appareil : ceux de l'appareil (nav.dev[dev]) priment sur les réglages communs. */
-  var NAV_DEV_KEYS = ['size', 'home', 'homeLabel', 'homeIcon', 'swipeHome', 'idleHome'];
+  var NAV_DEV_KEYS = ['size', 'home', 'homeLabel', 'homeIcon', 'swipeHome', 'idleHome', 'full'];
   function navFor(nav, dev) {
     nav = nav || {};
     var out = {}, d = (nav.dev && nav.dev[dev]) || {};
@@ -999,7 +999,9 @@
   Page.prototype.buildTabs = function () {
     var self = this, cur = String(this.data.id || ''), dev = this.data.device === 'mobile' ? 'mobile' : 'tablette', nav = navFor(this.data.nav, dev);
     var g = (this.data.layout && this.data.layout.grid) || {};
-    var bar = this.navEl = el('div', 'tl-tabs');
+    // toute la largeur : par défaut sur mobile, au choix sur tablette
+    var full = nav.full === undefined || nav.full === null ? dev === 'mobile' : (nav.full === true || nav.full === 'true' || nav.full === 1);
+    var bar = this.navEl = el('div', 'tl-tabs' + (full ? ' tl-tabs-full' : ''));
     bar.style.setProperty('--tk', Math.max(0.5, Math.min(4, num(nav.size, 100) / 100)));
     var inner = el('div', 'tl-tabs-in');
     bar.appendChild(inner);

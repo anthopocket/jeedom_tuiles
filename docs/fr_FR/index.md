@@ -244,7 +244,7 @@ Cochez **Via Jeedom (accès à distance)** dans la tuile caméra. C'est alors le
 
 ## Thème et onglets
 
-**Un menu par appareil.** Dans « Régler la barre d'onglets… », choisissez 🖥 Tablette ou 📱 Mobile en haut de la fenêtre : chaque appareil a sa propre barre (affichée ou non), ses onglets et leur ordre, la taille des onglets, le bouton accueil (page, texte, icône), le geste « bord gauche → accueil » et le retour automatique. Exemple : sur mobile, deux onglets « Maison » et « Sécurité » en grand ; sur la tablette, toutes les pièces.
+**Un menu par appareil.** Dans « Régler la barre d'onglets… », choisissez 🖥 Tablette ou 📱 Mobile en haut de la fenêtre : chaque appareil a sa propre barre (affichée ou non), ses onglets et leur ordre, la taille des onglets, le bouton accueil (page, texte, icône), le geste « bord gauche → accueil », le retour automatique et « Onglets sur toute la largeur » (par défaut sur mobile : la barre prend la largeur des tuiles, onglets de même largeur). Exemple : sur mobile, deux onglets « Maison » et « Sécurité » en grand ; sur la tablette, toutes les pièces.
 
 Dans les réglages de la page, ligne **Style** :
 
