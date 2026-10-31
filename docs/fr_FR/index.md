@@ -94,7 +94,8 @@ Sur les tuiles **Volet**, **Bouton**, **Éclairage**, **Éclairage variateur** e
 
 Dans « Régler la barre d'onglets… » (commun à toutes les pages) :
 
-- **Glisser du bord gauche vers la droite** : sur tablette, un balayage depuis le bord gauche de l'écran ramène à la page d'accueil. Une petite maison suit le doigt et devient bleue quand le geste est assez long.
+- **Glisser le doigt vers la droite** : n'importe où sur la page, un balayage vers la droite ramène à la page d'accueil. La distance à parcourir se règle (150 px par défaut). Une petite maison suit le doigt et devient bleue quand la distance est atteinte. Le geste est ignoré sur les curseurs, les volets, les barres qui défilent de côté et dans les fenêtres ouvertes.
+- **Écran de veille** : dans « Régler la barre d'onglets… », pour chaque appareil, indiquez au bout de combien de minutes sans toucher l'écran passe en veille : fond noir, grande horloge grise, date en option et une image de votre choix en bas à droite (adresse d'une image, par exemple `/data/img/logo.png`). L'horloge bouge légèrement chaque minute pour ne pas marquer l'écran. Un appui n'importe où ouvre la page d'accueil de l'appareil (ou ferme simplement la veille si l'on y est déjà). La veille attend tant qu'une fenêtre ou une caméra est ouverte.
 - **Retour automatique à l'accueil après N minutes** sans toucher l'écran (vide = jamais). Pas de retour tant qu'une fenêtre ou une caméra en plein écran est ouverte.
 
 La page d'accueil est celle choisie pour l'appareil (sinon l'accueil du plugin). Rien n'apparaît à l'écran et rien ne se passe sur la page d'accueil elle-même ni dans l'éditeur.
@@ -276,7 +277,9 @@ Famille **Énergie** du catalogue, pour un tableau de bord sans courbe en direct
 
 - **Chiffre clé** : grosse valeur (W passe en kW au-delà de 1000) + petite ligne (« {1} kWh aujourd'hui » avec une 2ᵉ info), liseré de couleur en haut. Peut aussi calculer **Autonomie %** (conso et achat du jour) ou **Autoconsommation %** (production et revente).
 - **Batterie** : anneau de charge (rouge / orange / vert), en charge / en décharge avec la puissance, énergie stockée, « pleine vers » et « tiendra jusqu'à » (avec la capacité en kWh et la charge mini utilisable), boutons **Marche / Arrêt** avec confirmation et état allumé.
-- **Bilan énergie du jour** : produit (et prévu), consommé, acheté, revendu, et une barre « où est partie la production » (maison / batterie / revendu).
+- **Bilan énergie du jour** : produit (et prévu), consommé, acheté, revendu, une barre « où est partie la production » (maison / batterie / revendu), l'autonomie et l'autoconsommation du jour.
+  - Chaque info peut être un **compteur cumulé** (total depuis l'installation, ex. compteur réseau Victron) : cochez « compteur cumulé » et la tuile affiche la différence depuis minuit. La valeur de minuit est lue dans l'historique Jeedom (commande historisée conseillée) ; sans historique, le plugin garde le premier relevé de la journée.
+  - La **consommation** peut être **calculée** : production + achat − revente − énergie entrée batterie + énergie sortie batterie.
 - **Prévision solaire** : aujourd'hui (et prévu), encore à venir, demain, après-demain (Solcast ou autre).
 - **Conseils** : texte d'une info (une ligne par conseil : retour à la ligne, « | » ou « ; ») et boutons de mode (ex. Conseil / Auto, le bouton du mode actif est allumé).
 

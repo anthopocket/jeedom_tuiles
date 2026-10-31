@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.69.4';
+  var VERSION = '1.69.7';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -653,7 +653,7 @@
       this.timers.push(setInterval(function () { self.resync(); }, Math.max(5, num(self.data.poll, 0)) * 1000));
     }
     this.timers.push(setInterval(function () { self.tiles.forEach(function (a) { self.markAge(a); }); }, 60000));
-    if (!this.opts.edit) this.setupHomeReturn();
+    if (!this.opts.edit) { this.setupHomeReturn(); this.setupVeille(); }
   }
 
   /** Retour à la page d'accueil sans bouton : glisser depuis le bord gauche, et / ou retour automatique après inactivité. */
@@ -667,27 +667,38 @@
     var offs = this.homeOffs = [];
     var on = function (target, ev, fn, opt) { target.addEventListener(ev, fn, opt); offs.push(function () { target.removeEventListener(ev, fn, opt); }); };
     if (nav.swipeHome) {
-      // Zone de départ élargie (les 24 premiers px sont souvent pris par le geste « retour » d'Android),
-      // et si le navigateur annule le toucher en cours de route (touchcancel), on décide avec le dernier mouvement.
-      var ZONE = 70, DIST = 90, st = null, hint = null, last = null;
+      // Glisser vers la droite n'importe où sur la page, sur une distance réglable (nav.swipeDist, en px d'écran).
+      // Ignoré sur les curseurs / volets / anneaux (ils capturent le doigt), les barres qui défilent de côté,
+      // les champs et les fenêtres ouvertes. Si le navigateur annule le toucher (touchcancel), on décide avec le dernier mouvement.
+      var DIST = Math.max(60, Math.min(600, num(nav.swipeDist, 150))), st = null, hint = null, last = null;
       var clear = function () { st = null; last = null; if (hint && hint.parentNode) hint.parentNode.removeChild(hint); hint = null; };
       var decide = function (x, y) {
         if (!st) return;
         var dx = x - st.x, dy = Math.abs(y - st.y), quick = Date.now() - st.at < 1500;
         clear();
-        if (dx > DIST && dy < 80 && quick) go();
+        if (dx >= DIST && dy < Math.max(80, dx * 0.5) && quick) go();
+      };
+      var sideScroll = function (n) {
+        for (; n && n !== document.body && n.nodeType === 1; n = n.parentNode) {
+          if (n.scrollWidth > n.clientWidth + 2) { var ox = getComputedStyle(n).overflowX; if (ox === 'auto' || ox === 'scroll') return true; }
+        }
+        return false;
       };
       on(document, 'touchstart', function (e) {
-        var t = e.touches[0];
-        if (e.touches.length !== 1 || t.clientX > ZONE) { st = null; return; }
-        if (e.target && e.target.closest && e.target.closest('input, textarea, select, .tl-modal-ov, .tl-lb')) return;
+        clear();
+        if (e.touches.length !== 1) return;
+        var t = e.touches[0], tg = e.target;
+        if (tg && tg.closest && tg.closest('input, textarea, select, .tl-modal-ov, .tl-lb, .tl-pop')) return;
+        if (sideScroll(tg)) return;
         st = { x: t.clientX, y: t.clientY, at: Date.now() }; last = { x: t.clientX, y: t.clientY };
       }, { passive: true, capture: true });
+      on(document, 'gotpointercapture', function () { clear(); }, true);   // un curseur a pris le doigt : ce n'est pas un geste
       on(document, 'touchmove', function (e) {
         if (!st) return;
+        if (e.touches.length !== 1) { clear(); return; }
         var t = e.touches[0], dx = t.clientX - st.x, dy = Math.abs(t.clientY - st.y);
         last = { x: t.clientX, y: t.clientY };
-        if (dy > 80 && dy > dx) { clear(); return; }
+        if (dx < -30 || (dy > 80 && dy > dx)) { clear(); return; }
         if (dx > 12) {
           if (!hint) { hint = el('div', 'tl-swipe-home', iconHtml('svg:home')); hint.style.top = Math.max(10, st.y - 30) + 'px'; document.body.appendChild(hint); }
           var k = Math.min(1, dx / DIST);
@@ -713,10 +724,67 @@
     }
   };
 
+  /** Écran de veille : après N minutes sans toucher, horloge plein écran ; un appui ramène à la page d'accueil. */
+  Page.prototype.setupVeille = function () {
+    var dev = this.data.device === 'mobile' ? 'mobile' : 'tablette', self = this, nav = navFor(this.data.nav, dev);
+    var mins = num(nav.veille, 0);
+    if (!(mins > 0)) return;
+    var hp = String(((nav.homePages || {})[dev]) || ''), cur = String(this.data.id || '');
+    var offs = this.homeOffs = this.homeOffs || [];
+    var on = function (target, ev, fn, opt) { target.addEventListener(ev, fn, opt); offs.push(function () { target.removeEventListener(ev, fn, opt); }); };
+    var last = Date.now(), ov = null, tick = null;
+    var bump = function () { last = Date.now(); };
+    ['pointerdown', 'touchstart', 'keydown', 'wheel'].forEach(function (ev) { on(document, ev, bump, { passive: true, capture: true }); });
+    var paint = function () {
+      if (!ov) return;
+      var d = new Date();
+      ov.querySelector('.tl-veille-time').textContent = pad(d.getHours()) + ':' + pad(d.getMinutes());
+      var de = ov.querySelector('.tl-veille-date');
+      if (de) { var ds = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }); de.textContent = ds.charAt(0).toUpperCase() + ds.slice(1); }
+      // léger déplacement chaque minute pour ne pas marquer l'écran
+      var k = d.getMinutes() % 6, dx = [0, 14, -10, 8, -14, 6][k], dy = [0, -8, 10, 6, -6, 12][k];
+      ov.querySelector('.tl-veille-mid').style.transform = 'translate(' + dx + 'px,' + dy + 'px)';
+    };
+    var hide = function () {
+      if (!ov) return;
+      var o = ov; ov = null; clearInterval(tick); tick = null;
+      setTimeout(function () { if (o.parentNode) o.parentNode.removeChild(o); }, 350);   // avale le « clic fantôme » sous le doigt
+      o.classList.add('tl-veille-out');
+    };
+    var wake = function (e) {
+      if (e) { e.preventDefault(); e.stopPropagation(); }
+      if (!ov) return;
+      bump();
+      if (hp && hp !== cur) { hide(); self.navigate({ target: 'page', page: hp }); }
+      else if (!hp) { hide(); self.navigate({ target: 'home' }); }
+      else hide();
+    };
+    var show = function () {
+      if (ov || self.destroyed) return;
+      ov = el('div', 'tl-veille');
+      var logo = String(nav.veilleLogo || '').trim();
+      ov.innerHTML = '<div class="tl-veille-mid"><div class="tl-veille-time"></div>' + (nav.veilleDate ? '<div class="tl-veille-date"></div>' : '') + '</div>' +
+        (logo ? '<img class="tl-veille-logo" alt="">' : '');
+      if (logo) ov.querySelector('.tl-veille-logo').src = logo;
+      ['pointerdown', 'mousedown', 'touchstart'].forEach(function (ev) { ov.addEventListener(ev, function (e) { e.stopPropagation(); }, { passive: true }); });
+      ov.addEventListener('click', wake);
+      document.body.appendChild(ov);
+      paint();
+      tick = setInterval(paint, 5000);
+    };
+    this.veilleOff = function () { if (ov && ov.parentNode) ov.parentNode.removeChild(ov); ov = null; clearInterval(tick); };
+    this.timers.push(setInterval(function () {
+      if (ov) return;
+      if (document.querySelector('.tl-modal-ov, .tl-lb')) { bump(); return; }   // fenêtre ou caméra ouverte : on attend
+      if (Date.now() - last >= mins * 60000) show();
+    }, 5000));
+  };
+
   Page.prototype.destroy = function () {
     this.destroyed = true;
     Hub.remove(this);
     (this.homeOffs || []).forEach(function (f) { f(); });
+    if (this.veilleOff) this.veilleOff();
     root.removeEventListener('resize', this.onResize);
     this.timers.forEach(function (t) { clearInterval(t); clearTimeout(t); });
     this.tiles.forEach(function (a) { if (a.waiting) clearTimeout(a.waiting.timer); if (a.closePopup) a.closePopup(); });
@@ -977,7 +1045,7 @@
   /** Barre d'onglets : les pages du même appareil, la page courante en surbrillance. */
   /** Liste ordonnée des onglets : réglage commun (ordre, nom, icône, visible), puis les pages non classées. */
   /** Réglages de la barre pour un appareil : ceux de l'appareil (nav.dev[dev]) priment sur les réglages communs. */
-  var NAV_DEV_KEYS = ['size', 'home', 'homeLabel', 'homeIcon', 'swipeHome', 'idleHome', 'full'];
+  var NAV_DEV_KEYS = ['size', 'home', 'homeLabel', 'homeIcon', 'swipeHome', 'swipeDist', 'idleHome', 'full', 'veille', 'veilleDate', 'veilleLogo'];
   function navFor(nav, dev) {
     nav = nav || {};
     var out = {}, d = (nav.dev && nav.dev[dev]) || {};
