@@ -1612,3 +1612,16 @@ body.tl-kiosk #tl-panel-root { position: fixed !important; inset: 0 !important; 
 /* widget intégré : barre de titre Jeedom masquée */
 .tl-wg-noname .widget-name, .tl-wg-noname .eqLogic-widget > .widget-name, .tl-wg-noname .eqLogic-widget > center:first-child > .widget-name { display: none !important; }
 .tl-wg-noname .eqLogic-widget { padding-top: 0 !important; }
+
+/* ===== Écran de veille ===== */
+.tl-veille { position: fixed; inset: 0; z-index: 100000; background: #000; color: #8a8a8a; cursor: pointer; user-select: none; -webkit-user-select: none; animation: tl-veille-in .6s ease; font-family: Inter, Roboto, "Segoe UI", system-ui, sans-serif; }
+.tl-veille.tl-veille-out { opacity: 0; transition: opacity .3s; }
+@keyframes tl-veille-in { from { opacity: 0; } to { opacity: 1; } }
+.tl-veille-home { position: absolute; top: 3vh; left: 5vw; font-size: 9vmin; line-height: 1; color: #8a8a8a; }
+.tl-veille-home svg, .tl-veille-home img { width: 9vmin; height: 9vmin; fill: currentColor; }
+.tl-veille-home i { font-size: 9vmin; }
+.tl-veille-mid { position: absolute; left: 0; right: 0; top: 18vh; text-align: center; transition: transform 2s ease; }
+.tl-veille-time { font-size: 30vmin; font-weight: 500; line-height: 1; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+.tl-veille-date { margin-top: 3vmin; font-size: 5vmin; color: #6a6a6a; }
+.tl-veille-logo { position: absolute; right: 2vw; bottom: 2vh; max-width: max(14vw, 90px); max-height: 18vh; object-fit: contain; }
+@media (orientation: portrait) { .tl-veille-time { font-size: 24vmin; } .tl-veille-mid { top: 30vh; } }

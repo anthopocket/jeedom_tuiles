@@ -286,6 +286,7 @@ class tuiles extends eqLogic {
 			'homeLabel' => isset($nav['homeLabel']) ? substr(trim((string) $nav['homeLabel']), 0, 40) : '',
 			'homeIcon' => isset($nav['homeIcon']) ? substr(trim((string) $nav['homeIcon']), 0, 200) : '',
 			'swipeHome' => !empty($nav['swipeHome']) && $nav['swipeHome'] !== 'false',
+			'swipeDist' => isset($nav['swipeDist']) && is_numeric($nav['swipeDist']) ? max(60, min(600, intval($nav['swipeDist']))) : 150,
 			'idleHome' => isset($nav['idleHome']) && is_numeric($nav['idleHome']) ? max(0, min(240, floatval($nav['idleHome']))) : 0,
 			'dev' => array(),
 		);
@@ -315,7 +316,11 @@ class tuiles extends eqLogic {
 				'homeLabel' => isset($c['homeLabel']) ? substr(trim((string) $c['homeLabel']), 0, 40) : '',
 				'homeIcon' => isset($c['homeIcon']) ? substr(trim((string) $c['homeIcon']), 0, 200) : '',
 				'swipeHome' => !empty($c['swipeHome']) && $c['swipeHome'] !== 'false',
+				'swipeDist' => isset($c['swipeDist']) && is_numeric($c['swipeDist']) ? max(60, min(600, intval($c['swipeDist']))) : 150,
 				'idleHome' => isset($c['idleHome']) && is_numeric($c['idleHome']) ? max(0, min(240, floatval($c['idleHome']))) : 0,
+				'veille' => isset($c['veille']) && is_numeric($c['veille']) ? max(0, min(240, floatval($c['veille']))) : 0,
+				'veilleDate' => !empty($c['veilleDate']) && $c['veilleDate'] !== 'false',
+				'veilleLogo' => isset($c['veilleLogo']) ? substr(trim((string) $c['veilleLogo']), 0, 300) : '',
 				'items' => $dItems,
 			);
 		}
@@ -405,6 +410,74 @@ class tuiles extends eqLogic {
 	}
 
 	/** Historique d'une info sur N heures (nombre de points réduit), avec min / max / moyenne : mini-courbe, carte puissance, fenêtre de détails. */
+	/**
+	 * Valeur de compteurs cumulés à minuit (début de journée), pour en déduire la consommation du jour.
+	 * 1) dernière valeur historisée avant minuit (6 h avant) ; 2) sinon plus petite valeur depuis minuit ;
+	 * 3) sinon première valeur vue aujourd'hui par le plugin (gardée en configuration).
+	 */
+	public static function dayStart($ids) {
+		$midnight = strtotime('today');
+		$day = date('Y-m-d', $midnight);
+		$raw = config::byKey('dayBase', 'tuiles', '');
+		$store = is_array($raw) ? $raw : json_decode((string) $raw, true);
+		if (!is_array($store) || !isset($store['day']) || $store['day'] !== $day) {
+			$store = array('day' => $day, 'v' => array());
+		}
+		$changed = false;
+		$out = array();
+		foreach ((array) $ids as $id) {
+			$id = self::cleanId($id);
+			if ($id === '') {
+				continue;
+			}
+			$cmd = cmd::byId($id);
+			if (!is_object($cmd) || $cmd->getType() != 'info') {
+				continue;
+			}
+			$base = null;
+			$src = '';
+			try {
+				$before = history::all($id, date('Y-m-d H:i:s', $midnight - 6 * 3600), date('Y-m-d H:i:s', $midnight));
+				foreach ((array) $before as $h) {
+					if (is_object($h) && is_numeric($h->getValue())) {
+						$base = floatval($h->getValue());
+						$src = 'historique';
+					}
+				}
+				if ($base === null) {
+					$after = history::all($id, date('Y-m-d H:i:s', $midnight), date('Y-m-d H:i:s'));
+					foreach ((array) $after as $h) {
+						if (is_object($h) && is_numeric($h->getValue())) {
+							$v = floatval($h->getValue());
+							$base = $base === null ? $v : min($base, $v);
+							$src = 'historique';
+						}
+					}
+				}
+			} catch (Throwable $e) {
+				$base = null;
+			}
+			if ($base === null) {
+				if (!isset($store['v'][$id])) {
+					$cur = $cmd->execCmd();
+					if (is_numeric($cur)) {
+						$store['v'][$id] = floatval($cur);
+						$changed = true;
+					}
+				}
+				if (isset($store['v'][$id])) {
+					$base = floatval($store['v'][$id]);
+					$src = 'premier relevé';
+				}
+			}
+			$out[$id] = array('base' => $base, 'src' => $src);
+		}
+		if ($changed) {
+			config::save('dayBase', json_encode($store), 'tuiles');
+		}
+		return array('day' => $day, 'cmds' => $out);
+	}
+
 	public static function historyData($id, $hours, $points = 120) {
 		$id = self::cleanId($id);
 		$hours = max(1, min(744, intval($hours)));
