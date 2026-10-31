@@ -1598,3 +1598,14 @@ body.tl-kiosk #div_pageContainer { padding-top: 0 !important; margin-top: 0 !imp
 .tl-en-iamodes { display: flex; flex-wrap: wrap; gap: .5em; margin-top: auto; padding-top: .4em; }
 .tl-en-chip { padding: .3em .9em; border-radius: 999px; background: rgba(255,255,255,.06); color: #9aa4b2; font-weight: 700; font-size: .9em; cursor: pointer; }
 .tl-en-chip.tl-on { background: #2b1d3a; color: #c792ea; }
+.tl-en-bauto.tl-on { background: #4fc3f7; color: #04202b; border-color: #4fc3f7; }
+.tl-en-iatxt2 { opacity: .75; font-size: .95em; border-top: 1px solid rgba(255,255,255,.08); padding-top: .4em; margin-top: .3em; }
+.tl-en-pend { background: rgba(255,167,38,.1); border: 1px solid rgba(255,167,38,.35); border-radius: .6em; padding: .45em .7em; margin-top: .4em; }
+.tl-en-pendtx { color: #ffcc80; font-size: .95em; }
+.tl-en-pendbt { display: flex; gap: .5em; margin-top: .4em; }
+.tl-en-chip.tl-en-acc { background: #1f3a26; color: #7ee081; }
+.tl-en-chip.tl-en-ref { background: #3a1f1f; color: #ef9a9a; }
+.tl-en-ratio { font-size: .9em; color: #9aa4b2; margin-top: .3em; } .tl-en-ratio b { color: #c792ea; }
+/* widget intégré : barre de titre Jeedom masquée */
+.tl-wg-noname .widget-name, .tl-wg-noname .eqLogic-widget > .widget-name, .tl-wg-noname .eqLogic-widget > center:first-child > .widget-name { display: none !important; }
+.tl-wg-noname .eqLogic-widget { padding-top: 0 !important; }

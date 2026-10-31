@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.68.0';
+  var VERSION = '1.69.1';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -2956,9 +2956,10 @@
   }
 
   /** Charge le widget dashboard d'un équipement dans « box », mis à l'échelle. */
-  function mountWidget(p, eqId, box, fit, transparent) {
+  function mountWidget(p, eqId, box, fit, transparent, hideName) {
     box.classList.add('tl-wg-host');
     if (transparent) box.classList.add('tl-wg-transparent');
+    if (hideName) box.classList.add('tl-wg-noname');
     var scaler = el('div', 'tl-wg-scale');
     box.innerHTML = '';
     box.appendChild(scaler);
@@ -2966,7 +2967,8 @@
     var place = function () {
       var w0 = scaler.firstElementChild;
       if (!w0) return;
-      if (!natural || !natural.w) natural = { w: w0.offsetWidth || 200, h: w0.offsetHeight || 150 };
+      // taille réelle du widget, contenu qui dépasse compris (mesurée à chaque fois : images et polices arrivent après)
+      natural = { w: Math.max(w0.offsetWidth, w0.scrollWidth) || 200, h: Math.max(w0.offsetHeight, w0.scrollHeight) || 150 };
       var W = box.clientWidth, H = box.clientHeight;
       if (!W || !H) return;
       var k = fit === 'none' ? 1 : (fit === 'cover' ? Math.max(W / natural.w, H / natural.h) : Math.min(W / natural.w, H / natural.h));
@@ -2984,6 +2986,7 @@
         injectHtml(scaler, r.html || '');
         setTimeout(place, 50);
         setTimeout(place, 600);
+        setTimeout(place, 2000);
       }, function (e) { scaler.innerHTML = '<div class="tl-err">' + esc(e.message) + '</div>'; });
     };
     load();
@@ -2994,7 +2997,7 @@
     var box = el('div', 'tl-wg');
     api.body.appendChild(box);
     api.el.classList.add('tl-embed');
-    var w = mountWidget(p, t.eqId, box, t.wFit, !!t.wTransparent);
+    var w = mountWidget(p, t.eqId, box, t.wFit, !!t.wTransparent, t.wHideName !== false && t.wHideName !== 'non');
     api.onFit = w.place;
     api.reload = w.reload;
     if (cleanId(t.eqId)) (p.widgets[String(cleanId(t.eqId))] = p.widgets[String(cleanId(t.eqId))] || []).push(api);
@@ -3005,7 +3008,7 @@
         e.stopPropagation();
         var big = el('div', 'tl-lb-box');
         var lb = UI.lightbox(big);
-        mountWidget(p, t.eqId, big, 'contain', !!t.wTransparent);
+        mountWidget(p, t.eqId, big, 'contain', !!t.wTransparent, t.wHideName !== false && t.wHideName !== 'non');
         void lb;
       });
     }
@@ -5233,6 +5236,7 @@
         u = isSet(t.unit) ? t.unit : ((m && m.unite) || '');
         if (isNum(raw)) {
           v = parseFloat(raw);
+          if (/^wh$/i.test(String((m && m.unite) || '').trim()) && !/^wh$/i.test(String(t.unit || ''))) { v = v / 1000; u = 'kWh'; }
           if (u === 'W' && t.autoKw !== false && Math.abs(v) >= 1000 && dec === null) { var pw = enPower(v); txt = pw.v; u = pw.u; }
           else txt = enNum(v, dec === null ? (Math.abs(v) < 10 && v % 1 ? 1 : 0) : dec);
         } else txt = isSet(raw) ? fmt(t, m, raw).text : '…';
@@ -5271,6 +5275,8 @@
       btns = el('div', 'tl-en-batbtns');
       bOn = el('div', 'tl-en-bbtn tl-en-bon', '<span>⏻</span> ' + esc(t.labelOn || 'Marche'));
       bOff = el('div', 'tl-en-bbtn tl-en-boff', '<span>⏻</span> ' + esc(t.labelOff || 'Arrêt'));
+      var bAuto = el('div', 'tl-en-bbtn tl-en-bauto', '<span>⟳</span> ' + esc(t.labelAuto || 'Auto'));
+      if (cleanId(t.cmdAuto)) { btns.appendChild(bAuto); p.press(bAuto, function () { p.run(api, t.cmdAuto, {}, { infoId: t.cmdState }); }); }
       if (cleanId(t.cmdOn)) { btns.appendChild(bOn); p.press(bOn, function () { p.run(api, t.cmdOn, {}, { confirm: t.confirmOn, infoId: t.cmdState }); }); }
       if (cleanId(t.cmdOff)) {
         btns.appendChild(bOff);
@@ -5302,52 +5308,95 @@
       }
       lines.innerHTML = L.join('<br>');
       if (btns) {
-        var on = cleanId(t.cmdState) ? isActive(p.val(t.cmdState), t.onValue, t.invert) : null;
+        // état : « auto », sinon marche / arrêt (1 / on / marche…)
+        var sv = cleanId(t.cmdState) ? p.val(t.cmdState) : undefined, low = isSet(sv) ? String(sv).trim().toLowerCase() : '';
+        var isAuto = !!low && low === String(t.autoValue || 'auto').toLowerCase();
+        var on = !isSet(sv) || isAuto ? null : isActive(sv, t.onValue, t.invert);
         bOn.classList.toggle('tl-on', on === true);
         bOff.classList.toggle('tl-on', on === false);
+        var ba = btns.querySelector('.tl-en-bauto');
+        if (ba) ba.classList.toggle('tl-on', isAuto);
       }
     };
   };
 
-  /* ---- Bilan du jour : produit, consommé, acheté, revendu + où est partie la production ---- */
+  /* ---- Bilan du jour : produit, consommé, acheté, revendu + où est partie la production ----
+   * Chaque info peut être un compteur « du jour » ou un compteur cumulé (total depuis l'installation) :
+   * pour un cumulé, la valeur du jour = valeur actuelle − valeur à minuit (historique Jeedom).
+   * La consommation peut être calculée : production + achat − revente − charge batterie + décharge batterie. */
+  var EN_KEYS = ['cmdProd', 'cmdConso', 'cmdBuy', 'cmdSell', 'cmdBatIn', 'cmdBatOut'];
   R.bilanjour = function (p, t, api) {
     var box = el('div', 'tl-en tl-en-bilan');
     var grid = el('div', 'tl-en-g4');
+    var consoCalc = t.consoCalc === 'calc';
     var defs = [
       ['cmdProd', '#ffb000', 'produits'], ['cmdConso', '#26c6da', 'consommés'],
       ['cmdBuy', '#4fc3f7', 'achetés au réseau'], ['cmdSell', '#9aa4b2', 'revendus']];
     var cells = [];
     defs.forEach(function (d) {
-      if (!cleanId(t[d[0]])) return;
+      if (!cleanId(t[d[0]]) && !(d[0] === 'cmdConso' && consoCalc)) return;
       var c = el('div', 'tl-en-cell'), b = enBig(), s = el('div', 'tl-en-sub', esc(d[2]));
       b.style.color = d[1];
       c.appendChild(b); c.appendChild(s); grid.appendChild(c);
-      enClick(p, t, c, t[d[0]], 'kWh');
+      if (cleanId(t[d[0]])) enClick(p, t, c, t[d[0]], 'kWh');
       cells.push({ k: d[0], big: b, sub: s, lab: d[2] });
     });
     box.appendChild(grid);
-    var bar = el('div', 'tl-en-split'), leg = el('div', 'tl-en-leg');
-    box.appendChild(bar); box.appendChild(leg);
+    var bar = el('div', 'tl-en-split'), leg = el('div', 'tl-en-leg'), ratio = el('div', 'tl-en-ratio');
+    box.appendChild(bar); box.appendChild(leg); box.appendChild(ratio);
     api.body.appendChild(box);
     var dec = isNum(t.decimals) ? parseInt(t.decimals, 10) : 1;
-    return function () {
+    // compteurs cumulés : valeur à minuit demandée au serveur, redemandée au changement de jour
+    var cum = EN_KEYS.filter(function (k) { return cleanId(t[k]) && t[k + 'Cum']; });
+    var base = {}, baseDay = '', asking = false, self = this;
+    var today = function () { var d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); };
+    var refresh;
+    var askBase = function () {
+      if (!cum.length || asking || p.opts.edit && p.opts.noAjax) return;
+      asking = true;
+      ajax('dayStart', { ids: cum.map(function (k) { return cleanId(t[k]); }) }).then(function (r) {
+        asking = false; base = (r && r.cmds) || {}; baseDay = today(); if (refresh) refresh();
+      }, function () { asking = false; baseDay = today(); });
+    };
+    var dayVal = function (k) {
+      var v = enVal(p, t[k]);
+      if (v === null || !t[k + 'Cum']) return v;
+      var b = base[cleanId(t[k])];
+      if (!b || b.base === null || b.base === undefined) return null;
+      var m = p.meta(t[k]), bv = parseFloat(b.base);
+      if (/^wh$/i.test(String((m && m.unite) || '').trim())) bv = bv / 1000;
+      return Math.max(0, v - bv);
+    };
+    refresh = function () {
+      if (cum.length && baseDay !== today()) askBase();
       var V = {};
-      ['cmdProd', 'cmdConso', 'cmdBuy', 'cmdSell', 'cmdBatIn', 'cmdForecast'].forEach(function (k) { V[k] = enVal(p, t[k]); });
+      EN_KEYS.forEach(function (k) { V[k] = cleanId(t[k]) ? dayVal(k) : null; });
+      V.cmdForecast = enVal(p, t.cmdForecast);
+      if (consoCalc && V.cmdProd !== null) {
+        V.cmdConso = Math.max(0, V.cmdProd + (V.cmdBuy || 0) - (V.cmdSell || 0) - (V.cmdBatIn || 0) + (V.cmdBatOut || 0));
+      }
       cells.forEach(function (c) {
         enSet(c.big, enNum(V[c.k], dec), 'kWh');
-        c.sub.textContent = c.lab + (c.k === 'cmdProd' && V.cmdForecast !== null ? ' · prévu ' + enNum(V.cmdForecast, 1) : '');
+        c.sub.textContent = c.lab + (c.k === 'cmdProd' && V.cmdForecast !== null ? ' · prévu ' + enNum(V.cmdForecast, 1) : '') + (c.k === 'cmdConso' && consoCalc ? ' (calculé)' : '');
       });
       // production répartie : maison / batterie / revendu
       var prod = V.cmdProd;
       if (prod && prod > 0 && (V.cmdSell !== null || V.cmdBatIn !== null)) {
-        var sell = Math.max(0, V.cmdSell || 0), bat = Math.max(0, V.cmdBatIn || 0), home = Math.max(0, prod - sell - bat);
+        var sell = Math.min(prod, Math.max(0, V.cmdSell || 0)), bat = Math.min(prod - sell, Math.max(0, V.cmdBatIn || 0)), home = Math.max(0, prod - sell - bat);
         var tot = home + bat + sell || 1, P = function (x) { return Math.round(x / tot * 100); };
         bar.innerHTML = '<i style="width:' + (home / tot * 100) + '%;background:#26c6da"></i><i style="width:' + (bat / tot * 100) + '%;background:#7ee081"></i><i style="width:' + (sell / tot * 100) + '%;background:#4fc3f7;opacity:.6"></i>';
         leg.innerHTML = '<span><b style="color:#26c6da">■</b> maison ' + P(home) + ' %</span>' + (V.cmdBatIn !== null ? '<span><b style="color:#7ee081">■</b> batterie ' + P(bat) + ' %</span>' : '') +
           (V.cmdSell !== null ? '<span><b style="color:#4fc3f7">■</b> revendu ' + P(sell) + ' %</span>' : '');
         bar.style.display = leg.style.display = '';
       } else { bar.style.display = leg.style.display = 'none'; }
+      // autonomie (part de la conso non achetée) et autoconsommation (part de la production non revendue)
+      var R2 = [];
+      if (V.cmdConso && V.cmdConso > 0 && V.cmdBuy !== null) R2.push('Autonomie <b>' + Math.round(Math.max(0, Math.min(100, (V.cmdConso - V.cmdBuy) / V.cmdConso * 100))) + ' %</b>');
+      if (prod && prod > 0 && V.cmdSell !== null) R2.push('Autoconsommation <b>' + Math.round(Math.max(0, Math.min(100, (prod - V.cmdSell) / prod * 100))) + ' %</b>');
+      ratio.innerHTML = R2.join(' · ');
+      ratio.style.display = R2.length ? '' : 'none';
     };
+    return refresh;
   };
 
   /* ---- Prévision solaire (Solcast…) ---- */
@@ -5380,8 +5429,19 @@
   R.conseils = function (p, t, api) {
     var box = el('div', 'tl-en tl-en-ia');
     var txt = el('div', 'tl-en-iatxt');
+    var txt2 = cleanId(t.cmdText2) ? el('div', 'tl-en-iatxt tl-en-iatxt2') : null;
+    var pend = cleanId(t.cmdPending) ? el('div', 'tl-en-pend', '<div class="tl-en-pendtx"></div><div class="tl-en-pendbt"></div>') : null;
     var modes = el('div', 'tl-en-iamodes');
-    box.appendChild(txt); box.appendChild(modes);
+    box.appendChild(txt); if (txt2) box.appendChild(txt2); if (pend) box.appendChild(pend); box.appendChild(modes);
+    if (pend) {
+      [['cmdAccept', '✓ Valider', 'tl-en-acc'], ['cmdRefuse', '✗ Refuser', 'tl-en-ref']].forEach(function (b) {
+        if (!cleanId(t[b[0]])) return;
+        var x = el('div', 'tl-en-chip ' + b[2], b[1]);
+        p.press(x, function () { p.run(api, t[b[0]], {}, {}); });
+        pend.querySelector('.tl-en-pendbt').appendChild(x);
+      });
+    }
+    var split = function (v) { return isSet(v) && String(v).trim() ? String(v).split(/\r?\n|\s*\|\s*|;\s+/).filter(function (s) { return s.trim(); }) : []; };
     api.body.appendChild(box);
     var list = (Array.isArray(t.options) ? t.options : []).filter(function (o) { return o && cleanId(o.cmdAction); });
     var chips = list.map(function (o) {
@@ -5394,7 +5454,13 @@
     if (cur) modes.appendChild(cur);
     return function () {
       var v = p.val(t.cmdText);
-      var lines = isSet(v) && String(v).trim() ? String(v).split(/\r?\n|\s*\|\s*|;\s+/).filter(function (s) { return s.trim(); }) : [];
+      var lines = split(v);
+      if (txt2) { var l2 = split(p.val(t.cmdText2)); txt2.innerHTML = l2.map(function (s) { return '<div>' + esc(s.trim()) + '</div>'; }).join(''); txt2.style.display = l2.length ? '' : 'none'; }
+      if (pend) {
+        var pv = p.val(t.cmdPending), has = isSet(pv) && String(pv).trim() && !/^(aucun|none|0|-)$/i.test(String(pv).trim());
+        pend.style.display = has ? '' : 'none';
+        pend.querySelector('.tl-en-pendtx').textContent = has ? 'En attente de validation : ' + String(pv).trim() : '';
+      }
       txt.innerHTML = lines.length ? lines.map(function (s) { return '<div>' + esc(s.trim()) + '</div>'; }).join('') : '<div class="tl-en-dim">' + esc(t.okText || 'Aucun conseil pour le moment') + '</div>';
       var mv = String(p.val(t.cmdMode) || '');
       chips.forEach(function (c) { c.el.classList.toggle('tl-on', !!mv && mv.toLowerCase().indexOf(String(c.o.label || '').toLowerCase()) >= 0); });
