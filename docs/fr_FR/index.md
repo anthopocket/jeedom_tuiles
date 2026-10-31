@@ -94,7 +94,7 @@ Sur les tuiles **Volet**, **Bouton**, **Éclairage**, **Éclairage variateur** e
 
 Dans « Régler la barre d'onglets… » (commun à toutes les pages) :
 
-- **Glisser le doigt vers la droite** : n'importe où sur la page, un balayage vers la droite ramène à la page d'accueil. La distance à parcourir se règle (150 px par défaut). Une petite maison suit le doigt et devient bleue quand la distance est atteinte. Le geste est ignoré sur les curseurs, les volets, les barres qui défilent de côté et dans les fenêtres ouvertes.
+- **Glisser le doigt vers la droite** : n'importe où sur la page, un balayage vers la droite ramène à la page d'accueil. La distance minimum à parcourir se règle (100 px par défaut, de 30 à 600) : tout glissé au moins aussi long déclenche le retour. Une petite maison suit le doigt et devient bleue quand la distance est atteinte. Le geste est ignoré sur les curseurs, les volets, les barres qui défilent de côté et dans les fenêtres ouvertes.
 - **Écran de veille** : dans « Régler la barre d'onglets… », pour chaque appareil, indiquez au bout de combien de minutes sans toucher l'écran passe en veille : fond noir, grande horloge grise, date en option et une image de votre choix en bas à droite (adresse d'une image, par exemple `/data/img/logo.png`). L'horloge bouge légèrement chaque minute pour ne pas marquer l'écran. Un appui n'importe où ouvre la page d'accueil de l'appareil (ou ferme simplement la veille si l'on y est déjà). La veille attend tant qu'une fenêtre ou une caméra est ouverte.
 - **Retour automatique à l'accueil après N minutes** sans toucher l'écran (vide = jamais). Pas de retour tant qu'une fenêtre ou une caméra en plein écran est ouverte.
 

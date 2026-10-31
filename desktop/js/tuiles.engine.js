@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.69.7';
+  var VERSION = '1.69.8';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -670,11 +670,11 @@
       // Glisser vers la droite n'importe où sur la page, sur une distance réglable (nav.swipeDist, en px d'écran).
       // Ignoré sur les curseurs / volets / anneaux (ils capturent le doigt), les barres qui défilent de côté,
       // les champs et les fenêtres ouvertes. Si le navigateur annule le toucher (touchcancel), on décide avec le dernier mouvement.
-      var DIST = Math.max(60, Math.min(600, num(nav.swipeDist, 150))), st = null, hint = null, last = null;
+      var DIST = Math.max(30, Math.min(600, num(nav.swipeDist, 100))), st = null, hint = null, last = null;
       var clear = function () { st = null; last = null; if (hint && hint.parentNode) hint.parentNode.removeChild(hint); hint = null; };
       var decide = function (x, y) {
         if (!st) return;
-        var dx = x - st.x, dy = Math.abs(y - st.y), quick = Date.now() - st.at < 1500;
+        var dx = x - st.x, dy = Math.abs(y - st.y), quick = Date.now() - st.at < 2500;
         clear();
         if (dx >= DIST && dy < Math.max(80, dx * 0.5) && quick) go();
       };
@@ -684,15 +684,19 @@
         }
         return false;
       };
+      // curseurs, volets, anneaux, graphiques : ils déclarent touch-action:none, le doigt leur appartient
+      var dragZone = function (n) {
+        for (; n && n !== document.body && n.nodeType === 1; n = n.parentNode) { if (getComputedStyle(n).touchAction === 'none') return true; }
+        return false;
+      };
       on(document, 'touchstart', function (e) {
         clear();
         if (e.touches.length !== 1) return;
         var t = e.touches[0], tg = e.target;
         if (tg && tg.closest && tg.closest('input, textarea, select, .tl-modal-ov, .tl-lb, .tl-pop')) return;
-        if (sideScroll(tg)) return;
+        if (sideScroll(tg) || dragZone(tg)) return;
         st = { x: t.clientX, y: t.clientY, at: Date.now() }; last = { x: t.clientX, y: t.clientY };
       }, { passive: true, capture: true });
-      on(document, 'gotpointercapture', function () { clear(); }, true);   // un curseur a pris le doigt : ce n'est pas un geste
       on(document, 'touchmove', function (e) {
         if (!st) return;
         if (e.touches.length !== 1) { clear(); return; }

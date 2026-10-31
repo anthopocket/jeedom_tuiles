@@ -286,7 +286,7 @@ class tuiles extends eqLogic {
 			'homeLabel' => isset($nav['homeLabel']) ? substr(trim((string) $nav['homeLabel']), 0, 40) : '',
 			'homeIcon' => isset($nav['homeIcon']) ? substr(trim((string) $nav['homeIcon']), 0, 200) : '',
 			'swipeHome' => !empty($nav['swipeHome']) && $nav['swipeHome'] !== 'false',
-			'swipeDist' => isset($nav['swipeDist']) && is_numeric($nav['swipeDist']) ? max(60, min(600, intval($nav['swipeDist']))) : 150,
+			'swipeDist' => isset($nav['swipeDist']) && is_numeric($nav['swipeDist']) ? max(30, min(600, intval($nav['swipeDist']))) : 100,
 			'idleHome' => isset($nav['idleHome']) && is_numeric($nav['idleHome']) ? max(0, min(240, floatval($nav['idleHome']))) : 0,
 			'dev' => array(),
 		);
@@ -316,7 +316,7 @@ class tuiles extends eqLogic {
 				'homeLabel' => isset($c['homeLabel']) ? substr(trim((string) $c['homeLabel']), 0, 40) : '',
 				'homeIcon' => isset($c['homeIcon']) ? substr(trim((string) $c['homeIcon']), 0, 200) : '',
 				'swipeHome' => !empty($c['swipeHome']) && $c['swipeHome'] !== 'false',
-				'swipeDist' => isset($c['swipeDist']) && is_numeric($c['swipeDist']) ? max(60, min(600, intval($c['swipeDist']))) : 150,
+				'swipeDist' => isset($c['swipeDist']) && is_numeric($c['swipeDist']) ? max(30, min(600, intval($c['swipeDist']))) : 100,
 				'idleHome' => isset($c['idleHome']) && is_numeric($c['idleHome']) ? max(0, min(240, floatval($c['idleHome']))) : 0,
 				'veille' => isset($c['veille']) && is_numeric($c['veille']) ? max(0, min(240, floatval($c['veille']))) : 0,
 				'veilleDate' => !empty($c['veilleDate']) && $c['veilleDate'] !== 'false',

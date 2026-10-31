@@ -1013,7 +1013,7 @@
         conf[d[0]] = {
           size: c.size || nav.size || 100, home: c.home !== undefined ? !!c.home : !!nav.home,
           homeLabel: c.homeLabel !== undefined ? c.homeLabel : (nav.homeLabel || ''), homeIcon: c.homeIcon !== undefined ? c.homeIcon : (nav.homeIcon || ''),
-          swipeHome: c.swipeHome !== undefined ? !!c.swipeHome : !!nav.swipeHome, swipeDist: c.swipeDist || nav.swipeDist || 150, idleHome: c.idleHome !== undefined ? c.idleHome : (nav.idleHome || 0),
+          swipeHome: c.swipeHome !== undefined ? !!c.swipeHome : !!nav.swipeHome, swipeDist: c.swipeDist || nav.swipeDist || 100, idleHome: c.idleHome !== undefined ? c.idleHome : (nav.idleHome || 0),
           veille: c.veille !== undefined ? c.veille : (nav.veille || 0), veilleDate: c.veilleDate !== undefined ? !!c.veilleDate : !!nav.veilleDate, veilleLogo: c.veilleLogo !== undefined ? c.veilleLogo : (nav.veilleLogo || ''),
           full: c.full !== undefined ? !!c.full : d[0] === 'mobile'
         };
@@ -1063,9 +1063,9 @@
         syncHome();
         var back = $('<div class="tl-ed-navhome"></div>');
         var swc = $('<input type="checkbox">').prop('checked', c.swipeHome).on('change', function () { c.swipeHome = swc.is(':checked'); });
-        var swd = $('<input type="number" min="60" max="600" step="10" class="form-control input-sm" style="width:80px">').val(c.swipeDist || 150).on('input', function () { c.swipeDist = parseInt($(this).val(), 10) || 150; });
+        var swd = $('<input type="number" min="30" max="600" step="10" class="form-control input-sm" style="width:80px">').val(c.swipeDist || 100).on('input', function () { c.swipeDist = parseInt($(this).val(), 10) || 100; });
         back.append($('<label class="tl-ed-inline"></label>').append(swc).append(' Glisser le doigt vers la droite, n\'importe où sur la page → page d\'accueil'));
-        back.append($('<label class="tl-ed-inline"></label>').text('Distance à parcourir avec le doigt : ').append(swd).append(' px (150 par défaut)'));
+        back.append($('<label class="tl-ed-inline"></label>').text('Distance à parcourir avec le doigt : ').append(swd).append(' px minimum (100 par défaut, 30 à 600)'));
         var idl = $('<input type="number" min="0" max="240" step="1" class="form-control input-sm" style="width:70px" placeholder="0">').val(c.idleHome > 0 ? c.idleHome : '').on('input', function () { c.idleHome = parseFloat($(this).val()) || 0; });
         back.append($('<label class="tl-ed-inline"></label>').text('Retour automatique à l\'accueil après ').append(idl).append(' min sans toucher (vide = jamais)'));
         pane.append($('<div class="tl-ed-navopt"><b>Retour à l\'accueil sans bouton :</b></div>')).append(back);
@@ -1128,13 +1128,13 @@
           var dev = {}, flat = [];
           DEVS.forEach(function (d) {
             var c = conf[d[0]];
-            dev[d[0]] = { size: c.size || 100, full: !!c.full, home: !!c.home, homeLabel: c.homeLabel || '', homeIcon: c.homeIcon || '', swipeHome: !!c.swipeHome, swipeDist: c.swipeDist || 150, idleHome: c.idleHome || 0, veille: c.veille || 0, veilleDate: !!c.veilleDate, veilleLogo: c.veilleLogo || '', items: items[d[0]].map(mapIt) };
+            dev[d[0]] = { size: c.size || 100, full: !!c.full, home: !!c.home, homeLabel: c.homeLabel || '', homeIcon: c.homeIcon || '', swipeHome: !!c.swipeHome, swipeDist: c.swipeDist || 100, idleHome: c.idleHome || 0, veille: c.veille || 0, veilleDate: !!c.veilleDate, veilleLogo: c.veilleLogo || '', items: items[d[0]].map(mapIt) };
             flat = flat.concat(items[d[0]].map(mapIt));
           });
           var c0 = conf[DEVS[0][0]];
           var payload = { enabled: !!(nav.devices.tablette || nav.devices.mobile), devices: nav.devices, homePages: nav.homePages, dev: dev,
             // réglages communs (anciennes versions du moteur) : ceux du premier appareil
-            home: !!c0.home, size: c0.size || 100, homeLabel: c0.homeLabel || '', homeIcon: c0.homeIcon || '', swipeHome: !!c0.swipeHome, swipeDist: c0.swipeDist || 150, idleHome: c0.idleHome || 0, items: flat };
+            home: !!c0.home, size: c0.size || 100, homeLabel: c0.homeLabel || '', homeIcon: c0.homeIcon || '', swipeHome: !!c0.swipeHome, swipeDist: c0.swipeDist || 100, idleHome: c0.idleHome || 0, items: flat };
           T.ajax('saveNav', { nav: payload }).then(function (saved) {
             E.nav = saved;
             if (!(saved && saved.dev)) {
