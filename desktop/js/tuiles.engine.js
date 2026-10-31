@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.69.3';
+  var VERSION = '1.69.4';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -667,31 +667,40 @@
     var offs = this.homeOffs = [];
     var on = function (target, ev, fn, opt) { target.addEventListener(ev, fn, opt); offs.push(function () { target.removeEventListener(ev, fn, opt); }); };
     if (nav.swipeHome) {
-      var st = null, hint = null;
-      var clear = function () { st = null; if (hint && hint.parentNode) hint.parentNode.removeChild(hint); hint = null; };
+      // Zone de départ élargie (les 24 premiers px sont souvent pris par le geste « retour » d'Android),
+      // et si le navigateur annule le toucher en cours de route (touchcancel), on décide avec le dernier mouvement.
+      var ZONE = 70, DIST = 90, st = null, hint = null, last = null;
+      var clear = function () { st = null; last = null; if (hint && hint.parentNode) hint.parentNode.removeChild(hint); hint = null; };
+      var decide = function (x, y) {
+        if (!st) return;
+        var dx = x - st.x, dy = Math.abs(y - st.y), quick = Date.now() - st.at < 1500;
+        clear();
+        if (dx > DIST && dy < 80 && quick) go();
+      };
       on(document, 'touchstart', function (e) {
         var t = e.touches[0];
-        if (e.touches.length !== 1 || t.clientX > 28) return;
-        st = { x: t.clientX, y: t.clientY, at: Date.now() };
-      }, { passive: true });
+        if (e.touches.length !== 1 || t.clientX > ZONE) { st = null; return; }
+        if (e.target && e.target.closest && e.target.closest('input, textarea, select, .tl-modal-ov, .tl-lb')) return;
+        st = { x: t.clientX, y: t.clientY, at: Date.now() }; last = { x: t.clientX, y: t.clientY };
+      }, { passive: true, capture: true });
       on(document, 'touchmove', function (e) {
         if (!st) return;
         var t = e.touches[0], dx = t.clientX - st.x, dy = Math.abs(t.clientY - st.y);
-        if (dy > 70) { clear(); return; }
+        last = { x: t.clientX, y: t.clientY };
+        if (dy > 80 && dy > dx) { clear(); return; }
         if (dx > 12) {
           if (!hint) { hint = el('div', 'tl-swipe-home', iconHtml('svg:home')); hint.style.top = Math.max(10, st.y - 30) + 'px'; document.body.appendChild(hint); }
-          var k = Math.min(1, dx / 110);
+          var k = Math.min(1, dx / DIST);
           hint.style.transform = 'translateX(' + Math.round(-60 + 80 * k) + 'px)';
           hint.classList.toggle('tl-swipe-ok', k >= 1);
         }
-      }, { passive: true });
+      }, { passive: true, capture: true });
       on(document, 'touchend', function (e) {
         if (!st) return;
-        var t = e.changedTouches[0], dx = t.clientX - st.x, dy = Math.abs(t.clientY - st.y), quick = Date.now() - st.at < 1200;
-        clear();
-        if (dx > 110 && dy < 70 && quick) go();
-      }, { passive: true });
-      on(document, 'touchcancel', clear, { passive: true });
+        var t = e.changedTouches[0];
+        decide(t.clientX, t.clientY);
+      }, { passive: true, capture: true });
+      on(document, 'touchcancel', function () { if (last) decide(last.x, last.y); else clear(); }, { passive: true, capture: true });
     }
     if (idle > 0) {
       var last = Date.now();
