@@ -230,6 +230,7 @@
       { k: 'aLabel', l: 'Lien 1 : texte', ph: 'aucun' },
       { k: 'aDesc', l: 'Lien 1 : sous-texte (sous l\'image)', ph: 'aucun', help: 'Petit texte sous le texte principal. Avec une info ci-dessous : # est remplacé par sa valeur (ex. « # ouverts »), sinon la valeur est ajoutée à la fin.' },
       { k: 'cmdDescA', l: 'Lien 1 : valeur d\'une info dans le sous-texte (option)', f: 'cmd', filter: C_INFO },
+      { k: 'descMapA', l: 'Lien 1 : libellés de la valeur', ph: 'disarmed=Désarmée;armed_away=Armée', show: function (t) { return !!t.cmdDescA; } },
       { k: 'aTarget', l: 'Lien 1 : ouvre', f: 'sel', o: { page: 'Une page Tuiles', home: 'L\'accueil', url: 'Une adresse (Design, dashboard…)', index: 'La liste des pages' }, keep: true },
       { k: 'aPage', l: 'Lien 1 : page', f: 'page', show: function (t) { return !t.aTarget || t.aTarget === 'page'; } },
       { k: 'aUrl', l: 'Lien 1 : adresse', ph: 'index.php?v=d&p=plan&plan_id=1', show: function (t) { return t.aTarget === 'url'; } },
@@ -244,6 +245,7 @@
       { k: 'bLabel', l: 'Lien 2 : texte', ph: 'aucun' },
       { k: 'bDesc', l: 'Lien 2 : sous-texte (sous l\'image)', ph: 'aucun', help: 'Petit texte sous le texte principal. Avec une info ci-dessous : # est remplacé par sa valeur (ex. « # ouverts »), sinon la valeur est ajoutée à la fin.' },
       { k: 'cmdDescB', l: 'Lien 2 : valeur d\'une info dans le sous-texte (option)', f: 'cmd', filter: C_INFO },
+      { k: 'descMapB', l: 'Lien 2 : libellés de la valeur', ph: 'disarmed=Désarmée;armed_away=Armée', show: function (t) { return !!t.cmdDescB; } },
       { k: 'bTarget', l: 'Lien 2 : ouvre', f: 'sel', o: { page: 'Une page Tuiles', home: 'L\'accueil', url: 'Une adresse (Design, dashboard…)', index: 'La liste des pages' }, keep: true },
       { k: 'bPage', l: 'Lien 2 : page', f: 'page', show: function (t) { return !t.bTarget || t.bTarget === 'page'; } },
       { k: 'bUrl', l: 'Lien 2 : adresse', ph: 'index.php?v=d&p=plan&plan_id=1', show: function (t) { return t.bTarget === 'url'; } },
@@ -1231,7 +1233,17 @@
         break;
       case 'page':
         ctrl = $('<select class="form-control input-sm"></select>').append('<option value="">—</option>');
-        E.pages.forEach(function (p) { ctrl.append($('<option></option>').val(p.id).text(p.name)); });
+        // pages classées par appareil : celles du même appareil que la page en cours d'abord
+        var curDev = ((E.layout && E.layout.grid) || {}).device === 'mobile' ? 'mobile' : 'tablette';
+        var devOf = function (pg) { return pg.device === 'mobile' ? 'mobile' : 'tablette'; };
+        [curDev, curDev === 'mobile' ? 'tablette' : 'mobile'].forEach(function (d) {
+          var list = E.pages.filter(function (pg) { return devOf(pg) === d; })
+            .sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'fr', { sensitivity: 'base' }); });
+          if (!list.length) return;
+          var grp = $('<optgroup></optgroup>').attr('label', (d === 'mobile' ? '📱 Mobile' : '🖥 Tablette') + (d === curDev ? ' (cette page)' : ''));
+          list.forEach(function (pg) { grp.append($('<option></option>').val(pg.id).text((d === 'mobile' ? '📱 ' : '🖥 ') + pg.name)); });
+          ctrl.append(grp);
+        });
         ctrl.val(isSet(val) ? String(val) : '').on('change', function () { set(ctrl.val()); });
         break;
       default:

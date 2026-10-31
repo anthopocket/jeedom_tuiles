@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.64.0';
+  var VERSION = '1.64.2';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -5275,7 +5275,7 @@
         // sous-texte : texte fixe, suivi de la valeur d'une info si choisie (ex. « 3 ouverts »)
         var dc = t['cmdDesc' + h.K];
         if (h.sub && cleanId(dc)) {
-          var m = p.meta(dc), f = fmt({ decimals: t['descDec' + h.K] }, m, m ? m.value : undefined);
+          var m = p.meta(dc), f = fmt({ decimals: t['descDec' + h.K], map: t['descMap' + h.K] }, m, m ? m.value : undefined);
           var v = f.invalid ? '…' : f.text + (f.unit ? ' ' + f.unit : '');
           h.sub.textContent = h.pre ? (h.pre.indexOf('#') >= 0 ? h.pre.replace('#', v) : h.pre + ' ' + v) : v;
         }
