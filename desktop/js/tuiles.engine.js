@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.69.1';
+  var VERSION = '1.69.2';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -2984,6 +2984,13 @@
         if (r.disabled) { scaler.innerHTML = '<div class="tl-sub">Équipement désactivé</div>'; return; }
         natural = null;
         injectHtml(scaler, r.html || '');
+        // dans l'éditeur, la page du plugin est un formulaire d'équipement Jeedom : un widget intégré garde sa classe
+        // « eqLogic » et Jeedom croit à un 2e équipement (sans nom) à enregistrer → on la retire dans l'aperçu
+        if (p.opts.edit) {
+          [].forEach.call(scaler.querySelectorAll('.eqLogic, .eqLogicAttr, .cmdAttr'), function (e) {
+            ['eqLogic', 'eqLogicAttr', 'cmdAttr'].forEach(function (c) { if (e.classList.contains(c)) { e.classList.remove(c); e.classList.add('tl-was-' + c); } });
+          });
+        }
         setTimeout(place, 50);
         setTimeout(place, 600);
         setTimeout(place, 2000);
