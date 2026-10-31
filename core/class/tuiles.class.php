@@ -1020,6 +1020,161 @@ class tuiles extends eqLogic {
 	/*  Cycle de vie de l'équipement                                       */
 	/* ------------------------------------------------------------------ */
 
+	/* ------------------------------------------------------------------ */
+	/*  Sauvegarde : tout exporter / tout importer                         */
+	/* ------------------------------------------------------------------ */
+
+	/** Réglages du plugin repris dans la sauvegarde. */
+	public static $BACKUP_KEYS = array('nav', 'presets', 'homePage', 'homePageMobile', 'homeUrl', 'pollFallback');
+
+	/** Toutes les pages (nom, objet, actif, mise en page) + barre d'onglets, couleurs et réglages. */
+	public static function exportAll() {
+		$pages = array();
+		foreach (eqLogic::byType('tuiles') as $eq) {
+			$obj = $eq->getObject();
+			$pages[] = array(
+				'id' => (string) $eq->getId(),
+				'name' => $eq->getName(),
+				'object' => is_object($obj) ? $obj->getName() : '',
+				'isEnable' => intval($eq->getIsEnable()),
+				'layout' => $eq->getLayout(),
+			);
+		}
+		$config = array();
+		foreach (self::$BACKUP_KEYS as $k) {
+			$v = config::byKey($k, 'tuiles', '');
+			if (is_string($v) && $v !== '' && ($v[0] === '{' || $v[0] === '[')) {
+				$d = json_decode($v, true);
+				if (is_array($d)) {
+					$v = $d;
+				}
+			}
+			$config[$k] = $v;
+		}
+		$info = plugin::byId('tuiles');
+		return array(
+			'tuilesBackup' => 1,
+			'date' => date('Y-m-d H:i:s'),
+			'pluginVersion' => is_object($info) ? $info->getVersion() : '',
+			'pages' => $pages,
+			'config' => $config,
+		);
+	}
+
+	/** Remplace les numéros de pages (anciens → nouveaux) partout où une page est désignée. */
+	public static function remapPages($node, $map) {
+		if (!is_array($node)) {
+			return $node;
+		}
+		foreach ($node as $k => $v) {
+			if (is_array($v)) {
+				$node[$k] = self::remapPages($v, $map);
+			} elseif (in_array((string) $k, array('page', 'aPage', 'bPage', 'homePage', 'homePageMobile'), true) && isset($map[(string) $v])) {
+				$node[$k] = $map[(string) $v];
+			}
+		}
+		return $node;
+	}
+
+	/**
+	 * Recrée les pages d'une sauvegarde. Une page qui existe déjà (même nom, même appareil) est mise à jour,
+	 * sinon elle est créée. Les liens entre pages et la barre d'onglets suivent les nouveaux numéros.
+	 */
+	public static function importAll($data, $withConfig = true) {
+		if (!is_array($data) || empty($data['tuilesBackup']) || !isset($data['pages']) || !is_array($data['pages'])) {
+			throw new Exception(__('Ce fichier n\'est pas une sauvegarde Tuiles', __FILE__));
+		}
+		$existing = array();
+		foreach (eqLogic::byType('tuiles') as $eq) {
+			$existing[mb_strtolower($eq->getName()) . '|' . self::deviceOf($eq->getLayout())] = $eq;
+		}
+		$map = array();
+		$todo = array();
+		$created = 0;
+		$updated = 0;
+		// 1) créer / retrouver chaque page pour connaître son nouveau numéro
+		foreach ($data['pages'] as $pg) {
+			if (!is_array($pg) || !isset($pg['name']) || trim((string) $pg['name']) === '') {
+				continue;
+			}
+			$layout = isset($pg['layout']) && is_array($pg['layout']) ? $pg['layout'] : self::defaultLayout();
+			$key = mb_strtolower(trim((string) $pg['name'])) . '|' . self::deviceOf($layout);
+			if (isset($existing[$key])) {
+				$eq = $existing[$key];
+				$updated++;
+			} else {
+				$eq = new tuiles();
+				$eq->setEqType_name('tuiles');
+				$eq->setName(trim((string) $pg['name']));
+				$eq->setIsEnable(isset($pg['isEnable']) ? intval($pg['isEnable']) : 1);
+				if (!empty($pg['object'])) {
+					foreach (jeeObject::all() as $o) {
+						if ($o->getName() == $pg['object']) {
+							$eq->setObject_id($o->getId());
+							break;
+						}
+					}
+				}
+				$eq->setConfiguration('layout', json_encode(self::defaultLayout(), JSON_UNESCAPED_UNICODE));
+				$eq->save();
+				$existing[$key] = $eq;
+				$created++;
+			}
+			if (isset($pg['id'])) {
+				$map[(string) $pg['id']] = (string) $eq->getId();
+			}
+			$todo[] = array($eq, $layout);
+		}
+		// 2) enregistrer les mises en page avec les liens corrigés
+		foreach ($todo as $t) {
+			$t[0]->setConfiguration('layout', json_encode(self::remapPages($t[1], $map), JSON_UNESCAPED_UNICODE));
+			$t[0]->save();
+		}
+		// 3) barre d'onglets, couleurs, réglages
+		if ($withConfig && isset($data['config']) && is_array($data['config'])) {
+			foreach (self::$BACKUP_KEYS as $k) {
+				if (!array_key_exists($k, $data['config'])) {
+					continue;
+				}
+				$v = $data['config'][$k];
+				if ($k === 'nav' && is_array($v)) {
+					foreach (array('items') as $ik) {
+						if (isset($v[$ik]) && is_array($v[$ik])) {
+							foreach ($v[$ik] as $i => $it) {
+								if (isset($it['id']) && isset($map[(string) $it['id']])) {
+									$v[$ik][$i]['id'] = $map[(string) $it['id']];
+								}
+							}
+						}
+					}
+					if (isset($v['dev']) && is_array($v['dev'])) {
+						foreach ($v['dev'] as $d => $c) {
+							if (isset($c['items']) && is_array($c['items'])) {
+								foreach ($c['items'] as $i => $it) {
+									if (isset($it['id']) && isset($map[(string) $it['id']])) {
+										$v['dev'][$d]['items'][$i]['id'] = $map[(string) $it['id']];
+									}
+								}
+							}
+						}
+					}
+					if (isset($v['homePages']) && is_array($v['homePages'])) {
+						foreach ($v['homePages'] as $d => $id) {
+							if (isset($map[(string) $id])) {
+								$v['homePages'][$d] = $map[(string) $id];
+							}
+						}
+					}
+				}
+				if (($k === 'homePage' || $k === 'homePageMobile') && isset($map[(string) $v])) {
+					$v = $map[(string) $v];
+				}
+				config::save($k, is_array($v) ? json_encode($v, JSON_UNESCAPED_UNICODE) : $v, 'tuiles');
+			}
+		}
+		return array('created' => $created, 'updated' => $updated, 'pages' => count($todo));
+	}
+
 	public function preInsert() {
 		$this->setIsVisible(0);
 		$this->setIsEnable(1);

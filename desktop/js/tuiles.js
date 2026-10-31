@@ -30,6 +30,7 @@
       slider: 'Slider',
       select: 'Select / liste',
       volet: 'Volet',
+      voletgroupe: 'Groupe de volets (tous, RDC, étage…)',
       saisie: 'Saisie texte / nombre',
       date: 'Envoi date / heure',
       lumiere: 'Éclairage on / off',
@@ -186,6 +187,13 @@
     saisie: [{ k: 'cmdOn', l: 'Action (message, slider…)', f: 'cmd', filter: C_ACTION }, { k: 'cmdInfo', l: 'Info valeur actuelle (option)', f: 'cmd', filter: C_INFO },
       { k: 'inputType', l: 'Type', f: 'sel', o: { text: 'Texte', number: 'Nombre' } }, { k: 'placeholder', l: 'Texte d\'aide' }, F.unit, { k: 'msgTitle', l: 'Titre du message (option)' }, F.confirm, F.wait,
       { k: 'thresholds', l: 'Couleurs selon la valeur', f: 'thresholds', help: 'Jusqu\'à 10 lignes. Un nombre = à partir de cette valeur ; un texte = si égal. Remplace les couleurs par défaut.' }],
+    voletgroupe: [{ k: 'cmdInfos', l: 'Infos position des volets du groupe', f: 'cmdlist', filter: C_INFO, noQuick: true, help: 'La tuile affiche la position moyenne et le nombre de volets ouverts.' },
+      { k: 'cmdUps', l: 'Actions monter', f: 'cmdlist', filter: C_ACTION, noQuick: true },
+      { k: 'cmdStops', l: 'Actions stop', f: 'cmdlist', filter: C_ACTION, noQuick: true },
+      { k: 'cmdDowns', l: 'Actions descendre', f: 'cmdlist', filter: C_ACTION, noQuick: true },
+      { k: 'cmdSliders', l: 'Actions position (option : glisser sur la fenêtre)', f: 'cmdlist', filter: C_ACTION, noQuick: true },
+      { k: 'confirm', l: 'Confirmation avant de monter / descendre', ph: 'vide = aucune' },
+      { k: 'closedMax', l: 'Fermé jusqu\'à (%)', f: 'num', ph: '0' }, { k: 'openMin', l: 'Ouvert à partir de (%)', f: 'num', ph: '99' }],
     volet: [{ k: 'cmdInfo', l: 'Info position / état', f: 'cmd', filter: C_INFO }, { k: 'cmdUp', l: 'Action monter', f: 'cmd', filter: C_ACTION },
       { k: 'cmdDown', l: 'Action descendre', f: 'cmd', filter: C_ACTION }, { k: 'cmdStop', l: 'Action stop', f: 'cmd', filter: C_ACTION },
       { k: 'cmdSlider', l: 'Action position (option)', f: 'cmd', filter: { type: 'action', subType: 'slider' }, help: 'Permet de régler la position en glissant le doigt sur la fenêtre dessinée.' },
@@ -844,7 +852,7 @@
     line1.append($('<label class="tl-ed-inline" title="Appareil pour lequel cette page est conçue (classement dans « Mes pages »)"></label>').text('Appareil ').append(dev));
     var FORMATS = {
       tablette: [['1280x800', 'Tablette 1280 × 800'], ['800x1280', 'Tablette portrait 800 × 1280'], ['1024x768', 'iPad 1024 × 768'], ['768x1024', 'iPad portrait 768 × 1024'], ['1920x1200', 'Tablette 1920 × 1200']],
-      mobile: [['370x595', 'Mon téléphone 370 × 595'], ['360x800', 'Android 360 × 800'], ['384x832', 'Galaxy S24 FE 384 × 832'], ['412x915', 'Android 412 × 915'], ['390x844', 'iPhone 390 × 844'], ['430x932', 'iPhone Max 430 × 932']] };
+      mobile: [['400x860', 'Mon téléphone 400 × 860'], ['370x595', 'Téléphone 370 × 595'], ['360x800', 'Android 360 × 800'], ['384x832', 'Galaxy S24 FE 384 × 832'], ['412x915', 'Android 412 × 915'], ['390x844', 'iPhone 390 × 844'], ['430x932', 'iPhone Max 430 × 932']] };
     var fmt = $('<select class="form-control input-sm" style="width:auto"></select>');
     fmt.append('<option value="">Libre</option>');
     (FORMATS[g.device === 'mobile' ? 'mobile' : 'tablette'] || []).forEach(function (f) { fmt.append($('<option></option>').val(f[0]).text(f[1])); });
@@ -1980,6 +1988,7 @@
       case 'web': return Object.assign(base, { w: 2, h: 2 });
       case 'bouton': return Object.assign(base, { behavior: 'impulsion' });
       case 'ouvrant': return Object.assign(base, { kind: 'fenetre', openValue: '1' });
+      case 'voletgroupe': return Object.assign(base, { title: 'Tous les volets' });
       case 'select': return Object.assign(base, { display: 'popup' });
       case 'lien2': return Object.assign(base, { title: '', hideTitle: true, aTarget: 'page', bTarget: 'page', w: 2, h: 1 });
       case 'lien': return Object.assign(base, { title: 'Accueil', target: 'home', icon: 'svg:home', titleColor: '#ffffff' });
@@ -2104,4 +2113,46 @@
   });
   $('#bt_tlOpenPanel').on('click', function () { window.open('index.php?v=d&m=tuiles&p=panel', '_blank'); });
   $('#bt_tlNav').on('click', function () { openNavEditor(); });
+
+  /* ---------- sauvegarde : tout exporter / tout importer ---------- */
+  $('#bt_tlExportAll').on('click', function () {
+    T.ajax('exportAll', {}).then(function (data) {
+      var blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
+      var a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'tuiles-sauvegarde-' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+      toast((data.pages || []).length + ' page(s) exportée(s)');
+    }).catch(fail);
+  });
+  $('#bt_tlImportAll').on('click', function () { $('#in_tlImportAll').val('').trigger('click'); });
+  $('#in_tlImportAll').on('change', function () {
+    var file = this.files && this.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      var data;
+      try { data = JSON.parse(reader.result); } catch (e) { toast('Fichier illisible (JSON invalide)', 'error'); return; }
+      if (!data || !data.tuilesBackup || !Array.isArray(data.pages)) { toast('Ce fichier n\'est pas une sauvegarde « Tout exporter »', 'error'); return; }
+      var body = $('<div></div>');
+      body.append($('<p></p>').text(data.pages.length + ' page(s) dans la sauvegarde du ' + (data.date || '?') + '.'));
+      body.append('<p>Une page qui existe déjà (même nom, même appareil) est remplacée ; les autres sont créées. Les liens entre pages et la barre d\'onglets suivent les nouveaux numéros.</p>');
+      var cb = $('<input type="checkbox" checked>');
+      body.append($('<label style="font-weight:normal"></label>').append(cb).append(' Restaurer aussi la barre d\'onglets, les couleurs et les réglages du plugin'));
+      T.ui.modal({
+        title: 'Tout importer', body: body[0],
+        buttons: [{ label: 'Annuler' }, { label: 'Importer', primary: true, click: function (close) {
+          T.ajax('importAll', { data: JSON.stringify(data), withConfig: cb.is(':checked') ? 1 : 0 }).then(function (r) {
+            close();
+            toast(r.pages + ' page(s) importée(s) : ' + r.created + ' créée(s), ' + r.updated + ' remplacée(s)');
+            setTimeout(function () { location.reload(); }, 1200);
+          }).catch(fail);
+          return false;
+        } }]
+      });
+    };
+    reader.readAsText(file);
+  });
 })();

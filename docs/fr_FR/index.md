@@ -99,6 +99,17 @@ Dans « Régler la barre d'onglets… » (commun à toutes les pages) :
 
 La page d'accueil est celle choisie pour l'appareil (sinon l'accueil du plugin). Rien n'apparaît à l'écran et rien ne se passe sur la page d'accueil elle-même ni dans l'éditeur.
 
+## Sauvegarder toutes les pages (Tout exporter / Tout importer)
+
+Sur la page du plugin, **Tout exporter** télécharge un fichier `tuiles-sauvegarde-AAAA-MM-JJ.json` avec toutes les pages (nom, objet, mise en page), la barre d'onglets (menus tablette et mobile), les couleurs prédéfinies et les réglages du plugin.
+
+**Tout importer** recrée tout depuis ce fichier, par exemple après une réinstallation du plugin :
+- une page qui existe déjà (même nom, même appareil) est remplacée, les autres sont créées ;
+- les liens entre pages (tuiles Lien, Double lien, Résumé d'ouvrants), la barre d'onglets et les pages d'accueil suivent automatiquement les nouveaux numéros de pages ;
+- une case permet de ne pas restaurer la barre d'onglets, les couleurs et les réglages.
+
+Les commandes Jeedom gardent leurs numéros tant que c'est le même Jeedom : les tuiles retrouvent leurs infos et actions.
+
 ## Importer une page en JSON
 
 Bouton **JSON** de l'éditeur : collez une page puis « Appliquer ». Les commandes peuvent s'écrire avec leur nom Jeedom, `#[Objet][Équipement][Commande]#`, et les équipements (alarme, interphone, VigiEau, réveil, bons points) `#[Objet][Équipement]#` : ils sont convertis en id, puis les commandes manquantes sont complétées depuis l'équipement (comme dans l'éditeur). Les noms introuvables sont listés ; leurs cases restent vides.
@@ -139,6 +150,10 @@ Chaque ouvrant a son propre réglage : contact, **Inverser (0 = ouvert)**, valeu
 Option « Ouvrants ouverts en tête de leur groupe ».
 
 Affichage **Résumé** : la même liste dans une petite tuile (icône + « Tout fermé » / « Chambre Armand » / « 2 ouverts »), qui ouvre la page choisie au toucher. Idéal sur la page d'accueil : copiez la tuile (JSON) et passez-la en Résumé.
+
+## Groupe de volets
+
+La tuile **Groupe de volets** commande plusieurs volets d'un coup (Tous, RDC, Étage…) sans scénario Jeedom : elle reprend les listes d'actions monter / stop / descendre (et position, en glissant sur la fenêtre) et les envoie à tous les volets du groupe. Elle affiche la position moyenne, dessinée comme un volet, et « 3 / 7 ouverts ». Une confirmation peut être demandée avant de monter ou descendre (pas pour Stop).
 
 ## Boutons
 

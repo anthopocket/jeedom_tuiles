@@ -11,7 +11,7 @@ try {
 	ajax::init();
 
 	$action = init('action');
-	$needAdmin = array('logTail', 'daemonAction', 'eqCmds', 'saveNav', 'resolveHuman', 'countList', 'eqList', 'editorInit', 'getCmds');
+	$needAdmin = array('exportAll', 'importAll', 'resolveRefs', 'logTail', 'daemonAction', 'eqCmds', 'saveNav', 'resolveHuman', 'countList', 'eqList', 'editorInit', 'getCmds');
 	if (in_array($action, $needAdmin) && !isConnect('admin')) {
 		throw new Exception(__('401 - Accès non autorisé', __FILE__));
 	}
@@ -33,6 +33,14 @@ try {
 
 		case 'widgetHtml':
 			ajax::success(tuiles::widgetHtml(init('id')));
+			break;
+
+		case 'exportAll':
+			ajax::success(tuiles::exportAll());
+			break;
+
+		case 'importAll':
+			ajax::success(tuiles::importAll(json_decode(init('data'), true), init('withConfig', 1) == 1));
 			break;
 
 		case 'saveNav':
@@ -104,6 +112,10 @@ try {
 			$data = tuiles::common();
 			$data['objects'] = $objects;
 			ajax::success($data);
+			break;
+
+		case 'resolveRefs':
+			ajax::success(tuiles::resolveRefs(json_decode(init('refs'), true)));
 			break;
 
 		case 'resolveHuman':

@@ -27,6 +27,17 @@ $eqLogics = eqLogic::byType($plugin->getId());
 				<br>
 				<span>{{Barre d'onglets}}</span>
 			</div>
+			<div class="cursor logoSecondary" id="bt_tlExportAll" title="{{Télécharge un fichier avec toutes les pages, la barre d'onglets et les couleurs}}">
+				<i class="fas fa-file-download"></i>
+				<br>
+				<span>{{Tout exporter}}</span>
+			</div>
+			<div class="cursor logoSecondary" id="bt_tlImportAll" title="{{Recrée toutes les pages depuis un fichier « Tout exporter »}}">
+				<i class="fas fa-file-upload"></i>
+				<br>
+				<span>{{Tout importer}}</span>
+			</div>
+			<input type="file" id="in_tlImportAll" accept=".json,application/json" style="display:none">
 			<div class="cursor logoSecondary" id="bt_tlOpenPanel">
 				<i class="fas fa-th-large"></i>
 				<br>
