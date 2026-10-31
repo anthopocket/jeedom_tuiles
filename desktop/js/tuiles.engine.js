@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.69.2';
+  var VERSION = '1.69.3';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -5743,7 +5743,7 @@
       if (!isSet(id) && opts.remember) {
         try { id = root.localStorage.getItem('tuiles_last') || ''; } catch (e) { id = ''; }
       }
-      if (opts.kiosk) document.body.classList.add('tl-kiosk');
+      if (opts.kiosk) { document.body.classList.add('tl-kiosk'); document.documentElement.classList.add('tl-kiosk-html'); }
       return Tuiles.open(rootEl, id || '', opts).catch(function () {
         if (id) return Tuiles.open(rootEl, '', opts);
       });

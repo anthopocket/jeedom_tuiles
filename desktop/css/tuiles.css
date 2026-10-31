@@ -425,6 +425,9 @@ body.tl-kiosk #jeedomMenuBar,
 body.tl-kiosk .navbar-fixed-top { display: none !important; }
 body.tl-kiosk #div_mainContainer,
 body.tl-kiosk #div_pageContainer { padding-top: 0 !important; margin-top: 0 !important; }
+/* kiosque : la page Tuiles recouvre tout l'écran, quoi que Jeedom affiche autour (barres, marges, fond clair) */
+html.tl-kiosk-html, body.tl-kiosk { margin: 0 !important; padding: 0 !important; overflow: hidden !important; background: #000 !important; height: 100% !important; }
+body.tl-kiosk #tl-panel-root { position: fixed !important; inset: 0 !important; z-index: 1030; margin: 0 !important; overflow-x: hidden; overflow-y: auto; -webkit-overflow-scrolling: touch; background: var(--sk-bg, #000); }
 /* éditeur : limites d'un design en px */
 .tl-is-edit .tl-page.tl-fixed { outline: 1px dashed #666; outline-offset: 0; }
 
