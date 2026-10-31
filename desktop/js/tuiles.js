@@ -839,7 +839,7 @@
     line1.append($('<label class="tl-ed-inline" title="Appareil pour lequel cette page est conçue (classement dans « Mes pages »)"></label>').text('Appareil ').append(dev));
     var FORMATS = {
       tablette: [['1280x800', 'Tablette 1280 × 800'], ['800x1280', 'Tablette portrait 800 × 1280'], ['1024x768', 'iPad 1024 × 768'], ['768x1024', 'iPad portrait 768 × 1024'], ['1920x1200', 'Tablette 1920 × 1200']],
-      mobile: [['360x800', 'Android 360 × 800'], ['384x832', 'Galaxy S24 FE 384 × 832'], ['412x915', 'Android 412 × 915'], ['390x844', 'iPhone 390 × 844'], ['430x932', 'iPhone Max 430 × 932']] };
+      mobile: [['370x595', 'Mon téléphone 370 × 595'], ['360x800', 'Android 360 × 800'], ['384x832', 'Galaxy S24 FE 384 × 832'], ['412x915', 'Android 412 × 915'], ['390x844', 'iPhone 390 × 844'], ['430x932', 'iPhone Max 430 × 932']] };
     var fmt = $('<select class="form-control input-sm" style="width:auto"></select>');
     fmt.append('<option value="">Libre</option>');
     (FORMATS[g.device === 'mobile' ? 'mobile' : 'tablette'] || []).forEach(function (f) { fmt.append($('<option></option>').val(f[0]).text(f[1])); });

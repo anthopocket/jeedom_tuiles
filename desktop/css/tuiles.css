@@ -1536,16 +1536,16 @@ body.tl-kiosk #div_pageContainer { padding-top: 0 !important; margin-top: 0 !imp
 /* ---- Liste d'ouvrants (bandeau + groupes) ---- */
 .tl-tile.tl-ov-tile { background: transparent !important; border-color: transparent !important; box-shadow: none !important; padding: 0; }
 .tl-tile.tl-ov-tile::before, .tl-tile.tl-ov-tile::after { display: none; }
-.tl-ov { width: 100%; height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: .6em; font-size: clamp(15px, calc(var(--tl-s) * .05), 26px); text-align: left; -webkit-overflow-scrolling: touch; }
-.tl-ov-card { background: var(--tl-tile, #11151c); border: 1px solid rgba(255,255,255,.08); border-radius: var(--tl-radius, 1em); padding: .55em .9em; flex: none; }
-.tl-ov-sum { display: flex; align-items: center; gap: .8em; padding: .8em 1em; }
+.tl-ov { width: 100%; height: 100%; overflow-y: auto; display: flex; flex-direction: column; gap: .45em; font-size: clamp(14px, calc(var(--tl-s) * .05), 26px); text-align: left; -webkit-overflow-scrolling: touch; }
+.tl-ov-card { background: var(--tl-tile, #11151c); border: 1px solid rgba(255,255,255,.08); border-radius: var(--tl-radius, 1em); padding: .4em .9em; flex: none; }
+.tl-ov-sum { display: flex; align-items: center; gap: .8em; padding: .6em .9em; }
 .tl-ov-sico { width: 2.4em; height: 2.4em; flex: none; }
 .tl-ov-sico svg, .tl-ov-ico svg { width: 100%; height: 100%; display: block; }
 .tl-ov-stx { min-width: 0; }
 .tl-ov-sh { font-size: 1.45em; font-weight: 800; line-height: 1.15; }
 .tl-ov-ss { font-size: .9em; color: var(--tl-c-title, #fff); opacity: .65; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .tl-ov-gt { font-size: .85em; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--tl-c-title, #fff); margin: .15em 0 .2em; }
-.tl-ov-row { display: flex; align-items: center; justify-content: space-between; gap: .6em; padding: .55em .1em; border-bottom: 1px solid rgba(255,255,255,.07); }
+.tl-ov-row { display: flex; align-items: center; justify-content: space-between; gap: .6em; padding: .38em .1em; border-bottom: 1px solid rgba(255,255,255,.07); }
 .tl-ov-row:last-child { border-bottom: 0; }
 .tl-ov-lab { flex: 1 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--tl-c-title, #fff); opacity: .9; }
 .tl-ov-r { display: flex; align-items: center; gap: .55em; flex: none; }
