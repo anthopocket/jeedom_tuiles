@@ -294,6 +294,10 @@ Fonction **Afficher une info → Batteries** : la liste des équipements à pile
 
 ## Alarme (Risco) : partitions et zones
 
+Options de la tuile partition : **Nom de la partition** (afficher / masquer) et **Prête / pas prête** (tout afficher, seulement « pas prête » et pourquoi, ou masquer).
+
+Dans une tuile **Plusieurs infos (lignes)**, une ligne « Libellé : icône » peut aussi prendre la couleur d'autres infos : **Rouge si cette info est active** (ex. Z3 Alarme, prioritaire) et **Vert si cette info est active** (ex. Z3 Armé, quand l'info principale est au repos). Ex. détecteur PIR : gris au repos, vert armé, orange détection, rouge alarme.
+
 Deux tuiles, sans les groupes. Choisissez l'équipement alarme : les commandes sont retrouvées automatiquement d'après leurs noms (`P1 Armé`, `P1 Armer total`, `Z1 Ouvert`, `Z1 Bypasser`…).
 
 - **Commander → Alarme : partition** (une tuile par partition, numéro réglable) : bouclier coloré (vert désarmée, orange armée partiel, rouge armée, rouge clignotant **ALARME** avec la zone en cause), nom de la partition, « ✓ Prête à armer » ou « Pas prête : Pir Cuisine ouvert », défauts de la centrale (déconnexion, batterie, tamper, télésurveillance…), dernier événement. Boutons **Total / Partiel / Désarmer** (le mode actif est allumé), avec confirmation (désactivable).

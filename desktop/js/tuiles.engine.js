@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.63.1';
+  var VERSION = '1.64.0';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -4289,7 +4289,7 @@
       q('.tl-al-in').innerHTML = SH_IN[st] || SH_IN.off;
       q('.tl-al-state').textContent = AL_LABEL[st];
       var pn = p.val(t.cmdPartName);
-      q('.tl-al-part').textContent = isSet(pn) && String(pn) !== t.title ? String(pn) : '';
+      q('.tl-al-part').textContent = t.rsName !== 'non' && isSet(pn) && String(pn) !== t.title ? String(pn) : '';
       [].forEach.call(box.querySelectorAll('.tl-al-acts button'), function (b) { b.classList.toggle('tl-on', b.getAttribute('data-a') === st); });
       // prête ? sinon les zones ouvertes de la partition
       var rd = q('.tl-al-ready');
@@ -4297,7 +4297,7 @@
         var open = zones.filter(function (z) { return zoneIn(p, z, part) && isActive(p.val(z.cmdZOpen)) === true && isActive(p.val(z.cmdZBypass)) !== true; });
         var ready = cleanId(t.cmdReady) ? isActive(p.val(t.cmdReady)) !== false : !open.length;
         rd.className = 'tl-al-ready ' + (ready ? 'tl-al-ok' : 'tl-al-ko');
-        rd.innerHTML = ready ? '✓ Prête à armer' : 'Pas prête' + (open.length ? ' : ' + open.slice(0, 3).map(function (z) { return esc(zoneName(p, z)); }).join(', ') + (open.length > 3 ? ' +' + (open.length - 3) : '') + ' ouvert' + (open.length > 1 ? 's' : '') : '');
+        rd.innerHTML = ready ? (t.rsZonesShow === 'pb' ? '' : '✓ Prête à armer') : 'Pas prête' + (open.length ? ' : ' + open.slice(0, 3).map(function (z) { return esc(zoneName(p, z)); }).join(', ') + (open.length > 3 ? ' +' + (open.length - 3) : '') + ' ouvert' + (open.length > 1 ? 's' : '') : '');
       } else if (st === 'alarm') {
         var al = zones.filter(function (z) { return zoneIn(p, z, part) && isActive(p.val(z.cmdZAlarm)) === true; });
         rd.className = 'tl-al-ready tl-al-ko';
@@ -5158,7 +5158,11 @@
           var v = p.val(l.cmdInfo), act = isActive(v, l.onValue, l.invert);
           var r = evalRules(rulesFor(l, p.presets), v);
           setIcon(row.ico, (r && r.icon) || (act === false && isSet(l.iconOff) ? l.iconOff : (l.icon || 'svg:check-circle')), row.state);
-          row.ico.style.color = color(r && r.color ? r.color : (act === null ? 'neutral' : (act ? (l.color || 'on') : 'neutral')));
+          var ic = r && r.color ? r.color : (act === null ? 'neutral' : (act ? (l.color || 'on') : 'neutral'));
+          // priorité : info « alerte » active (rouge) > info principale active > info « OK » active (vert)
+          if (cleanId(l.cmdAlert) && isActive(p.val(l.cmdAlert)) === true) ic = l.colorAlert || 'alert';
+          else if (act !== true && cleanId(l.cmdOk) && isActive(p.val(l.cmdOk)) === true) ic = l.colorOk || 'ok';
+          row.ico.style.color = color(ic);
         } else if (row.kind === 'value') {
           var m = p.meta(l.cmdInfo), raw = m ? m.value : undefined;
           var f = fmt(l, m, raw);

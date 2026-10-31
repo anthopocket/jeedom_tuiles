@@ -334,7 +334,8 @@
     alarme: [{ k: 'eqId', l: 'Équipement alarme', f: 'eq', pluginRe: /risco/i, help: 'Les commandes de la partition (P1 Armé, P1 Armer total…) et des zones sont retrouvées automatiquement.', onPick: function (t, e) { fillRisco(t, e.id).then(function () { onTileChange({ f: 'sel' }); }).catch(fail); } },
       { k: 'rsPart', l: 'Partition (numéro)', f: 'num', ph: '1', after: function (t) { if (cleanId(t.eqId)) fillRisco(t, t.eqId).then(function () { onTileChange({ f: 'sel' }); }).catch(fail); } },
       { k: 'rsConfirm', l: 'Confirmation avant d\'armer / désarmer', f: 'sel', o: { '': 'Oui', non: 'Non' } },
-      { k: 'rsZonesShow', l: 'Zones ouvertes de la partition', f: 'sel', o: { '': 'Afficher (« pas prête » et pourquoi)', non: 'Masquer' } },
+      { k: 'rsName', l: 'Nom de la partition', f: 'sel', o: { '': 'Afficher', non: 'Masquer' } },
+      { k: 'rsZonesShow', l: 'Prête / pas prête', f: 'sel', o: { '': 'Afficher (« prête » ou « pas prête » et pourquoi)', pb: 'Seulement « pas prête » et pourquoi', non: 'Masquer' } },
       { k: 'rsTroubles', l: 'Défauts de la centrale', f: 'sel', o: { '': 'Afficher s\'il y en a', non: 'Masquer' } },
       { k: 'rsLast', l: 'Dernier événement', f: 'sel', o: { '': 'Afficher', non: 'Masquer' } },
       { k: 'cmdArmed', l: 'Info armé', f: 'cmd', filter: C_INFO },
@@ -583,6 +584,8 @@
     { k: 'icon', l: 'Icône', f: 'icon', show: function (l) { return l.kind === 'button' || l.kind === 'icon'; } },
     { k: 'confirm', l: 'Confirmation (option)', ph: 'vide = aucune', help: 'Texte demandé avant d\'envoyer l\'action (ex. remise à zéro).', show: function (l) { return l.kind === 'button'; } },
     { k: 'thresholds', l: 'Couleurs selon la valeur', f: 'thresholds', show: function (l) { return l.kind !== 'title' && (l.kind !== 'button' || l.cmdInfo); } },
+    { k: 'cmdAlert', l: 'Rouge si cette info est active (option)', f: 'cmd', filter: C_INFO, help: 'Ex. « Zone en alarme ». Prioritaire sur tout le reste.', show: function (l) { return l.kind === 'icon'; } },
+    { k: 'cmdOk', l: 'Vert si cette info est active (option)', f: 'cmd', filter: C_INFO, help: 'Ex. « Zone armée ». Utilisé quand l\'info principale est au repos.', show: function (l) { return l.kind === 'icon'; } },
     { k: 'color', l: 'Couleur', f: 'color' }
   ];
 
