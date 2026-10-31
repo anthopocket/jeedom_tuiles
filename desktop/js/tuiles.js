@@ -2118,12 +2118,12 @@
   $('#bt_tlExportAll').on('click', function () {
     T.ajax('exportAll', {}).then(function (data) {
       var blob = new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' });
+      // lien hors de la page : Jeedom intercepte les clics sur les liens du document (navigation ajax)
       var a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
       a.download = 'tuiles-sauvegarde-' + new Date().toISOString().slice(0, 10) + '.json';
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+      a.dispatchEvent(new MouseEvent('click', { bubbles: false, cancelable: true, view: window }));
+      setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
       toast((data.pages || []).length + ' page(s) exportée(s)');
     }).catch(fail);
   });
