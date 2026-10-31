@@ -1024,24 +1024,35 @@ class tuiles extends eqLogic {
 	/*  Sauvegarde : tout exporter / tout importer                         */
 	/* ------------------------------------------------------------------ */
 
-	/** Réglages du plugin repris dans la sauvegarde. */
-	public static $BACKUP_KEYS = array('nav', 'presets', 'homePage', 'homePageMobile', 'homeUrl', 'pollFallback');
+	/** Réglages du plugin repris dans la sauvegarde.
+	 *  (méthode et non propriété : Jeedom enregistre toutes les propriétés de la classe comme colonnes de la table eqLogic) */
+	public static function backupKeys() {
+		return array('nav', 'presets', 'homePage', 'homePageMobile', 'homeUrl', 'pollFallback');
+	}
 
 	/** Toutes les pages (nom, objet, actif, mise en page) + barre d'onglets, couleurs et réglages. */
 	public static function exportAll() {
 		$pages = array();
 		foreach (eqLogic::byType('tuiles') as $eq) {
-			$obj = $eq->getObject();
+			$objName = '';
+			try {
+				$obj = $eq->getObject();
+				if (is_object($obj)) {
+					$objName = $obj->getName();
+				}
+			} catch (Throwable $e) {
+				$objName = '';
+			}
 			$pages[] = array(
 				'id' => (string) $eq->getId(),
 				'name' => $eq->getName(),
-				'object' => is_object($obj) ? $obj->getName() : '',
+				'object' => $objName,
 				'isEnable' => intval($eq->getIsEnable()),
 				'layout' => $eq->getLayout(),
 			);
 		}
 		$config = array();
-		foreach (self::$BACKUP_KEYS as $k) {
+		foreach (self::backupKeys() as $k) {
 			$v = config::byKey($k, 'tuiles', '');
 			if (is_string($v) && $v !== '' && ($v[0] === '{' || $v[0] === '[')) {
 				$d = json_decode($v, true);
@@ -1051,11 +1062,9 @@ class tuiles extends eqLogic {
 			}
 			$config[$k] = $v;
 		}
-		$info = plugin::byId('tuiles');
 		return array(
 			'tuilesBackup' => 1,
 			'date' => date('Y-m-d H:i:s'),
-			'pluginVersion' => is_object($info) ? $info->getVersion() : '',
 			'pages' => $pages,
 			'config' => $config,
 		);
@@ -1132,7 +1141,7 @@ class tuiles extends eqLogic {
 		}
 		// 3) barre d'onglets, couleurs, réglages
 		if ($withConfig && isset($data['config']) && is_array($data['config'])) {
-			foreach (self::$BACKUP_KEYS as $k) {
+			foreach (self::backupKeys() as $k) {
 				if (!array_key_exists($k, $data['config'])) {
 					continue;
 				}
