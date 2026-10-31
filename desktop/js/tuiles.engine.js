@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.65.2';
+  var VERSION = '1.66.1';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -2780,6 +2780,49 @@
   };
 
   /* ---- Volet ---- */
+  /* ---- Groupe de volets (Tous, RDC, Étage…) : position moyenne, boutons qui commandent tous les volets ---- */
+  R.voletgroupe = function (p, t, api) {
+    var ids = function (k) { return (Array.isArray(t[k]) ? t[k] : []).map(cleanId).filter(Boolean); };
+    var infos = ids('cmdInfos'), groups = { up: ids('cmdUps'), down: ids('cmdDowns'), stop: ids('cmdStops'), sl: ids('cmdSliders') };
+    var openMin = num(t.openMin, 99);
+    var stats = function () {
+      var vals = infos.map(function (id) { var v = p.val(id); return isNum(v) ? parseFloat(v) : (isSet(v) ? (isActive(v) ? 100 : 0) : null); })
+        .filter(function (v) { return v !== null; });
+      if (!vals.length) return null;
+      var sum = vals.reduce(function (a, b) { return a + b; }, 0);
+      return { avg: Math.round(sum / vals.length), open: vals.filter(function (v) { return v >= openMin; }).length, n: vals.length };
+    };
+    var pp = Object.create(p);
+    pp.meta = function (id) {
+      if (id === '__grp') { var st = stats(); return st ? { value: st.avg, subType: 'numeric', unite: '%' } : null; }
+      return p.meta(id);
+    };
+    pp.val = function (id) { var m = pp.meta(id); return m ? m.value : undefined; };
+    pp.run = function (a, cmd, opts, o) {
+      var key = { __up: 'up', __down: 'down', __stop: 'stop', __sl: 'sl' }[cmd];
+      if (!key) return p.run(a, cmd, opts, o);
+      var go = function () { groups[key].forEach(function (id) { p.run(a, id, opts || {}, {}); }); };
+      if (t.confirm && key !== 'stop' && !p.opts.edit) UI.confirm(t.confirm, go); else go();
+    };
+    var tt = {};
+    Object.keys(t).forEach(function (k) { if (!/^cmd/.test(k)) tt[k] = t[k]; });
+    tt.cmdInfo = infos.length ? '__grp' : '';
+    if (groups.up.length) tt.cmdUp = '__up';
+    if (groups.stop.length) tt.cmdStop = '__stop';
+    if (groups.down.length) tt.cmdDown = '__down';
+    if (groups.sl.length) tt.cmdSlider = '__sl';
+    api.el.classList.add('tl-vgrp');
+    var refresh = R.volet(pp, tt, api);
+    var stEl = api.body.querySelector('.tl-v-state'), bigEl = api.body.querySelector('.tl-v-pct');
+    return function () {
+      refresh();
+      var st = stats();
+      // pas de pourcentage : le nombre de volets ouverts
+      if (st && bigEl) bigEl.textContent = st.open + ' / ' + st.n;
+      if (st && stEl) stEl.textContent = 'ouvert' + (st.open > 1 ? 's' : '');
+    };
+  };
+
   R.volet = function (p, t, api) {
     // disposition : en ligne si la tuile est large, sinon en colonne
     var wide = api.w >= api.h * 1.4;
