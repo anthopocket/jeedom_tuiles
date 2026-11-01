@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.70.6';
+  var VERSION = '1.71.1';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -2189,7 +2189,90 @@
 
   /* ---------- actions ---------- */
 
+  /** Code de confirmation : la tuile qui porte cette action le demande-t-elle (On, Off ou tout) ? */
+  var PIN_ON = /^cmd(On|PowerOn|RecOn|DetOn|Up|Ups|Open|Start|ArmTotal|ArmPartial|Partial|Top|Boost|Heat)$/;
+  var PIN_OFF = /^cmd(Off|PowerOff|RecOff|DetOff|Down|Downs|Disarm|Bottom|Arrete|End)$/;
+  Page.prototype.pinFor = function (id) {
+    var found = null, self = this;
+    var keyOf = function (o, depth) {          // clé qui contient cet id (cherche aussi dans les lignes, listes…) et l'objet qui la porte
+      if (!o || typeof o !== 'object' || depth > 4) return null;
+      var ks = Object.keys(o);
+      for (var i = 0; i < ks.length; i++) {
+        var k = ks[i], v = o[k];
+        if (/^cmd/.test(k) && (cleanId(v) === id || (Array.isArray(v) && v.some(function (x) { return cleanId(x) === id; })))) return { k: k, o: o };
+        if (v && typeof v === 'object') { var r = keyOf(v, depth + 1); if (r) return r; }
+      }
+      return null;
+    };
+    (this.tiles || []).some(function (a) {
+      var t = a.t || {}, mode = t.pin;
+      if (!mode) return false;
+      var hit = keyOf(t, 0);
+      if (!hit) return false;
+      var k = hit.k, o = hit.o, dir = PIN_ON.test(k) ? 'on' : (PIN_OFF.test(k) ? 'off' : '');
+      // toggle (une seule action) : le sens dépend de l'état actuel → actif = on va éteindre (Off), sinon allumer (On)
+      if (k === 'cmdToggle' || (k === 'cmdOn' && o.behavior === 'toggle')) {
+        var st = cleanId(o.cmdInfo || o.cmdState || t.cmdInfo || t.cmdState), act = st ? isActive(self.val(st), isSet(o.onValue) ? o.onValue : t.onValue, o.invert || t.invert) : null;
+        dir = act === null ? 'both' : (act ? 'off' : 'on');
+      }
+      if (mode === 'all' || dir === 'both' || dir === mode) { found = t; return true; }
+      return false;
+    });
+    return found;
+  };
+  /** Clavier de code : résout si Jeedom accepte le code. */
+  Page.prototype.askPin = function (title) {
+    var len = num(this.data.pinLen, 0);
+    return new Promise(function (resolve, reject) {
+      if (!(len > 0)) { reject(new Error('Aucun code de confirmation réglé dans la configuration du plugin')); return; }
+      var ov = el('div', 'tl-pin-ov'), code = '', busy = false, lockT = null;
+      ov.innerHTML = '<div class="tl-pin"><div class="tl-pin-h">🔒 ' + esc(title || 'Confirmation') + '</div><div class="tl-pin-s">Code de confirmation</div>' +
+        '<div class="tl-pin-dots">' + new Array(len + 1).join('<i></i>') + '</div><div class="tl-pin-keys">' +
+        ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'x', '0', 'b'].map(function (k) { return '<button type="button" data-k="' + k + '"' + (k === 'x' || k === 'b' ? ' class="tl-pin-x"' : '') + '>' + (k === 'x' ? 'Annuler' : k === 'b' ? '⌫' : k) + '</button>'; }).join('') + '</div></div>';
+      var box = ov.querySelector('.tl-pin'), dots = ov.querySelectorAll('.tl-pin-dots i'), sub = ov.querySelector('.tl-pin-s');
+      var paint = function () { for (var i = 0; i < dots.length; i++) dots[i].className = i < code.length ? 'on' : ''; };
+      var close = function () { clearInterval(lockT); if (ov.parentNode) ov.parentNode.removeChild(ov); document.removeEventListener('keydown', onKey, true); };
+      var msg = function (t, bad) { sub.textContent = t; sub.classList.toggle('tl-pin-bad', !!bad); };
+      var locked = function (sec) {
+        busy = true; box.classList.add('tl-pin-locked');
+        var end = Date.now() + sec * 1000;
+        var tick = function () { var r = Math.ceil((end - Date.now()) / 1000); if (r <= 0) { clearInterval(lockT); busy = false; box.classList.remove('tl-pin-locked'); msg('Code de confirmation'); return; } msg('Trop d\'erreurs : réessayez dans ' + r + ' s', true); };
+        tick(); lockT = setInterval(tick, 500);
+      };
+      var check = function () {
+        busy = true;
+        ajax('checkPin', { pin: code }).then(function (r) {
+          r = r || {};
+          if (r.ok) { close(); resolve(); return; }
+          code = ''; paint(); busy = false;
+          box.classList.remove('tl-pin-shake'); void box.offsetWidth; box.classList.add('tl-pin-shake');
+          if (r.nocode) { close(); reject(new Error('Aucun code de confirmation réglé dans la configuration du plugin')); return; }
+          if (r.locked > 0) locked(r.locked); else msg('Code faux · ' + (r.left || 0) + ' essai' + (r.left > 1 ? 's' : '') + ' restant' + (r.left > 1 ? 's' : ''), true);
+        }, function (err) { code = ''; paint(); busy = false; msg((err && err.message) || 'Erreur', true); });
+      };
+      var press = function (k) {
+        if (k === 'x') { close(); reject(new Error('Action annulée')); return; }
+        if (busy) return;
+        if (k === 'b') { code = code.slice(0, -1); paint(); return; }
+        if (code.length >= len) return;
+        code += k; paint();
+        if (sub.classList.contains('tl-pin-bad')) msg('Code de confirmation');
+        if (code.length === len) setTimeout(check, 120);
+      };
+      var onKey = function (e) { if (/^[0-9]$/.test(e.key)) press(e.key); else if (e.key === 'Backspace') press('b'); else if (e.key === 'Escape') press('x'); else return; e.preventDefault(); e.stopPropagation(); };
+      ['pointerdown', 'mousedown', 'touchstart', 'click'].forEach(function (ev) { ov.addEventListener(ev, function (e) { e.stopPropagation(); }, { passive: ev !== 'click' }); });
+      ov.addEventListener('click', function (e) { var b = e.target.closest && e.target.closest('button[data-k]'); if (b) press(b.getAttribute('data-k')); else if (e.target === ov) press('x'); });
+      document.addEventListener('keydown', onKey, true);
+      document.body.appendChild(ov);
+    });
+  };
+
   Page.prototype.exec = function (id, value) {
+    var self = this, pinT = (!this.opts.edit && cleanId(id)) ? this.pinFor(cleanId(id)) : null;
+    if (pinT) return this.askPin(pinT.title).then(function () { return self.execNow(id, value); });
+    return this.execNow(id, value);
+  };
+  Page.prototype.execNow = function (id, value) {
     var self = this;
     return new Promise(function (resolve, reject) {
       id = cleanId(id);

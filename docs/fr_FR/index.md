@@ -480,3 +480,13 @@ La tuile n'est redessinée que si quelque chose a vraiment changé. Un réglage 
 
 - **Les valeurs ne bougent pas en direct** : elles arrivent par les événements du core. Si une interface ne les reçoit pas, activez **Rafraîchissement de secours** dans la configuration du plugin (en secondes). Les valeurs sont aussi relues quand l'onglet ou l'appli revient au premier plan.
 - **Une commande apparaît barrée dans l'éditeur** : elle a été supprimée, choisissez-en une autre.
+
+## Code de confirmation
+
+Dans la configuration du plugin, réglez un **Code de confirmation** (4 à 8 chiffres). Puis, dans une tuile (partie « Tuile »), choisissez **Code de confirmation** :
+
+- **Sur le On** : allumer, ouvrir, monter, armer… demandent le code ;
+- **Sur le Off** : éteindre, fermer, descendre, désarmer… demandent le code ;
+- **Sur toutes les actions**.
+
+Un clavier à gros chiffres s'ouvre ; il valide tout seul quand tous les chiffres sont tapés. Le code est vérifié par Jeedom : il n'apparaît jamais dans les pages ni dans la sauvegarde « Tout exporter ». Après 3 codes faux, le clavier est bloqué 30 secondes. Un bouton « toggle » (une seule action pour allumer et éteindre) suit son info d'état : s'il est éteint, l'appui compte comme un On ; s'il est allumé, comme un Off. Sans info d'état, le code est demandé dans les deux cas.
