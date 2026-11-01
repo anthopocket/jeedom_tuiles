@@ -502,3 +502,9 @@ La tuile **Réveil** suit les statuts du plugin Réveils, appareil par appareil 
 ### Planning Réveils : Papa / Armand et semaines
 
 Avec le Rémi activé dans le plugin Réveils, chaque jour du planning montre deux heures : la tienne (pastille orange, initiale du prénom réglé dans le plugin) et celle de l'enfant (pastille bleue ; soulignée quand c'est une heure forcée). Les jours sans enfant, seule ta ligne s'affiche. Outil **✎ Heure** : la fenêtre demande **pour qui** (toi, l'enfant, ou les deux), puis l'heure, « Pas de réveil » ou « Normal ». Un appui sur le **numéro de semaine** (S45) ouvre le réglage de la semaine : profil de semaine, même heure du lundi au vendredi, pas de réveil ou retour à la normale, pour toi, l'enfant ou les deux. Ce sont les commandes du plugin (Exception, Rémi, Semaine) : il faut une version du plugin Réveils qui les a (sauvegarder l'équipement pour les créer).
+
+## Bandeau d'alertes
+
+Dans « Régler la barre d'onglets… », pour chaque appareil, partie **Bandeau d'alertes** : cochez « Afficher un bandeau rouge en haut de l'écran quand il y a un problème ». Tant que tout va bien, rien ne s'affiche. Dès qu'un défaut apparaît, une pastille rouge « ⚠ N problèmes » se pose en haut de **toutes les pages** de l'appareil (orange si ce ne sont que des avertissements, par exemple une pile sans nouvelles). Un appui ouvre la liste, rangée par source, avec « Revérifier » et « Voir la page » (la page choisie, par exemple Monitoring).
+
+Sources au choix : piles faibles (seuils de chaque équipement dans Jeedom) et piles sans nouvelles depuis X heures, équipements réseau hors ligne (plugin Network), démons arrêtés et dépendances NOK, équipements qui ne communiquent plus (délai Jeedom dépassé). Vérification toutes les 5 minutes par défaut, et dès que l'écran se rallume. « Ignorer » : des noms d'équipements à ne jamais signaler (ex. un équipement débranché exprès).

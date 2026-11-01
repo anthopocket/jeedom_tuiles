@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.73.0';
+  var VERSION = '1.74.0';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -690,7 +690,7 @@
     }
     this.timers.push(setInterval(function () { self.tiles.forEach(function (a) { self.markAge(a); }); }, 60000));
     syncTime(); this.timers.push(setInterval(syncTime, 5 * 60000));
-    if (!this.opts.edit) { this.setupHomeReturn(); this.setupHomeZone(); this.setupVeille(); }
+    if (!this.opts.edit) { this.setupHomeReturn(); this.setupHomeZone(); this.setupVeille(); this.setupAlertBar(); }
   }
 
   /** Retour à la page d'accueil sans bouton : glisser depuis le bord gauche, et / ou retour automatique après inactivité. */
@@ -793,6 +793,86 @@
     document.body.appendChild(z);
     var offs = this.homeOffs = this.homeOffs || [];
     offs.push(function () { if (z.parentNode) z.parentNode.removeChild(z); });
+  };
+
+  /** Bandeau d'alertes : invisible quand tout va bien ; une pastille rouge en haut de l'écran dès qu'il y a un défaut
+   *  (piles, réseau, démons, équipements muets). Un appui ouvre la liste. Réglé par appareil dans le menu. */
+  var ALERT_SRC = { bat: ['🔋', 'Piles'], net: ['📡', 'Réseau'], dm: ['⚙', 'Démons et dépendances'], to: ['⏱', 'Équipements muets'] };
+  Page.prototype.setupAlertBar = function () {
+    var dev = this.data.device === 'mobile' ? 'mobile' : 'tablette', self = this, nav = navFor(this.data.nav, dev);
+    var a = nav.alerts || {};
+    if (!a.on) return;
+    var ign = String(a.ignore || '').toLowerCase().split(/[;\n,]+/).map(function (x) { return x.trim(); }).filter(Boolean);
+    var ignored = function (name) { var n = String(name || '').toLowerCase(); return ign.some(function (x) { return n.indexOf(x) >= 0; }); };
+    var pill = el('button', 'tl-alert-pill');
+    pill.type = 'button';
+    pill.style.display = 'none';
+    document.body.appendChild(pill);
+    var offs = this.homeOffs = this.homeOffs || [];
+    offs.push(function () { if (pill.parentNode) pill.parentNode.removeChild(pill); });
+    var probs = [], at = null;
+    var since = function (d) { d = parseDate(d); return d ? relative(d).replace('il y a ', '') : ''; };
+    var check = function () {
+      if (self.destroyed || document.hidden) return;
+      var jobs = [];
+      if (a.bat !== false) jobs.push(ajax('getBatteries', {}).then(function (rows) {
+        return (rows || []).map(function (r) {
+          var d = parseDate(r.date), stale = num(a.stale, 72) > 0 && d && (Date.now() - d.getTime()) > num(a.stale, 72) * 3600000;
+          if (r.level <= r.warning) return { src: 'bat', name: r.name, obj: r.object, txt: 'pile ' + r.level + ' %', err: r.level <= r.danger };
+          if (stale) return { src: 'bat', name: r.name, obj: r.object, txt: 'sans nouvelles depuis ' + since(r.date), err: false };
+          return null;
+        });
+      }, function () { return []; }));
+      if (a.net !== false) jobs.push(ajax('getNetworks', {}).then(function (r) {
+        return ((r && r.items) || []).filter(function (x) { return isActive(x.status) !== true; }).map(function (x) { return { src: 'net', name: x.name, obj: x.ip || x.object, txt: 'hors ligne ' + (since(x.since) ? 'depuis ' + since(x.since) : ''), err: true }; });
+      }, function () { return []; }));
+      if (a.dm !== false) jobs.push(ajax('getDaemons', {}).then(function (rows) {
+        return (rows || []).filter(dmProblem).map(function (x) {
+          var t2 = [x.hasDaemon && x.daemon !== 'ok' && x.auto !== 0 ? 'démon arrêté' : '', x.hasDep && x.dep !== 'ok' && x.dep !== 'in_progress' ? 'dépendances NOK' : ''].filter(Boolean).join(' · ');
+          return { src: 'dm', name: x.name, obj: '', txt: t2, err: true };
+        });
+      }, function () { return []; }));
+      if (a.to) jobs.push(ajax('getTimeouts', {}).then(function (rows) {
+        return (rows || []).map(function (x) { return { src: 'to', name: x.name, obj: x.object, txt: 'muet' + (since(x.last) ? ' depuis ' + since(x.last) : ''), err: false }; });
+      }, function () { return []; }));
+      Promise.all(jobs).then(function (res) {
+        probs = [].concat.apply([], res).filter(function (x) { return x && !ignored(x.name); });
+        at = now();
+        paint();
+      });
+    };
+    var paint = function () {
+      var n = probs.length;
+      pill.style.display = n ? '' : 'none';
+      if (!n) return;
+      var by = {};
+      probs.forEach(function (x) { by[x.src] = (by[x.src] || 0) + 1; });
+      pill.classList.toggle('tl-alert-warn', !probs.some(function (x) { return x.err; }));
+      pill.innerHTML = '<span class="tl-alert-ico">⚠</span><b>' + n + ' problème' + (n > 1 ? 's' : '') + '</b><span class="tl-alert-src">' +
+        Object.keys(ALERT_SRC).filter(function (k) { return by[k]; }).map(function (k) { return ALERT_SRC[k][0] + ' ' + by[k]; }).join('  ') + '</span>';
+    };
+    pill.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var body = el('div', 'tl-alert-list');
+      Object.keys(ALERT_SRC).forEach(function (k) {
+        var rows = probs.filter(function (x) { return x.src === k; });
+        if (!rows.length) return;
+        body.appendChild(el('div', 'tl-alert-h', ALERT_SRC[k][0] + ' ' + esc(ALERT_SRC[k][1]) + ' <span>' + rows.length + '</span>'));
+        rows.forEach(function (x) {
+          body.appendChild(el('div', 'tl-alert-row' + (x.err ? ' tl-alert-err' : ''), '<b>' + esc(x.name) + '</b>' + (x.obj ? '<small>' + esc(x.obj) + '</small>' : '') + '<em>' + esc(x.txt) + '</em>'));
+        });
+      });
+      if (at) body.appendChild(el('div', 'tl-alert-at', 'Vérifié à ' + pad(at.getHours()) + ':' + pad(at.getMinutes())));
+      var btns = [{ label: 'Fermer' }, { label: 'Revérifier', click: function () { check(); } }];
+      var pg = cleanId(a.page);
+      if (pg && String(pg) !== String(self.data.id)) btns.push({ label: 'Voir la page', primary: true, click: function () { self.navigate({ target: 'page', page: pg }); } });
+      UI.modal({ title: '⚠ ' + probs.length + ' problème' + (probs.length > 1 ? 's' : ''), body: body, buttons: btns, wide: true });
+    });
+    var onVis = function () { if (!document.hidden) check(); };
+    document.addEventListener('visibilitychange', onVis);
+    offs.push(function () { document.removeEventListener('visibilitychange', onVis); });
+    setTimeout(check, 1500);
+    this.timers.push(setInterval(check, Math.max(60, num(a.every, 300)) * 1000));
   };
 
   /** Écran de veille : construction (partagée avec l'aperçu de l'éditeur). */
@@ -1135,7 +1215,7 @@
   /** Barre d'onglets : les pages du même appareil, la page courante en surbrillance. */
   /** Liste ordonnée des onglets : réglage commun (ordre, nom, icône, visible), puis les pages non classées. */
   /** Réglages de la barre pour un appareil : ceux de l'appareil (nav.dev[dev]) priment sur les réglages communs. */
-  var NAV_DEV_KEYS = ['size', 'home', 'homeLabel', 'homeIcon', 'swipeHome', 'swipeDist', 'idleHome', 'full', 'veille', 'veilleDate', 'veilleLogo', 'veilleColor', 'veilleLum', 'veilleSize', 'veilleBg', 'homeZone', 'homeZoneSize', 'homeZoneShow'];
+  var NAV_DEV_KEYS = ['size', 'home', 'homeLabel', 'homeIcon', 'swipeHome', 'swipeDist', 'idleHome', 'full', 'veille', 'veilleDate', 'veilleLogo', 'veilleColor', 'veilleLum', 'veilleSize', 'veilleBg', 'homeZone', 'homeZoneSize', 'homeZoneShow', 'alerts'];
   function navFor(nav, dev) {
     nav = nav || {};
     var out = {}, d = (nav.dev && nav.dev[dev]) || {};

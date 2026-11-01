@@ -1730,3 +1730,15 @@ body.tl-kiosk #tl-panel-root { position: fixed !important; inset: 0 !important; 
 .tl-rp-wbtn.tl-on { border-color: #fb8c00; color: #ffb74d; }
 .tl-rv-edit-lbl { font-size: 13px; opacity: .7; margin: 8px 0 4px; text-align: center; }
 .tl-rv-edit-note { font-size: 13px; color: #4dd0e1; margin: 0 0 8px; text-align: center; }
+
+/* ===== Bandeau d'alertes (seulement s'il y a un défaut) ===== */
+.tl-alert-pill { position: fixed; top: 10px; left: 50%; transform: translateX(-50%); z-index: 1036; display: flex; align-items: center; gap: 10px; border: 0; border-radius: 99px; padding: 9px 20px; background: #b3261e; color: #fff; font: 700 17px Inter, Roboto, system-ui, sans-serif; cursor: pointer; box-shadow: 0 6px 24px rgba(0,0,0,.6), 0 0 18px rgba(229,72,77,.6); animation: tl-alert-glow 2.4s ease-in-out infinite; -webkit-tap-highlight-color: transparent; white-space: nowrap; }
+.tl-alert-pill.tl-alert-warn { background: #b26a00; box-shadow: 0 6px 24px rgba(0,0,0,.6), 0 0 18px rgba(255,167,38,.5); }
+.tl-alert-ico { font-size: 1.15em; } .tl-alert-src { font-weight: 600; opacity: .9; font-size: .88em; }
+@keyframes tl-alert-glow { 50% { box-shadow: 0 6px 24px rgba(0,0,0,.6), 0 0 30px rgba(229,72,77,.9); } }
+.tl-alert-list { text-align: left; max-height: 60vh; overflow: auto; }
+.tl-alert-h { font-weight: 800; margin: 10px 0 4px; display: flex; gap: 8px; align-items: center; } .tl-alert-h span { background: #e5484d; color: #fff; border-radius: 99px; padding: 0 8px; font-size: 12px; }
+.tl-alert-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px; padding: 6px 8px; border-radius: 8px; background: rgba(255,255,255,.04); margin-bottom: 4px; border-left: 3px solid #ffa726; }
+.tl-alert-row.tl-alert-err { border-left-color: #e5484d; }
+.tl-alert-row b { flex: 1 1 0; min-width: 0; } .tl-alert-row em { font-style: normal; color: #ff8b8f; font-size: 13px; margin-left: auto; } .tl-alert-row small { flex-basis: 100%; opacity: .6; font-size: 12px; }
+.tl-alert-at { font-size: 12px; opacity: .55; text-align: center; margin-top: 8px; }

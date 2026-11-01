@@ -1021,6 +1021,7 @@
           swipeHome: c.swipeHome !== undefined ? !!c.swipeHome : !!nav.swipeHome, swipeDist: c.swipeDist || nav.swipeDist || 100, idleHome: c.idleHome !== undefined ? c.idleHome : (nav.idleHome || 0),
           veille: c.veille !== undefined ? c.veille : (nav.veille || 0), veilleDate: c.veilleDate !== undefined ? !!c.veilleDate : !!nav.veilleDate, veilleLogo: c.veilleLogo !== undefined ? c.veilleLogo : (nav.veilleLogo || ''),
           veilleColor: c.veilleColor || nav.veilleColor || '#8a8a8a', veilleLum: c.veilleLum || nav.veilleLum || 100, veilleSize: c.veilleSize || nav.veilleSize || 100, veilleBg: c.veilleBg || nav.veilleBg || '#000000',
+          alerts: Object.assign({ on: false, bat: true, stale: 72, net: true, dm: true, to: false, every: 300, page: '', ignore: '' }, c.alerts || {}),
           homeZone: c.homeZone !== undefined ? c.homeZone : (nav.homeZone || ''), homeZoneSize: c.homeZoneSize || nav.homeZoneSize || 70, homeZoneShow: c.homeZoneShow !== undefined ? !!c.homeZoneShow : !!nav.homeZoneShow,
           full: c.full !== undefined ? !!c.full : d[0] === 'mobile'
         };
@@ -1102,6 +1103,24 @@
         var vprev = $('<a class="btn btn-default btn-sm"><i class="fas fa-eye"></i> Voir la veille</a>').on('click', function () { if (window.Tuiles && Tuiles.veillePreview) Tuiles.veillePreview(c); });
         vb.append($('<div style="margin-top:6px"></div>').append(vprev).append(' <span class="tl-ed-hint" style="display:inline">un appui la ferme</span>'));
         pane.append($('<div class="tl-ed-navopt"><b>Écran de veille :</b></div>')).append(vb);
+        var al = c.alerts, ab = $('<div class="tl-ed-navhome"></div>');
+        var ack = function (k, label) { var x = $('<input type="checkbox">').prop('checked', !!al[k]).on('change', function () { al[k] = x.is(':checked'); }); return $('<label class="tl-ed-inline"></label>').append(x).append(' ' + label); };
+        ab.append(ack('on', '<b>Afficher un bandeau rouge en haut de l\'écran quand il y a un problème</b> (invisible sinon)'));
+        ab.append(ack('bat', '🔋 Piles faibles (seuils des équipements Jeedom)'));
+        var stl = $('<input type="number" min="0" max="2000" step="12" class="form-control input-sm" style="width:80px">').val(al.stale).on('input', function () { al.stale = parseInt($(this).val(), 10) || 0; });
+        ab.append($('<label class="tl-ed-inline" style="margin-left:22px"></label>').text('… et piles sans nouvelles depuis plus de ').append(stl).append(' h (0 = non)'));
+        ab.append(ack('net', '📡 Équipements réseau hors ligne (plugin Network)'));
+        ab.append(ack('dm', '⚙ Démons arrêtés et dépendances NOK'));
+        ab.append(ack('to', '⏱ Équipements qui ne communiquent plus (délai Jeedom dépassé)'));
+        var ev = $('<input type="number" min="60" max="3600" step="60" class="form-control input-sm" style="width:80px">').val(al.every).on('input', function () { al.every = parseInt($(this).val(), 10) || 300; });
+        ab.append($('<label class="tl-ed-inline"></label>').text('Vérifier toutes les ').append(ev).append(' s'));
+        var apg = $('<select class="form-control input-sm" style="width:auto;display:inline-block"></select>').append('<option value="">Aucune</option>');
+        E.pages.filter(function (pg) { return devOf(pg) === dev; }).forEach(function (pg) { apg.append($('<option>').val(pg.id).text(pg.name)); });
+        apg.val(al.page || '').on('change', function () { al.page = apg.val(); });
+        ab.append($('<label class="tl-ed-inline"></label>').text('Bouton « Voir la page » : ').append(apg));
+        var ig = $('<input type="text" class="form-control input-sm" style="width:340px" placeholder="ex. OMG Garage; HomeAssistant">').val(al.ignore || '').on('input', function () { al.ignore = $(this).val(); });
+        ab.append($('<label class="tl-ed-inline"></label>').text('Ignorer (noms, séparés par ;) : ').append(ig));
+        pane.append($('<div class="tl-ed-navopt"><b>Bandeau d\'alertes :</b></div>')).append(ab);
         pane.append('<div class="tl-ed-hint">Onglets : glissez les lignes pour changer l\'ordre, décochez pour masquer. Une page peut masquer la barre dans ses réglages (Style → Onglets).</div>');
         var listEl = $('<div class="tl-ed-navlist"></div>');
         pane.append(listEl);
@@ -1153,7 +1172,7 @@
           var dev = {}, flat = [];
           DEVS.forEach(function (d) {
             var c = conf[d[0]];
-            dev[d[0]] = { size: c.size || 100, full: !!c.full, home: !!c.home, homeLabel: c.homeLabel || '', homeIcon: c.homeIcon || '', swipeHome: !!c.swipeHome, swipeDist: c.swipeDist || 100, idleHome: c.idleHome || 0, veille: c.veille || 0, veilleDate: !!c.veilleDate, veilleLogo: c.veilleLogo || '', veilleColor: c.veilleColor || '#8a8a8a', veilleLum: c.veilleLum || 100, veilleSize: c.veilleSize || 100, veilleBg: c.veilleBg || '#000000', homeZone: c.homeZone || '', homeZoneSize: c.homeZoneSize || 70, homeZoneShow: !!c.homeZoneShow, items: items[d[0]].map(mapIt) };
+            dev[d[0]] = { size: c.size || 100, full: !!c.full, home: !!c.home, homeLabel: c.homeLabel || '', homeIcon: c.homeIcon || '', swipeHome: !!c.swipeHome, swipeDist: c.swipeDist || 100, idleHome: c.idleHome || 0, veille: c.veille || 0, veilleDate: !!c.veilleDate, veilleLogo: c.veilleLogo || '', veilleColor: c.veilleColor || '#8a8a8a', veilleLum: c.veilleLum || 100, veilleSize: c.veilleSize || 100, veilleBg: c.veilleBg || '#000000', alerts: c.alerts, homeZone: c.homeZone || '', homeZoneSize: c.homeZoneSize || 70, homeZoneShow: !!c.homeZoneShow, items: items[d[0]].map(mapIt) };
             flat = flat.concat(items[d[0]].map(mapIt));
           });
           var c0 = conf[DEVS[0][0]];

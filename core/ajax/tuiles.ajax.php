@@ -79,6 +79,10 @@ try {
 			ajax::success(tuiles::networks());
 			break;
 
+		case 'getTimeouts':
+			ajax::success(tuiles::timeouts());
+			break;
+
 		case 'getBatteries':
 			ajax::success(tuiles::batteries());
 			break;

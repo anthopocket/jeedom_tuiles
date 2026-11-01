@@ -328,6 +328,7 @@ class tuiles extends eqLogic {
 				'homeZone' => isset($c['homeZone']) && in_array($c['homeZone'], array('tl', 'tr', 'bl', 'br'), true) ? $c['homeZone'] : '',
 				'homeZoneSize' => isset($c['homeZoneSize']) && is_numeric($c['homeZoneSize']) ? max(30, min(200, intval($c['homeZoneSize']))) : 70,
 				'homeZoneShow' => !empty($c['homeZoneShow']) && $c['homeZoneShow'] !== 'false',
+				'alerts' => self::cleanAlerts(isset($c['alerts']) ? $c['alerts'] : array()),
 				'items' => $dItems,
 			);
 		}
@@ -342,6 +343,25 @@ class tuiles extends eqLogic {
 	public static function deviceOf($layout) {
 		$d = isset($layout['grid']['device']) ? $layout['grid']['device'] : 'tablette';
 		return $d === 'mobile' ? 'mobile' : 'tablette';
+	}
+
+	/** Bandeau d'alertes d'un appareil : sources surveillées et réglages. */
+	private static function cleanAlerts($a) {
+		if (!is_array($a)) {
+			return array('on' => false);
+		}
+		$b = function ($k, $def) use ($a) { return isset($a[$k]) ? (!empty($a[$k]) && $a[$k] !== 'false' && $a[$k] !== '0') : $def; };
+		return array(
+			'on' => $b('on', false),
+			'bat' => $b('bat', true),
+			'stale' => isset($a['stale']) && is_numeric($a['stale']) ? max(0, min(2000, intval($a['stale']))) : 72,
+			'net' => $b('net', true),
+			'dm' => $b('dm', true),
+			'to' => $b('to', false),
+			'every' => isset($a['every']) && is_numeric($a['every']) ? max(60, min(3600, intval($a['every']))) : 300,
+			'page' => isset($a['page']) ? self::cleanId($a['page']) : '',
+			'ignore' => isset($a['ignore']) ? substr(trim((string) $a['ignore']), 0, 500) : '',
+		);
 	}
 
 	/** Code de confirmation : vérifié ici, jamais envoyé aux pages. 3 erreurs = 30 s de blocage. */
@@ -741,6 +761,20 @@ class tuiles extends eqLogic {
 	}
 
 	/* ---------- Démons et dépendances des plugins (fonctions du core) ---------- */
+
+	/** Équipements actifs dont le délai de communication Jeedom est dépassé (statut « timeout »). */
+	public static function timeouts() {
+		$out = array();
+		foreach (eqLogic::all() as $eq) {
+			if ($eq->getIsEnable() != 1 || $eq->getStatus('timeout', 0) != 1) {
+				continue;
+			}
+			$obj = $eq->getObject();
+			$out[] = array('id' => $eq->getId(), 'name' => $eq->getName(), 'object' => is_object($obj) ? $obj->getName() : '',
+				'plugin' => $eq->getEqType_name(), 'last' => $eq->getStatus('lastCommunication', ''));
+		}
+		return $out;
+	}
 
 	public static function daemons() {
 		$out = array();
