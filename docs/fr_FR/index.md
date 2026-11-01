@@ -508,3 +508,13 @@ Avec le Rémi activé dans le plugin Réveils, chaque jour du planning montre de
 Dans « Régler la barre d'onglets… », pour chaque appareil, partie **Bandeau d'alertes** : cochez « Afficher un bandeau rouge en haut de l'écran quand il y a un problème ». Tant que tout va bien, rien ne s'affiche. Dès qu'un défaut apparaît, une pastille rouge « ⚠ N problèmes » se pose en haut de la page choisie dans **« Afficher sur »** (la page d'accueil seulement par défaut, toutes les pages, ou une page précise) (orange si ce ne sont que des avertissements, par exemple une pile sans nouvelles). Un appui ouvre la liste, rangée par source, avec « Revérifier » et « Voir la page » (la page choisie, par exemple Monitoring).
 
 Sources au choix : piles faibles (seuils de chaque équipement dans Jeedom) et piles sans nouvelles depuis X heures, équipements réseau hors ligne (plugin Network), démons arrêtés et dépendances NOK, équipements qui ne communiquent plus (délai Jeedom dépassé). Vérification toutes les 5 minutes par défaut, et dès que l'écran se rallume. « Ignorer » : des noms d'équipements à ne jamais signaler (ex. un équipement débranché exprès).
+
+## Santé de la maison (page Monitoring)
+
+Fonction **Santé de la maison** (famille « Afficher une info »), trois affichages :
+
+- **Liste des problèmes avec onglets** : l'onglet « Problèmes » mélange tout ce qui ne va pas, du plus grave au moins grave (rouge = défaut, orange = avertissement) ; les onglets Piles, Réseau, Démons, VM Jeedom affichent toute la catégorie, problèmes en premier. Un appui sur un équipement réseau propose le ping / réveil ; sur un plugin, relancer le démon ou les dépendances.
+- **Résumé** : un grand compteur « ⚠ N problèmes » ou « ✓ Tout va bien », le détail par source et l'heure de vérification. Un appui revérifie.
+- **VM Jeedom** : des jauges à partir des commandes du plugin Monitoring (une ligne par valeur : libellé, commande, unité, sens « trop haute » ou « trop basse », seuils orange et rouge, maximum de la barre). Au-delà d'un seuil, la valeur compte comme un problème. Les valeurs réglées dans cette tuile servent aussi aux tuiles Liste et Résumé de la même page.
+
+Sources au choix dans chaque tuile : piles faibles et piles sans nouvelles, réseau (plugin Network), démons et dépendances, équipements qui ne communiquent plus ; « Ignorer » pour écarter des noms. Vérification toutes les 5 minutes.

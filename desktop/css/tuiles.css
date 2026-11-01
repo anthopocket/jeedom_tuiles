@@ -1742,3 +1742,37 @@ body.tl-kiosk #tl-panel-root { position: fixed !important; inset: 0 !important; 
 .tl-alert-row.tl-alert-err { border-left-color: #e5484d; }
 .tl-alert-row b { flex: 1 1 0; min-width: 0; } .tl-alert-row em { font-style: normal; color: #ff8b8f; font-size: 13px; margin-left: auto; } .tl-alert-row small { flex-basis: 100%; opacity: .6; font-size: 12px; }
 .tl-alert-at { font-size: 12px; opacity: .55; text-align: center; margin-top: 8px; }
+
+/* ===== Santé de la maison ===== */
+.tl-hs { width: 100%; height: 100%; display: flex; flex-direction: column; min-height: 0; container-type: size; text-align: left; }
+.tl-hs-tile[data-level="err"] { box-shadow: 0 0 22px rgba(229,72,77,.3), inset 0 0 0 1.5px #e5484d; }
+.tl-hs-tile[data-level="warn"] { box-shadow: inset 0 0 0 1.5px #b26a00; }
+.tl-hs-resume[data-level="ok"] { box-shadow: inset 0 0 0 1.5px #1f6f43; }
+.tl-hs-big { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; }
+.tl-hs-bico { font-size: clamp(30px, 22cqh, 110px); line-height: 1; }
+.tl-hs-big b { font-size: clamp(40px, 34cqh, 170px); line-height: 1; color: #ff6b6f; font-weight: 800; }
+.tl-hs-tile[data-level="warn"] .tl-hs-big b { color: #ffb74d; }
+.tl-hs-okico { width: clamp(50px, 34cqh, 150px); height: clamp(50px, 34cqh, 150px); border-radius: 50%; border: 6px solid #2ecc71; color: #2ecc71; display: flex; align-items: center; justify-content: center; font-size: clamp(28px, 20cqh, 90px); }
+.tl-hs-blab { font-size: clamp(14px, 8cqh, 34px); color: #c9d1d9; font-weight: 700; }
+.tl-hs-srcs { display: flex; justify-content: center; gap: 14px; flex-wrap: wrap; font-size: clamp(12px, 6cqh, 24px); font-weight: 700; color: #6fe3a0; }
+.tl-hs-srcs .tl-hs-sbad { color: #ff8b8f; }
+.tl-hs-at { text-align: center; font-size: clamp(10px, 4.5cqh, 16px); color: #9aa4b2; margin-top: 4px; }
+.tl-hs-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 10px; }
+.tl-hs-tab { border: 0; border-radius: 10px; padding: 8px 16px; background: rgba(255,255,255,.06); color: #e6edf3; font: inherit; font-weight: 700; font-size: clamp(13px, 2.4cqh, 18px); cursor: pointer; }
+.tl-hs-tab.tl-on { background: #1f6feb; color: #fff; }
+.tl-hs-tab.tl-hs-tab-bad:not(.tl-on) { color: #ff8b8f; }
+.tl-hs-list { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.tl-hs-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border-radius: 10px; background: rgba(255,255,255,.04); border-left: 4px solid #2ecc71; }
+.tl-hs-row.tl-hs-err { border-left-color: #e5484d; } .tl-hs-row.tl-hs-warn { border-left-color: #ffa726; }
+.tl-hs-n { min-width: 0; } .tl-hs-n b { display: block; font-size: clamp(14px, 3.2cqh, 22px); font-weight: 600; color: #e6edf3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tl-hs-n small { display: block; font-size: clamp(11px, 2cqh, 15px); color: #9aa4b2; }
+.tl-hs-row em { font-style: normal; font-weight: 700; font-size: clamp(13px, 2.6cqh, 20px); white-space: nowrap; color: #6fe3a0; }
+.tl-hs-err em { color: #ff8b8f; } .tl-hs-warn em { color: #ffb74d; }
+.tl-hs-allok { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: #2ecc71; font-size: clamp(16px, 4cqh, 26px); font-weight: 700; }
+.tl-hs-allok span { width: 70px; height: 70px; border-radius: 50%; border: 5px solid #2ecc71; display: flex; align-items: center; justify-content: center; font-size: 36px; }
+.tl-hs-vm .tl-hs { justify-content: center; gap: 4px; }
+.tl-hs-gauge { margin-bottom: 8px; }
+.tl-hs-gl { display: flex; justify-content: space-between; font-size: clamp(13px, 7cqh, 22px); color: #c9d1d9; } .tl-hs-gl b { color: #fff; }
+.tl-hs-bar { height: clamp(8px, 4cqh, 16px); border-radius: 99px; background: #1d2229; overflow: hidden; margin-top: 4px; }
+.tl-hs-bar i { display: block; height: 100%; border-radius: 99px; background: #2ecc71; }
+.tl-hs-g-warn .tl-hs-bar i { background: #ffa726; } .tl-hs-g-err .tl-hs-bar i { background: #e5484d; } .tl-hs-g-err .tl-hs-gl b { color: #ff8b8f; } .tl-hs-g-warn .tl-hs-gl b { color: #ffb74d; }

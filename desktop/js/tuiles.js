@@ -22,6 +22,7 @@
       batteries: 'Batteries (piles des équipements)',
       reseau: 'Réseau (plugin Network)',
       demons: 'Démons et dépendances des plugins',
+      sante: 'Santé de la maison (piles, réseau, démons, VM Jeedom)',
       zones: 'Zones d\'alarme (Risco)',
       vigieau: 'VigiEau (restrictions d\'eau)'
     }],
@@ -433,6 +434,16 @@
       { k: 'cmdEnd', l: 'Info date de fin', f: 'cmd', filter: C_INFO },
       { k: 'cmdMesures', l: 'Info mesures', f: 'cmd', filter: C_INFO },
       { k: 'cmdImport', l: 'Info date d\'import', f: 'cmd', filter: C_INFO }],
+    sante: [{ k: 'hsStyle', l: 'Affichage', f: 'sel', o: { '': 'Liste des problèmes avec onglets (Piles, Réseau…)', resume: 'Résumé : grand compteur de problèmes', vm: 'VM Jeedom : jauges (plugin Monitoring)' }, keep: true },
+      { k: 'hsBat', l: '🔋 Piles faibles', f: 'check', keepFalse: true, defOn: function () { return true; } },
+      { k: 'hsStale', l: 'Piles sans nouvelles depuis (h)', f: 'num', ph: '72', help: '0 = ne pas signaler.' },
+      { k: 'hsNet', l: '📡 Réseau hors ligne (plugin Network)', f: 'check', keepFalse: true, defOn: function () { return true; } },
+      { k: 'hsDm', l: '⚙ Démons et dépendances', f: 'check', keepFalse: true, defOn: function () { return true; } },
+      { k: 'hsTo', l: '⏱ Équipements qui ne communiquent plus', f: 'check' },
+      { k: 'hsVm', l: 'VM Jeedom (commandes du plugin Monitoring)', f: 'lines', schema: 'vm', help: 'Une ligne par valeur : disque, mémoire, CPU… Au-delà des seuils, elle compte comme un problème.' },
+      { k: 'hsIgnore', l: 'Ignorer (noms, séparés par ;)', ph: 'ex. OMG Garage; HomeAssistant' },
+      { k: 'okText', l: 'Texte quand tout va bien', ph: 'Aucun problème' },
+      { k: 'hsEvery', l: 'Vérifier toutes les (s)', f: 'num', ph: '300' }],
     demons: [{ k: 'dmMode', l: 'Afficher', f: 'sel', o: { '': 'Seulement les problèmes', tous: 'Tous les plugins avec démon ou dépendances' }, help: 'Problème = démon arrêté alors que sa gestion automatique est activée, ou dépendances non installées. Un appui sur une ligne : démarrer, redémarrer, arrêter, relancer les dépendances, gestion automatique, logs (droits administrateur).' },
       { k: 'dmEvery', l: 'Vérifier toutes les (s)', f: 'num', ph: '60' },
       { k: 'okText', l: 'Texte quand tout va bien', ph: 'Démons et dépendances OK' },
@@ -633,6 +644,18 @@
     { k: 'mobile.hide', l: 'Masquer sur mobile', f: 'check' },
     { k: 'mobile.split', l: 'Sur mobile, une tuile par ligne', f: 'check', show: function (t) { return t.type === 'lignes'; } },
     { k: 'mobile.order', l: 'Ordre sur mobile', f: 'num', ph: 'même ordre' }
+  ];
+  var VM_LINE_SCHEMA = [
+    { k: 'label', l: 'Libellé', ph: 'ex. Disque' },
+    { k: 'cmdInfo', l: 'Info', f: 'cmd', filter: C_INFO },
+    { k: 'unit', l: 'Unité', ph: 'auto' },
+    { k: 'decimals', l: 'Décimales', f: 'num' },
+    { k: 'map', l: 'Libellés (option)', ph: '1=OK;0=Arrêté' },
+    { k: 'dir', l: 'Problème quand la valeur est', f: 'sel', o: { '>': 'trop haute (disque, CPU, température…)', '<': 'trop basse (mémoire libre…)', ok: 'différente d\'un texte (ex. OK)', none: 'jamais (affichage seul)' }, keep: true, rebuild: true },
+    { k: 'okVal', l: 'Texte attendu', ph: 'OK', show: function (l) { return l.dir === 'ok'; } },
+    { k: 'warn', l: 'Seuil orange', f: 'num', show: function (l) { return l.dir !== 'ok' && l.dir !== 'none'; } },
+    { k: 'err', l: 'Seuil rouge', f: 'num', show: function (l) { return l.dir !== 'ok' && l.dir !== 'none'; } },
+    { k: 'max', l: 'Maximum de la barre (0 = pas de barre)', f: 'num', ph: '100', show: function (l) { return l.dir !== 'ok' && l.dir !== 'none'; } }
   ];
   var OUV_LINE_SCHEMA = [
     { k: 'kind', l: 'Type', f: 'sel', o: { fenetre: 'Fenêtre', fenetre2: 'Fenêtre 2 vantaux (2 contacts)', baie: 'Baie coulissante (1 ou 2 contacts)', porte: 'Porte', hublot: 'Hublot', portail: 'Portail', garage: 'Porte de garage', title: 'Titre de groupe (RDC, Étage…)' }, keep: true, rebuild: true },
@@ -1388,7 +1411,7 @@
         ctrl = thresholdsField(obj, onChange, f.k, f.base);
         break;
       case 'lines':
-        ctrl = f.schema === 'ouv' ? linesField(obj, onChange, { key: f.k, schema: OUV_LINE_SCHEMA, add: { kind: 'fenetre', label: '', openValue: '1' }, word: 'Ouvrant', title: function (l) { return l.kind === 'title' ? 'Groupe : ' + (l.label || '') : (l.label || ''); } }) : linesField(obj, onChange);
+        ctrl = f.schema === 'vm' ? linesField(obj, onChange, { key: f.k, schema: VM_LINE_SCHEMA, add: { label: '', dir: '>' }, word: 'Valeur', title: function (l) { return l.label || ''; } }) : f.schema === 'ouv' ? linesField(obj, onChange, { key: f.k, schema: OUV_LINE_SCHEMA, add: { kind: 'fenetre', label: '', openValue: '1' }, word: 'Ouvrant', title: function (l) { return l.kind === 'title' ? 'Groupe : ' + (l.label || '') : (l.label || ''); } }) : linesField(obj, onChange);
         break;
       case 'options':
         ctrl = optionsField(obj, onChange);
@@ -2104,6 +2127,7 @@
       case 'reveil': return Object.assign(base, { title: 'Réveil', w: 1.5, h: 1 });
       case 'reveils': return Object.assign(base, { title: 'Réveils', w: 2, h: 1 });
       case 'reveilplan': return Object.assign(base, { title: 'Planning', w: 2.5, h: 2 });
+      case 'sante': return Object.assign(base, { title: 'Santé', w: 2, h: 2 });
       case 'soleil': return Object.assign(base, { w: 1.5, h: 1 });
       case 'separateur': return Object.assign(base, { title: '', hideTitle: true, w: 0.25, h: 2 });
       case 'camera': return Object.assign(base, { frigateMode: 'rapide', camLive: true, camZoom: true, w: 2, h: 1.5 });

@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.74.1';
+  var VERSION = '1.75.1';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -795,6 +795,50 @@
     offs.push(function () { if (z.parentNode) z.parentNode.removeChild(z); });
   };
 
+  /** Santé de la maison : piles, réseau (Network), démons, équipements muets — lus ensemble, mis en cache 20 s par page.
+   *  a : { bat, stale, net, dm, to } (bat/net/dm actifs sauf false, to seulement si true). */
+  function healthFetch(p, a) {
+    a = a || {};
+    var key = [a.bat !== false, num(a.stale, 72), a.net !== false, a.dm !== false, !!a.to].join('|');
+    p.__hc = p.__hc || {};
+    var c = p.__hc[key];
+    if (c && Date.now() - c.at < 20000) return c.pr;
+    var since = function (d) { d = parseDate(d); return d ? relative(d).replace('il y a ', '') : ''; };
+    var all = { bat: [], net: [], dm: [], to: [] }, jobs = [];
+    if (a.bat !== false) jobs.push(ajax('getBatteries', {}).then(function (rows) {
+      all.bat = (rows || []).map(function (r) {
+        var d = parseDate(r.date), stale = num(a.stale, 72) > 0 && d && (Date.now() - d.getTime()) > num(a.stale, 72) * 3600000;
+        var bad = r.level <= r.warning || stale;
+        return { src: 'bat', id: r.id, name: r.name, obj: r.object, val: r.level + ' %', bad: bad, err: r.level <= r.danger,
+          txt: r.level <= r.warning ? 'pile ' + r.level + ' %' : (stale ? 'sans nouvelles depuis ' + since(r.date) : r.level + ' %'), sort: r.level };
+      });
+    }, function () {}));
+    if (a.net !== false) jobs.push(ajax('getNetworks', {}).then(function (r) {
+      all.net = ((r && r.items) || []).map(function (x) {
+        var on = isActive(x.status) === true, lat = isNum(x.latency) ? Math.round(parseFloat(x.latency)) + ' ms' : 'OK';
+        return { src: 'net', raw: x, name: x.name, obj: x.ip || x.object, bad: !on, err: !on, val: on ? lat : 'HS', txt: on ? lat : 'hors ligne' + (since(x.since) ? ' depuis ' + since(x.since) : ''), sort: on ? 1 : 0 };
+      });
+    }, function () {}));
+    if (a.dm !== false) jobs.push(ajax('getDaemons', {}).then(function (rows) {
+      all.dm = (rows || []).map(function (x) {
+        var bad = dmProblem(x);
+        var t2 = [x.hasDaemon && x.daemon !== 'ok' && x.auto !== 0 ? 'démon arrêté' : '', x.hasDep && x.dep !== 'ok' && x.dep !== 'in_progress' ? 'dépendances NOK' : ''].filter(Boolean).join(' · ');
+        var okTxt = [x.hasDep ? 'dépendances ' + (x.dep === 'ok' ? 'OK' : (x.dep === 'in_progress' ? 'en cours' : 'NOK')) : '', x.hasDaemon ? 'démon ' + (x.daemon === 'ok' ? 'OK' : (x.auto === 0 ? 'arrêté (manuel)' : 'NOK')) : ''].filter(Boolean).join(' · ');
+        return { src: 'dm', raw: x, name: x.name, obj: '', bad: bad, err: bad, val: bad ? 'NOK' : 'OK', txt: bad ? t2 : okTxt, sort: bad ? 0 : 1 };
+      });
+    }, function () {}));
+    if (a.to) jobs.push(ajax('getTimeouts', {}).then(function (rows) {
+      all.to = (rows || []).map(function (x) { return { src: 'to', name: x.name, obj: x.object, bad: true, err: false, val: 'muet', txt: 'muet' + (since(x.last) ? ' depuis ' + since(x.last) : ''), sort: 0 }; });
+    }, function () {}));
+    var pr = Promise.all(jobs).then(function () { return { all: all, at: now() }; });
+    p.__hc[key] = { at: Date.now(), pr: pr };
+    return pr;
+  }
+  function healthIgnore(txt) {
+    var ign = String(txt || '').toLowerCase().split(/[;\n,]+/).map(function (x) { return x.trim(); }).filter(Boolean);
+    return function (name) { var n = String(name || '').toLowerCase(); return ign.some(function (x) { return n.indexOf(x) >= 0; }); };
+  }
+
   /** Bandeau d'alertes : invisible quand tout va bien ; une pastille rouge en haut de l'écran dès qu'il y a un défaut
    *  (piles, réseau, démons, équipements muets). Un appui ouvre la liste. Réglé par appareil dans le menu. */
   var ALERT_SRC = { bat: ['🔋', 'Piles'], net: ['📡', 'Réseau'], dm: ['⚙', 'Démons et dépendances'], to: ['⏱', 'Équipements muets'] };
@@ -806,8 +850,7 @@
     var where = String(a.onPage || ''), cur = String(this.data.id || '');
     if (where === 'home') { var hp = String(((nav.homePages || {})[dev]) || this.data.homeId || ''); if (!hp || hp !== cur) return; }
     else if (where && where !== cur) return;
-    var ign = String(a.ignore || '').toLowerCase().split(/[;\n,]+/).map(function (x) { return x.trim(); }).filter(Boolean);
-    var ignored = function (name) { var n = String(name || '').toLowerCase(); return ign.some(function (x) { return n.indexOf(x) >= 0; }); };
+    var ignored = healthIgnore(a.ignore);
     var pill = el('button', 'tl-alert-pill');
     pill.type = 'button';
     pill.style.display = 'none';
@@ -818,30 +861,9 @@
     var since = function (d) { d = parseDate(d); return d ? relative(d).replace('il y a ', '') : ''; };
     var check = function () {
       if (self.destroyed || document.hidden) return;
-      var jobs = [];
-      if (a.bat !== false) jobs.push(ajax('getBatteries', {}).then(function (rows) {
-        return (rows || []).map(function (r) {
-          var d = parseDate(r.date), stale = num(a.stale, 72) > 0 && d && (Date.now() - d.getTime()) > num(a.stale, 72) * 3600000;
-          if (r.level <= r.warning) return { src: 'bat', name: r.name, obj: r.object, txt: 'pile ' + r.level + ' %', err: r.level <= r.danger };
-          if (stale) return { src: 'bat', name: r.name, obj: r.object, txt: 'sans nouvelles depuis ' + since(r.date), err: false };
-          return null;
-        });
-      }, function () { return []; }));
-      if (a.net !== false) jobs.push(ajax('getNetworks', {}).then(function (r) {
-        return ((r && r.items) || []).filter(function (x) { return isActive(x.status) !== true; }).map(function (x) { return { src: 'net', name: x.name, obj: x.ip || x.object, txt: 'hors ligne ' + (since(x.since) ? 'depuis ' + since(x.since) : ''), err: true }; });
-      }, function () { return []; }));
-      if (a.dm !== false) jobs.push(ajax('getDaemons', {}).then(function (rows) {
-        return (rows || []).filter(dmProblem).map(function (x) {
-          var t2 = [x.hasDaemon && x.daemon !== 'ok' && x.auto !== 0 ? 'démon arrêté' : '', x.hasDep && x.dep !== 'ok' && x.dep !== 'in_progress' ? 'dépendances NOK' : ''].filter(Boolean).join(' · ');
-          return { src: 'dm', name: x.name, obj: '', txt: t2, err: true };
-        });
-      }, function () { return []; }));
-      if (a.to) jobs.push(ajax('getTimeouts', {}).then(function (rows) {
-        return (rows || []).map(function (x) { return { src: 'to', name: x.name, obj: x.object, txt: 'muet' + (since(x.last) ? ' depuis ' + since(x.last) : ''), err: false }; });
-      }, function () { return []; }));
-      Promise.all(jobs).then(function (res) {
-        probs = [].concat.apply([], res).filter(function (x) { return x && !ignored(x.name); });
-        at = now();
+      healthFetch(self, a).then(function (r) {
+        probs = [].concat(r.all.bat, r.all.net, r.all.dm, r.all.to).filter(function (x) { return x.bad && !ignored(x.name); });
+        at = r.at;
         paint();
       });
     };
@@ -5319,6 +5341,133 @@
       loadChild(); paintNow();
     };
   }
+
+  /* ---- Santé de la maison : résumé (grand compteur), liste avec onglets, ou jauges de la VM Jeedom ---- */
+  var HS_SRC = { bat: ['🔋', 'Piles'], net: ['📡', 'Réseau'], dm: ['⚙', 'Démons'], to: ['⏱', 'Muets'], vm: ['🖥', 'VM Jeedom'] };
+  /** Lignes VM (plugin Monitoring) : valeur, niveau selon les seuils (sens « > » : trop haut = mauvais, « < » : trop bas = mauvais). */
+  function hsVmLines(p, t) {
+    if ((t.hsVm || []).some(function (l) { return l && cleanId(l.cmdInfo); })) return t.hsVm;
+    // sinon : les valeurs réglées dans une autre tuile Santé de la page (ex. la tuile « VM Jeedom »)
+    var src = (((p.data.layout || {}).tiles) || []).filter(function (x) { return x && x.type === 'sante' && (x.hsVm || []).some(function (l) { return l && cleanId(l.cmdInfo); }); })[0];
+    return src ? src.hsVm : [];
+  }
+  function hsVmRows(p, t) {
+    return (hsVmLines(p, t) || []).filter(function (l) { return l && cleanId(l.cmdInfo); }).map(function (l) {
+      var m = p.meta(l.cmdInfo), v = m ? m.value : undefined, n = isNum(v) ? parseFloat(v) : null;
+      var low = l.dir === '<', lvl = 'ok';
+      if (l.dir === 'ok') { if (isSet(v) && String(v).trim().toLowerCase() !== String(isSet(l.okVal) ? l.okVal : 'OK').trim().toLowerCase()) lvl = 'err'; }
+      else if (l.dir === 'none') { /* affichage seul */ }
+      else if (n !== null) {
+        if (isNum(l.err) && (low ? n <= parseFloat(l.err) : n >= parseFloat(l.err))) lvl = 'err';
+        else if (isNum(l.warn) && (low ? n <= parseFloat(l.warn) : n >= parseFloat(l.warn))) lvl = 'warn';
+      }
+      var f = fmt({ decimals: l.decimals, unit: l.unit, map: l.map }, m, v);
+      var txt = f.invalid ? '…' : f.text + (f.unit ? (f.unit === '%' ? ' ' : ' ') + f.unit : '');
+      var max = num(l.max, 100), pct = n !== null && max > 0 && l.dir !== 'ok' && l.dir !== 'none' ? Math.max(0, Math.min(1, n / max)) : null;
+      return { src: 'vm', name: l.label || (m && m.name) || 'Valeur', obj: '', val: txt, txt: txt, bad: lvl !== 'ok', err: lvl === 'err', lvl: lvl, pct: pct, sort: lvl === 'ok' ? 1 : 0 };
+    });
+  }
+  R.sante = function (p, t, api) {
+    var style = t.hsStyle || '';
+    api.el.classList.add('tl-hs-tile', 'tl-hs-' + (style || 'liste'));
+    var box = el('div', 'tl-hs');
+    api.body.appendChild(box);
+    var a = { bat: t.hsBat, stale: t.hsStale, net: t.hsNet, dm: t.hsDm, to: t.hsTo };
+    var ignored = healthIgnore(t.hsIgnore);
+    var data = null, tab = 'pb';
+    var demo = function () {
+      return { at: now(), all: {
+        bat: [{ src: 'bat', name: 'Contact de fenêtre', obj: 'Chambre parent', bad: true, err: true, val: '0 %', txt: 'pile 0 %', sort: 0 }, { src: 'bat', name: 'Ulky 2', obj: 'Chien', bad: true, err: false, val: '1 %', txt: 'sans nouvelles depuis 16 j', sort: 1 }, { src: 'bat', name: 'BP', obj: 'Chambre 3', bad: false, val: '97 %', txt: '97 %', sort: 97 }],
+        net: [{ src: 'net', name: 'OMG Garage', obj: '192.168.1.143', bad: true, err: true, val: 'HS', txt: 'hors ligne depuis 205 j', sort: 0 }, { src: 'net', name: 'Frigate', obj: '192.168.1.20', bad: false, val: '0 ms', txt: '0 ms', sort: 1 }],
+        dm: [{ src: 'dm', name: 'Roborock', bad: false, val: 'OK', txt: 'dépendances OK · démon OK', sort: 1 }], to: [] } };
+    };
+    var rowsOf = function (k) {
+      if (!data) return [];
+      if (k === 'vm') return hsVmRows(p, t);
+      return (data.all[k] || []).filter(function (x) { return !ignored(x.name); });
+    };
+    var problems = function () {
+      var out = [];
+      ['bat', 'net', 'dm', 'to', 'vm'].forEach(function (k) { rowsOf(k).forEach(function (x) { if (x.bad) out.push(x); }); });
+      return out.sort(function (x, y) { return (y.err ? 1 : 0) - (x.err ? 1 : 0); });
+    };
+    var hasVm = (hsVmLines(p, t) || []).some(function (l) { return l && cleanId(l.cmdInfo); });
+    var srcs = ['bat', 'net', 'dm'].filter(function (k) { return a[k] !== false; }).concat(a.to ? ['to'] : []).concat(hasVm ? ['vm'] : []);
+    var rowAction = function (x) {
+      if (p.opts.edit) return;
+      if (x.src === 'net' && x.raw) {
+        var r = x.raw, btns = [{ label: 'Fermer' }];
+        if (r.refreshId) btns.push({ label: 'Ping maintenant', click: function () { p.exec(r.refreshId).then(function () { UI.toast('Ping de ' + r.name + ' lancé'); setTimeout(reload, 4000); }, function (e) { UI.toast(e.message, 'error'); }); } });
+        if (r.wolId) btns.push({ label: 'Réveiller (WOL)', primary: true, click: function () { p.exec(r.wolId).then(function () { UI.toast('Réveil de ' + r.name + ' envoyé'); }, function (e) { UI.toast(e.message, 'error'); }); } });
+        UI.modal({ title: r.name, body: '<p>' + esc(x.obj || '') + '</p><p><b>' + esc(x.txt) + '</b></p>', buttons: btns });
+      } else if (x.src === 'dm' && x.raw) {
+        var d = x.raw, act = function (what, label) { ajax('daemonAction', { plugin: d.id, 'do': what }).then(function () { UI.toast(label + ' : ' + d.name); setTimeout(reload, 5000); }, function (e) { UI.toast(e.message, 'error'); }); };
+        var b2 = [{ label: 'Fermer' }];
+        if (d.hasDep && d.dep !== 'in_progress') b2.push({ label: 'Relancer les dépendances', click: function () { act('dep', 'Installation des dépendances lancée'); } });
+        if (d.hasDaemon) b2.push({ label: d.daemon === 'ok' ? 'Redémarrer le démon' : 'Démarrer le démon', primary: true, click: function () { act(d.daemon === 'ok' ? 'restart' : 'start', 'Démon relancé'); } });
+        UI.modal({ title: d.name, body: '<p><b>' + esc(x.txt) + '</b></p>', buttons: b2 });
+      }
+    };
+    var rowEl = function (x, showSrc) {
+      var r = el('div', 'tl-hs-row' + (x.bad ? (x.err ? ' tl-hs-err' : ' tl-hs-warn') : ' tl-hs-ok'),
+        '<div class="tl-hs-n"><b></b><small></small></div><em></em>');
+      r.querySelector('b').textContent = (showSrc ? HS_SRC[x.src][0] + ' ' : '') + x.name;
+      r.querySelector('small').textContent = [x.obj, showSrc ? HS_SRC[x.src][1].toLowerCase() : ''].filter(Boolean).join(' · ');
+      r.querySelector('em').textContent = x.bad ? x.txt : x.val;
+      if ((x.src === 'net' || x.src === 'dm') && !p.opts.edit) { r.classList.add('tl-click'); r.addEventListener('click', function (e) { e.stopPropagation(); rowAction(x); }); }
+      return r;
+    };
+    var paint = function () {
+      box.innerHTML = '';
+      var pb = style === 'vm' ? rowsOf('vm').filter(function (x) { return x.bad; }) : problems(), at = data && data.at;
+      api.el.setAttribute('data-level', pb.some(function (x) { return x.err; }) ? 'err' : (pb.length ? 'warn' : 'ok'));
+      if (style === 'resume') {
+        var by = {};
+        pb.forEach(function (x) { by[x.src] = (by[x.src] || 0) + 1; });
+        box.innerHTML = '<div class="tl-hs-big">' + (pb.length ? '<span class="tl-hs-bico">⚠</span><b>' + pb.length + '</b><span class="tl-hs-blab">problème' + (pb.length > 1 ? 's' : '') + '</span>'
+          : '<span class="tl-hs-okico">✓</span><span class="tl-hs-blab">Tout va bien</span>') + '</div>' +
+          '<div class="tl-hs-srcs">' + srcs.map(function (k) { return '<span class="' + (by[k] ? 'tl-hs-sbad' : '') + '">' + HS_SRC[k][0] + ' ' + (by[k] || '✓') + '</span>'; }).join('') + '</div>' +
+          (at ? '<div class="tl-hs-at">vérifié à ' + pad(at.getHours()) + ':' + pad(at.getMinutes()) + '</div>' : '');
+        return;
+      }
+      if (style === 'vm') {
+        var vr = rowsOf('vm');
+        if (!vr.length) { box.innerHTML = '<div class="tl-det-msg">Ajoutez les commandes du plugin Monitoring (disque, mémoire, CPU…) dans la tuile</div>'; return; }
+        vr.forEach(function (x) {
+          box.appendChild(el('div', 'tl-hs-gauge tl-hs-g-' + x.lvl, '<div class="tl-hs-gl"><span>' + esc(x.name) + '</span><b>' + esc(x.val) + '</b></div>' +
+            (x.pct !== null ? '<div class="tl-hs-bar"><i style="width:' + Math.round(x.pct * 100) + '%"></i></div>' : '')));
+        });
+        return;
+      }
+      // liste avec onglets
+      var tabs = el('div', 'tl-hs-tabs');
+      [['pb', 'Problèmes (' + pb.length + ')']].concat(srcs.map(function (k) { return [k, HS_SRC[k][1]]; })).forEach(function (o) {
+        var b = el('button', 'tl-hs-tab' + (tab === o[0] ? ' tl-on' : '') + (o[0] === 'pb' && pb.length ? ' tl-hs-tab-bad' : ''), esc(o[1]));
+        b.type = 'button';
+        b.addEventListener('click', function (e) { e.stopPropagation(); tab = o[0]; paint(); });
+        tabs.appendChild(b);
+      });
+      box.appendChild(tabs);
+      var list = el('div', 'tl-hs-list');
+      var rows = tab === 'pb' ? pb : rowsOf(tab).slice().sort(function (x, y) { return (y.bad - x.bad) || (x.sort - y.sort) || String(x.name).localeCompare(String(y.name)); });
+      if (!rows.length) list.appendChild(el('div', 'tl-hs-allok', '<span>✓</span>' + (tab === 'pb' ? (isSet(t.okText) ? esc(t.okText) : 'Aucun problème') : 'Rien à afficher')));
+      rows.forEach(function (x) { list.appendChild(rowEl(x, tab === 'pb')); });
+      box.appendChild(list);
+    };
+    var reload = function () {
+      if (p.opts.edit) { data = demo(); paint(); return; }
+      if (p.__hc) p.__hc = {};
+      healthFetch(p, a).then(function (r) { data = r; paint(); });
+    };
+    if (style === 'resume' && !p.opts.edit) { api.el.classList.add('tl-click'); api.el.addEventListener('click', function () { reload(); UI.toast('Vérification…'); }); }
+    if (p.opts.edit) { data = demo(); paint(); }
+    else if (style === 'vm') { data = { all: {}, at: now() }; paint(); }
+    else {
+      healthFetch(p, a).then(function (r) { data = r; paint(); });
+      p.timers.push(setInterval(function () { if (!document.hidden) healthFetch(p, a).then(function (r) { data = r; paint(); }); }, Math.max(60, num(t.hsEvery, 300)) * 1000));
+    }
+    return function () { if (data && hasVm) paint(); };   // les jauges VM suivent leurs commandes en direct
+  };
 
   /* ---- Planning du plugin Réveils : 4 semaines, congé / enfant / profil du jour d'un clic, paramètres ---- */
   var JL = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
