@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.75.1';
+  var VERSION = '1.75.2';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -4602,6 +4602,36 @@
     box.classList.toggle('tl-ls-grid', cols === 'auto' || cols > 1);
     box.style.setProperty('--ls-cols', cols === 'auto' ? 'auto-fill' : cols);
   }
+  /** Gros boutons ▲ ▼ pour faire défiler une liste au doigt (l'ascenseur est trop fin sur tablette). Visibles seulement si la liste déborde. */
+  function scrollPad(list, host) {
+    host = host || list.parentNode;
+    if (!host || list.__pad) return;
+    var pad = el('div', 'tl-scrollpad');
+    var mk = function (dir) {
+      var b = el('button', 'tl-scrollpad-b', dir < 0 ? '▲' : '▼');
+      b.type = 'button';
+      ['pointerdown', 'mousedown', 'touchstart'].forEach(function (ev) { b.addEventListener(ev, function (e) { e.stopPropagation(); }, { passive: true }); });
+      b.addEventListener('click', function (e) { e.stopPropagation(); list.scrollBy({ top: dir * Math.max(60, list.clientHeight * 0.8), behavior: 'smooth' }); });
+      pad.appendChild(b);
+      return b;
+    };
+    var up = mk(-1), down = mk(1);
+    host.classList.add('tl-has-pad');
+    host.appendChild(pad);
+    list.__pad = pad;
+    var upd = function () {
+      var over = list.scrollHeight > list.clientHeight + 4;
+      pad.style.display = over ? '' : 'none';
+      host.classList.toggle('tl-pad-on', over);
+      up.disabled = list.scrollTop <= 2;
+      down.disabled = list.scrollTop + list.clientHeight >= list.scrollHeight - 2;
+    };
+    list.addEventListener('scroll', upd, { passive: true });
+    if (root.ResizeObserver) { try { new ResizeObserver(upd).observe(list); } catch (e) { /* rien */ } }
+    if (root.MutationObserver) { try { new MutationObserver(function () { setTimeout(upd, 30); }).observe(list, { childList: true }); } catch (e) { /* rien */ } }
+    setTimeout(upd, 50); setTimeout(upd, 600);
+    return upd;
+  }
   /** Ligne « + N autres » quand le nombre de lignes est limité. */
   function moreRow(list, n) {
     if (n > 0) list.appendChild(el('div', 'tl-ls-more', '+ ' + n + ' autre' + (n > 1 ? 's' : '')));
@@ -4615,8 +4645,11 @@
     var list = el('div', 'tl-bat-list');
     var empty = el('div', 'tl-msg-ok', '<span class="tl-msg-okico">' + iconHtml('svg:check-circle') + '</span><span></span>');
     var count = el('div', 'tl-msg-count');
-    box.appendChild(list);
+    var lwrap = el('div', 'tl-hs-lw');
+    lwrap.appendChild(list);
+    box.appendChild(lwrap);
     box.appendChild(empty);
+    scrollPad(list, lwrap);
     api.el.appendChild(count);
     api.body.appendChild(box);
     var demo = [{ name: 'Détecteur cuisine', object: 'Cuisine', level: 8, danger: 20, warning: 30 }, { name: 'Fenêtre salon', object: 'Salon', level: 26, danger: 20, warning: 30 },
@@ -4750,8 +4783,11 @@
     var list = el('div', 'tl-bat-list');
     var empty = el('div', 'tl-msg-ok', '<span class="tl-msg-okico">' + iconHtml('svg:check-circle') + '</span><span></span>');
     var count = el('div', 'tl-msg-count');
-    box.appendChild(list);
+    var lwrap = el('div', 'tl-hs-lw');
+    lwrap.appendChild(list);
+    box.appendChild(lwrap);
     box.appendChild(empty);
+    scrollPad(list, lwrap);
     api.el.appendChild(count);
     api.body.appendChild(box);
     var zones = (t.rsZones || []).filter(function (z) { return cleanId(z.cmdZName) || cleanId(z.cmdZOpen); });
@@ -4879,8 +4915,11 @@
     var list = el('div', 'tl-bat-list');
     var empty = el('div', 'tl-msg-ok', '<span class="tl-msg-okico">' + iconHtml('svg:check-circle') + '</span><span></span>');
     var count = el('div', 'tl-msg-count');
-    box.appendChild(list);
+    var lwrap = el('div', 'tl-hs-lw');
+    lwrap.appendChild(list);
+    box.appendChild(lwrap);
     box.appendChild(empty);
+    scrollPad(list, lwrap);
     api.el.appendChild(count);
     api.body.appendChild(box);
     var rows = [], timer = null;
@@ -5018,8 +5057,11 @@
     var list = el('div', 'tl-bat-list');
     var empty = el('div', 'tl-msg-ok', '<span class="tl-msg-okico">' + iconHtml('svg:check-circle') + '</span><span></span>');
     var count = el('div', 'tl-msg-count');
-    box.appendChild(list);
+    var lwrap = el('div', 'tl-hs-lw');
+    lwrap.appendChild(list);
+    box.appendChild(lwrap);
     box.appendChild(empty);
+    scrollPad(list, lwrap);
     api.el.appendChild(count);
     api.body.appendChild(box);
     var items = [];
@@ -5452,7 +5494,10 @@
       var rows = tab === 'pb' ? pb : rowsOf(tab).slice().sort(function (x, y) { return (y.bad - x.bad) || (x.sort - y.sort) || String(x.name).localeCompare(String(y.name)); });
       if (!rows.length) list.appendChild(el('div', 'tl-hs-allok', '<span>✓</span>' + (tab === 'pb' ? (isSet(t.okText) ? esc(t.okText) : 'Aucun problème') : 'Rien à afficher')));
       rows.forEach(function (x) { list.appendChild(rowEl(x, tab === 'pb')); });
-      box.appendChild(list);
+      var lw = el('div', 'tl-hs-lw');
+      lw.appendChild(list);
+      box.appendChild(lw);
+      scrollPad(list, lw);
     };
     var reload = function () {
       if (p.opts.edit) { data = demo(); paint(); return; }

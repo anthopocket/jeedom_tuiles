@@ -1776,3 +1776,11 @@ body.tl-kiosk #tl-panel-root { position: fixed !important; inset: 0 !important; 
 .tl-hs-bar { height: clamp(8px, 4cqh, 16px); border-radius: 99px; background: #1d2229; overflow: hidden; margin-top: 4px; }
 .tl-hs-bar i { display: block; height: 100%; border-radius: 99px; background: #2ecc71; }
 .tl-hs-g-warn .tl-hs-bar i { background: #ffa726; } .tl-hs-g-err .tl-hs-bar i { background: #e5484d; } .tl-hs-g-err .tl-hs-gl b { color: #ff8b8f; } .tl-hs-g-warn .tl-hs-gl b { color: #ffb74d; }
+/* gros boutons ▲ ▼ de défilement (listes longues sur tablette) */
+.tl-hs-lw { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; position: relative; }
+.tl-hs-lw > .tl-bat-list, .tl-hs-lw > .tl-hs-list { flex: 1 1 auto; min-height: 0; }
+.tl-has-pad.tl-pad-on > .tl-bat-list, .tl-has-pad.tl-pad-on > .tl-hs-list { padding-right: clamp(62px, 9cqw, 92px); }
+.tl-scrollpad { position: absolute; right: 0; top: 0; bottom: 0; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; pointer-events: none; z-index: 2; }
+.tl-scrollpad-b { pointer-events: auto; width: clamp(54px, 8cqw, 84px); height: clamp(54px, 8cqw, 84px); border-radius: 16px; border: 1px solid rgba(255,255,255,.18); background: rgba(31,111,235,.85); color: #fff; font-size: clamp(22px, 3.4cqw, 36px); line-height: 1; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,.45); touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+.tl-scrollpad-b:active { transform: scale(.94); background: #1f6feb; }
+.tl-scrollpad-b:disabled { opacity: .25; background: rgba(255,255,255,.08); box-shadow: none; }
