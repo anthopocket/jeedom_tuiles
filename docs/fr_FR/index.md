@@ -493,7 +493,7 @@ Un clavier à gros chiffres s'ouvre ; il valide tout seul quand tous les chiffre
 
 ## Réveils : format accueil
 
-La tuile **Liste des réveils (plugin Réveils)** a un réglage **Format → Accueil** : une colonne par réveil, avec l'heure en grand dans la couleur de la personne (orange, violet, bleu, vert), le jour (« Demain », « Lun 3 »…), le prénom et la pastille de synchro (vert = OK, orange = en attente, rouge = erreur). L'icône **Réveil (sonne)** s'agite quand le réveil est dans moins de 12 h. Un appui ouvre la page choisie (ex. la page Réveils) ; sans page, il permet de changer l'heure de ce réveil. En tuile basse (barre du haut), l'icône disparaît et l'heure passe à gauche du jour et du prénom.
+La tuile **Liste des réveils (plugin Réveils)** a un réglage **Format → Accueil** : une colonne par réveil, avec l'heure en grand dans la couleur de la personne (orange, violet, bleu, vert), le jour (« Demain », « Lun 3 »…), le prénom et la pastille de synchro (vert = OK, orange = en attente, rouge = erreur). L'icône **Réveil (sonne)** s'agite quand le réveil est dans moins de 12 h. Un appui ouvre la page choisie ; sans page choisie, la page Tuiles nommée « Réveil » ou « Réveils » du même appareil, sinon il permet de changer l'heure de ce réveil. Case **enfant (jours de garde)** sur un réveil : il affiche le prochain réveil d'un jour de garde, lu dans le planning du plugin Réveils (par exemple « 09/11 06:30 » quand la semaine prochaine n'est pas la sienne). En tuile basse (barre du haut), l'icône disparaît et l'heure passe à gauche du jour et du prénom.
 
 ### Réveil : état de chaque appareil
 

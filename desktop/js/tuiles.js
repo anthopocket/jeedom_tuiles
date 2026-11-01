@@ -476,7 +476,7 @@
       { k: 'rpLegend', l: 'Légende', f: 'sel', o: { '': 'Afficher', non: 'Masquer' } }],
     reveils: [{ k: 'rvStyle', l: 'Format', f: 'sel', o: { '': 'Liste (une ligne par réveil)', accueil: 'Accueil : grandes heures côte à côte + icône réveil' }, keep: true },
       { k: 'rvItems', l: 'Réveils', f: 'rvlist', help: 'Une ligne par équipement Réveils (toi, Armand…). Un appui sur un réveil permet de changer l\'heure ou de supprimer ce réveil.' },
-      { k: 'page', l: 'Appui : ouvre la page (option)', f: 'page', show: function (t) { return t.rvStyle === 'accueil'; }, help: 'Ex. ta page Réveils. Vide = un appui sur un réveil permet de changer son heure.' },
+      { k: 'page', l: 'Appui : ouvre la page (option)', f: 'page', show: function (t) { return t.rvStyle === 'accueil'; }, help: 'Ex. ta page Réveil. Vide = la page Tuiles nommée « Réveil » ou « Réveils » si elle existe, sinon un appui permet de changer l\'heure.' },
       { k: 'icon', l: 'Icône', f: 'icon', ph: 'svg:a-reveil', show: function (t) { return t.rvStyle === 'accueil'; }, help: 'Par défaut, le réveil animé : il sonne doucement quand le réveil est dans moins de 12 h.' }],
     puissance: [F.info, F.unit, F.decimals,
       { k: 'caption', l: 'Petit titre au-dessus', ph: 'ex. Compteur monophasé' },
@@ -1649,9 +1649,10 @@
       var row = $('<div class="tl-ed-optrow"></div>');
       var lab = $('<input class="form-control input-sm" placeholder="Nom affiché">').val(it.name || '').on('input', function () { it.name = $(this).val(); onChange({ f: 'text' }); });
       var info = $('<span class="tl-ed-hint"></span>').text(it.cmdNext ? 'commandes trouvées' : 'commandes à compléter');
+      var kid = $('<label class="tl-ed-inline" title="Affiche le prochain réveil d\'un jour de garde (planning du plugin Réveils), au lieu du prochain réveil tout court."></label>').append($('<input type="checkbox">').prop('checked', !!it.child).on('change', function () { it.child = $(this).is(':checked'); onChange({ f: 'text' }); })).append(' enfant (jours de garde)');
       var up = $('<a class="btn btn-xs btn-default"><i class="fas fa-arrow-up"></i></a>').on('click', function () { if (i > 0) { items.splice(i - 1, 0, items.splice(i, 1)[0]); onChange({ f: 'sel' }); } });
       var del = $('<a class="btn btn-xs btn-danger"><i class="fas fa-times"></i></a>').on('click', function () { items.splice(i, 1); onChange({ f: 'sel' }); });
-      row.append(lab).append(info).append(up).append(del);
+      row.append(lab).append(info).append(kid).append(up).append(del);
       wrap.append(row);
     });
     var holder = {};

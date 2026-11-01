@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.72.3';
+  var VERSION = '1.72.4';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -5162,6 +5162,30 @@
     var box = el('div', 'tl-rvh' + (items.length > 2 ? ' tl-rvh-many' : ''));
     api.body.appendChild(box);
     var page = cleanId(t.page);
+    if (!page) {   // pas de page choisie : la page Tuiles nommée « Réveil(s) » du même appareil
+      var dev = p.data.device === 'mobile' ? 'mobile' : 'tablette';
+      var norm = function (x) { return String(x || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); };
+      var hit = (p.data.pages || []).filter(function (pg) { return /reveil/.test(norm(pg.name)) && (pg.device === 'mobile' ? 'mobile' : 'tablette') === dev && String(pg.id) !== String(p.data.id); })[0];
+      if (hit) page = String(hit.id);
+    }
+    // réveil « enfant » : prochain jour de garde où un réveil est prévu, lu dans le planning du plugin Réveils
+    var childNext = {}, childAt = 0;
+    var loadChild = function () {
+      var x = items.filter(function (it) { return it.child && cleanId(it.cmdNext); })[0];
+      if (!x || p.opts.edit || Date.now() - childAt < 5 * 60000) return;
+      childAt = Date.now();
+      ajax('reveilPlanning', { id: cleanId(x.cmdNext), weeks: 6 }).then(function (r) {
+        var nowMs = now().getTime(), found = null;
+        ((r && r.days) || []).some(function (dd) {
+          if (!dd.time || dd.child !== true) return false;
+          var w = parseWake(dd.date + ' ' + dd.time);
+          if (w && w.getTime() > nowMs) { found = w; return true; }
+          return false;
+        });
+        childNext = { d: found, ok: true };
+        paintNow();
+      }, function () { childAt = 0; });
+    };
     var cols = items.slice(0, 4).map(function (x, i) {
       var c = el('div', 'tl-rvh-col', '<div class="tl-rvh-ic"></div><b class="tl-rvh-time"></b><div class="tl-rvh-day"></div><div class="tl-rvh-name"><span class="tl-rvl-dot"></span><span></span></div>');
       c.style.setProperty('--rvc', isSet(x.color) ? color(x.color) : RV_COLORS[i % RV_COLORS.length]);
@@ -5183,9 +5207,11 @@
       cols.forEach(function (r) {
         var d = r.x.demo ? parseWake(r.x.demo) : parseWake(p.val(r.x.cmdNext));
         var stTxt = String(p.val(r.x.cmdStatus) || '');
+        var kid = r.x.child && !r.x.demo;
+        if (kid && childNext.ok) d = childNext.d;   // prochain réveil un jour de garde (sinon « Aucun réveil »)
         var lvl = rvLevel(stTxt, cleanId(r.x.cmdSyncOk) ? isActive(p.val(r.x.cmdSyncOk)) : null);
         // statut de l'appareil (plugin Réveils) : désactivé → pas de réveil ; dérogation manuelle → l'heure réglée à la main
-        var off = /désactiv|desactiv/i.test(stTxt);
+        var off = !kid && /désactiv|desactiv/i.test(stTxt);
         var man = /d[ée]rogation manuelle\s*\((?:(\d{4}-\d{2}-\d{2})[ T])?(\d{1,2}:\d{2})/i.exec(stTxt);
         if (man) { var dm = parseWake((man[1] ? man[1] + ' ' : '') + man[2]); if (dm) d = dm; }
         if (off) { d = null; lvl = 'none'; }
@@ -5200,8 +5226,14 @@
       });
       api.el.classList.toggle('tl-rvh-none', !any);
     };
-    p.timers.push(setInterval(paintNow, 60000));
-    return function () { paintNow(); };
+    p.timers.push(setInterval(function () { loadChild(); paintNow(); }, 60000));
+    var lastNext = null;
+    return function () {
+      // le prochain réveil a changé (planning, garde, exception…) : on relit le planning de l'enfant
+      var nx = items.map(function (it) { return p.val(it.cmdNext); }).join('|');
+      if (nx !== lastNext) { lastNext = nx; childAt = 0; }
+      loadChild(); paintNow();
+    };
   }
 
   /* ---- Planning du plugin Réveils : 4 semaines, congé / enfant / profil du jour d'un clic, paramètres ---- */
