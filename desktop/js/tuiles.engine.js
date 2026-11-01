@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.75.2';
+  var VERSION = '1.75.3';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -3183,6 +3183,7 @@
   };
 
   R.volet = function (p, t, api) {
+    if (isNum(t.vbSize) && parseFloat(t.vbSize) > 0) api.el.style.setProperty('--vb-k', Math.max(0.6, Math.min(3, parseFloat(t.vbSize) / 100)));
     // disposition : en ligne si la tuile est large, sinon en colonne
     var wide = api.w >= api.h * 1.4;
     var box = el('div', 'tl-v ' + (wide ? 'tl-v-row' : 'tl-v-col'));

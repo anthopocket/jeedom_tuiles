@@ -518,3 +518,8 @@ Fonction **Santé de la maison** (famille « Afficher une info »), trois affich
 - **VM Jeedom** : des jauges à partir des commandes du plugin Monitoring (une ligne par valeur : libellé, commande, unité, sens « trop haute » ou « trop basse », seuils orange et rouge, maximum de la barre). Au-delà d'un seuil, la valeur compte comme un problème. Les valeurs réglées dans cette tuile servent aussi aux tuiles Liste et Résumé de la même page.
 
 Sources au choix dans chaque tuile : piles faibles et piles sans nouvelles, réseau (plugin Network), démons et dépendances, équipements qui ne communiquent plus ; « Ignorer » pour écarter des noms. Vérification toutes les 5 minutes.
+
+
+### Volets : taille des boutons
+
+Réglage **Taille des boutons ▲ ■ ▼ (%)** dans les tuiles Volet et Groupe de volets : 140 % par défaut (plus gros qu'avant, pour le doigt), de 60 à 300 %.
