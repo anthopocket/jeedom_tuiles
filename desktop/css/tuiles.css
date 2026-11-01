@@ -1644,3 +1644,4 @@ body.tl-kiosk #tl-panel-root { position: fixed !important; inset: 0 !important; 
 @keyframes tla-twinkle { 0%,100% { opacity: 0; transform: scale(.3); } 45% { opacity: 1; transform: scale(1); } 70% { opacity: 0; transform: scale(.5); } }
 @keyframes tla-halo { 0% { opacity: .8; transform: scale(.9); } 100% { opacity: 0; transform: scale(1.25); } }
 @keyframes tla-zap { 0%,100% { opacity: .25; transform: scale(.85); } 50% { opacity: 1; transform: scale(1.12); } }
+@keyframes tla-hop { 0%, 45%, 100% { transform: translateY(0) scale(1); } 15% { transform: translateY(-9px) scale(1.06); } 28% { transform: translateY(0) scale(1.04, .94); } }

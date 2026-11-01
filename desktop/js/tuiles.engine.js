@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.70.5';
+  var VERSION = '1.70.6';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -408,9 +408,14 @@
      '<rect class="fs" x="14" y="8" width="72" height="72" rx="16"/><rect class="ln" x="14" y="8" width="72" height="72" rx="16"/>' +
      '<circle class="fs" cx="50" cy="44" r="24"/><circle class="ln" cx="50" cy="44" r="24"/><circle class="lt" cx="50" cy="44" r="15"/>' +
      '<circle class="fl" cx="43.3" cy="44" r="2.4"/><circle class="fl" cx="56.7" cy="44" r="2.4"/><rect class="fl" x="48.6" y="29.6" width="2.8" height="4.8" rx="1"/>' +
-     '<path class="fl fx mv" ' + AO('zap', 1, 50, 92, 'ease-in-out infinite') + ' d="M51.6 85.4 L46.7 93.1 H50 L48.4 98.6 L53.3 90.9 H50 Z"/>']
+     '<path class="fl fx mv" ' + AO('zap', 1, 50, 92, 'ease-in-out infinite') + ' d="M51.6 85.4 L46.7 93.1 H50 L48.4 98.6 L53.3 90.9 H50 Z"/>'],
+    ['Divers (formes)', '#b39ddb',
+     '<g class="mv" ' + AO('hop', 1.8, 28, 40, 'ease-in-out infinite') + '><circle class="fs" cx="28" cy="34" r="16"/><circle class="ln" cx="28" cy="34" r="16"/></g>' +
+     '<g class="mv" style="' + O(72, 34) + 'animation:hop calc(1.8s * var(--d)) ease-in-out infinite;animation-delay:calc(.3s * var(--d))"><rect class="fs" x="57" y="19" width="30" height="30" rx="5"/><rect class="ln" x="57" y="19" width="30" height="30" rx="5"/></g>' +
+     '<g class="mv" style="' + O(50, 88) + 'animation:hop calc(1.8s * var(--d)) ease-in-out infinite;animation-delay:calc(.6s * var(--d))"><path class="fs" d="M50 56 L68 86 H32 Z"/><path class="ln" d="M50 56 L68 86 H32 Z"/></g>' +
+     '<path class="lt fx" d="M14 94 H86" style="opacity:.35"/>']
     ];
-    var slugs = ['pompe-piscine', 'pompe-arrosage', 'arroseur-rotatif', 'arroseur-oscillant', 'goutte-a-goutte', 'electrovanne', 'robot-piscine', 'cuve', 'ventilateur', 'radiateur', 'flamme', 'prise', 'solaire', 'batterie', 'voiture-charge', 'lave-linge', 'seche-linge', 'lave-vaisselle', 'robot-aspirateur', 'portail-motorise', 'ampoule', 'sirene', 'sonnette', 'mangeoire', 'piege-moustiques', 'pac-ext', 'pac-piscine', 'batterie-charge', 'batterie-decharge', 'bons-points', 'prise-fr'];
+    var slugs = ['pompe-piscine', 'pompe-arrosage', 'arroseur-rotatif', 'arroseur-oscillant', 'goutte-a-goutte', 'electrovanne', 'robot-piscine', 'cuve', 'ventilateur', 'radiateur', 'flamme', 'prise', 'solaire', 'batterie', 'voiture-charge', 'lave-linge', 'seche-linge', 'lave-vaisselle', 'robot-aspirateur', 'portail-motorise', 'ampoule', 'sirene', 'sonnette', 'mangeoire', 'piege-moustiques', 'pac-ext', 'pac-piscine', 'batterie-charge', 'batterie-decharge', 'bons-points', 'prise-fr', 'divers'];
     var out = [];
     I.forEach(function (it, i) {
       var body = it[2]
