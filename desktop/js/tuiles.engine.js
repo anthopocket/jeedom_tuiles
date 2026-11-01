@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.70.4';
+  var VERSION = '1.70.5';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -547,6 +547,19 @@
   /*  Ajax                                                               */
   /* ================================================================== */
 
+  /** Heure de Jeedom : écart avec l'horloge de l'appareil, mesuré au démarrage puis toutes les 30 min. */
+  var TIME_OFF = 0, timeSyncAt = 0;
+  function syncTime() {
+    if (Date.now() - timeSyncAt < 30 * 60000) return;
+    timeSyncAt = Date.now();
+    var t0 = Date.now();
+    ajax('serverTime', {}).then(function (r) {
+      var t1 = Date.now(), srv = num(r && r.ms, 0);
+      if (srv > 0 && t1 - t0 < 5000) TIME_OFF = Math.round(srv - (t0 + t1) / 2);
+    }, function () { timeSyncAt = 0; });
+  }
+  function now() { return new Date(Date.now() + TIME_OFF); }
+
   function ajax(action, data) {
     return new Promise(function (resolve, reject) {
       var payload = { action: action };
@@ -664,6 +677,7 @@
       this.timers.push(setInterval(function () { self.resync(); }, Math.max(5, num(self.data.poll, 0)) * 1000));
     }
     this.timers.push(setInterval(function () { self.tiles.forEach(function (a) { self.markAge(a); }); }, 60000));
+    syncTime(); this.timers.push(setInterval(syncTime, 5 * 60000));
     if (!this.opts.edit) { this.setupHomeReturn(); this.setupHomeZone(); this.setupVeille(); }
   }
 
@@ -785,7 +799,7 @@
     return ov;
   }
   function veillePaint(ov) {
-    var d = new Date();
+    var d = now();
     ov.querySelector('.tl-veille-time').textContent = pad(d.getHours()) + ':' + pad(d.getMinutes());
     var de = ov.querySelector('.tl-veille-date');
     if (de) { var ds = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }); de.textContent = ds.charAt(0).toUpperCase() + ds.slice(1); }
@@ -5704,7 +5718,7 @@
     if (isSet(t.color)) box.style.color = color(t.color);
     api.body.appendChild(box);
     var tick = function () {
-      var d = new Date(), f = t.format || 'date';
+      var d = now(), f = t.format || 'date';
       var date = d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
       var hour = pad(d.getHours()) + ':' + pad(d.getMinutes());
       box.textContent = f === 'heure' ? hour

@@ -23,8 +23,16 @@ try {
 	};
 
 	switch ($action) {
+		case 'serverTime':
+			ajax::success(array('ms' => round(microtime(true) * 1000)));
+			break;
+
 		case 'getPage':
 			ajax::success(tuiles::pageData(init('id'), init('index', 0) == 1, init('mobile', 0) == 1));
+			break;
+
+		case 'dayStart':
+			ajax::success(tuiles::dayStart($jsonArg('ids')));
 			break;
 
 		case 'getHistory':
