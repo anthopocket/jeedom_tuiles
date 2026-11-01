@@ -1648,11 +1648,13 @@
     items.forEach(function (it, i) {
       var row = $('<div class="tl-ed-optrow"></div>');
       var lab = $('<input class="form-control input-sm" placeholder="Nom affiché">').val(it.name || '').on('input', function () { it.name = $(this).val(); onChange({ f: 'text' }); });
-      var info = $('<span class="tl-ed-hint"></span>').text(it.cmdNext ? 'commandes trouvées' : 'commandes à compléter');
+      var info = $('<span class="tl-ed-hint" style="white-space:nowrap"></span>').text(it.cmdNext ? '✓' : 'à compléter').attr('title', it.cmdNext ? 'Commandes trouvées' : 'Commandes à compléter');
       var kid = $('<label class="tl-ed-inline" title="Affiche le prochain réveil d\'un jour de garde (planning du plugin Réveils), au lieu du prochain réveil tout court."></label>').append($('<input type="checkbox">').prop('checked', !!it.child).on('change', function () { it.child = $(this).is(':checked'); onChange({ f: 'text' }); })).append(' enfant (jours de garde)');
       var up = $('<a class="btn btn-xs btn-default"><i class="fas fa-arrow-up"></i></a>').on('click', function () { if (i > 0) { items.splice(i - 1, 0, items.splice(i, 1)[0]); onChange({ f: 'sel' }); } });
       var del = $('<a class="btn btn-xs btn-danger"><i class="fas fa-times"></i></a>').on('click', function () { items.splice(i, 1); onChange({ f: 'sel' }); });
-      row.append(lab).append(info).append(kid).append(up).append(del);
+      row.append(lab).append(info).append(up).append(del);
+      wrap.append(row);
+      row = $('<div class="tl-ed-optrow" style="margin:-2px 0 8px 4px"></div>').append(kid);
       wrap.append(row);
     });
     var holder = {};

@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.72.4';
+  var VERSION = '1.72.5';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -5172,7 +5172,7 @@
     var childNext = {}, childAt = 0;
     var loadChild = function () {
       var x = items.filter(function (it) { return it.child && cleanId(it.cmdNext); })[0];
-      if (!x || p.opts.edit || Date.now() - childAt < 5 * 60000) return;
+      if (!x || Date.now() - childAt < 5 * 60000) return;   // aussi dans l'éditeur : lecture seule
       childAt = Date.now();
       ajax('reveilPlanning', { id: cleanId(x.cmdNext), weeks: 6 }).then(function (r) {
         var nowMs = now().getTime(), found = null;
