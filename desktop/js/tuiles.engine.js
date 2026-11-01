@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.70.3';
+  var VERSION = '1.70.4';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -2262,8 +2262,11 @@
       if (t.newTab) root.open(t.url, '_blank'); else root.location.href = t.url;
       return;
     }
-    if (target === 'home' && isSet(this.data.homeUrl)) { root.location.href = this.data.homeUrl; return; }
-    var id = target === 'page' ? cleanId(t.page) : (target === 'index' ? 'index' : (this.data.homeId || 'index'));
+    // accueil : d'abord la page d'accueil du menu de l'appareil (tablette / mobile), puis l'adresse ou la page d'accueil du plugin
+    var dev = this.data.device === 'mobile' ? 'mobile' : 'tablette';
+    var devHome = target === 'home' ? cleanId(((navFor(this.data.nav, dev).homePages || {})[dev]) || '') : '';
+    if (target === 'home' && !devHome && isSet(this.data.homeUrl)) { root.location.href = this.data.homeUrl; return; }
+    var id = target === 'page' ? cleanId(t.page) : (target === 'index' ? 'index' : (devHome || this.data.homeId || 'index'));
     if (this.opts.onNavigate) this.opts.onNavigate(id);
     else Tuiles.open(this.root, id, this.opts);
   };
