@@ -888,6 +888,9 @@ class tuiles extends eqLogic {
 		$eq = self::reveilEq($id);
 		$weeks = max(1, min(8, intval($weeks)));
 		$planning = method_exists($eq, 'getPlanning') ? $eq->getPlanning() : $eq->getConfiguration('planning', array());
+		$remiOn = (bool) $eq->getConfiguration('remiEnable', 0);
+		$onlyChild = (bool) $eq->getConfiguration('remiOnlyChild', 1);
+		$rx = (isset($planning['remiExceptions']) && is_array($planning['remiExceptions'])) ? $planning['remiExceptions'] : array();
 		$monday = new DateTime('monday this week');
 		$today = date('Y-m-d');
 		$days = array();
@@ -916,7 +919,32 @@ class tuiles extends eqLogic {
 				'child' => $child,
 				'dayProfile' => $prof,
 			);
+			// réveil du Rémi (enfant) ce jour-là : jamais un jour sans enfant (option du plugin), sinon heure forcée, sinon le planning
+			if ($remiOn) {
+				$remiDay = !$onlyChild || $child === true;
+				$rt = null;
+				if ($remiDay) {
+					$rt = isset($rx[$date]) ? ($rx[$date] === 'off' ? null : $rx[$date]) : (isset($r['time']) ? $r['time'] : null);
+				}
+				$days[count($days) - 1]['remi'] = $rt;
+				$days[count($days) - 1]['remiForced'] = $remiDay && isset($rx[$date]);
+			}
 		}
+		$weeksInfo = array();
+		for ($w = 0; $w < $weeks; $w++) {
+			$m = clone $monday;
+			$m->modify('+' . ($w * 7) . ' day');
+			$key = $m->format('o-\WW');
+			$fri = clone $m;
+			$fri->modify('+4 day');
+			$weeksInfo[] = array(
+				'key' => $key, 'num' => intval($m->format('W')),
+				'from' => $m->format('Y-m-d'), 'to' => $fri->format('Y-m-d'),
+				'custody' => (class_exists('reveilCalendar') && method_exists('reveilCalendar', 'custodyWeek')) ? reveilCalendar::custodyWeek($m->format('Y-m-d')) : null,
+				'forced' => isset($planning['weeks'][$key]) ? (string) $planning['weeks'][$key] : '',
+			);
+		}
+		$cmdId = function ($lid) use ($eq) { $c = $eq->getCmd(null, $lid); return is_object($c) ? $c->getId() : ''; };
 		$profiles = array();
 		if (isset($planning['dayProfiles']) && is_array($planning['dayProfiles'])) {
 			foreach ($planning['dayProfiles'] as $name => $time) {
@@ -932,6 +960,11 @@ class tuiles extends eqLogic {
 			'status' => is_object($status) ? $status->execCmd() : '',
 			'syncOk' => is_object($okc) ? $okc->execCmd() : '',
 			'custody' => class_exists('reveilCalendar') && method_exists('reveilCalendar', 'toggleCustodyDay'),
+			'remi' => $remiOn, 'onlyChild' => $onlyChild,
+			'names' => array('me' => method_exists($eq, 'nameMe') ? $eq->nameMe() : 'Moi', 'remi' => method_exists($eq, 'nameRemi') ? $eq->nameRemi() : 'Rémi'),
+			'profiles' => array_values(array_map('strval', array_keys(isset($planning['profiles']) && is_array($planning['profiles']) ? $planning['profiles'] : array()))),
+			'weeks' => $weeksInfo,
+			'cmds' => array('exception' => $cmdId('set_exception'), 'remi' => $cmdId('set_remi'), 'week' => $cmdId('set_week')),
 		);
 	}
 

@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.72.5';
+  var VERSION = '1.73.0';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -5266,8 +5266,109 @@
       head.innerHTML = '<div class="tl-rp-next"><span class="tl-rv-dot"></span><b>' + (d ? esc(rvDay(d)) + ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes()) : 'Aucun réveil') + '</b></div>' +
         (lines.length ? '<div class="tl-rp-st">' + lines.map(function (l) { return '<span>' + esc(l) + '</span>'; }).join('') + '</div>' : '');
     };
+    // commandes du plugin Réveils (comme son widget) : exception, heure du Rémi, semaine entière
+    var plugCmd = function (key, title, message, okMsg) {
+      var id = data && data.cmds && data.cmds[key];
+      if (!id || p.opts.edit) return;
+      box.classList.add('tl-rp-working');
+      p.execNow(id, { title: title, message: message }).then(function () {
+        if (okMsg) UI.toast(okMsg);
+        setTimeout(function () { box.classList.remove('tl-rp-working'); load(); }, 1200);
+      }, function (err) { box.classList.remove('tl-rp-working'); UI.toast(err.message, 'error'); });
+    };
+    var TKEY = 'tl_rv_target_' + eqId;
+    var getTarget = function () { try { return localStorage.getItem(TKEY) || 'me'; } catch (e) { return 'me'; } };
+    var keepTarget = function (v) { try { localStorage.setItem(TKEY, v); } catch (e) { /* stockage indisponible */ } };
+    // choix Papa / Armand / Les deux (couleurs du widget du plugin)
+    var whoPicker = function (cur, onPick) {
+      var w = el('div', 'tl-rp-who-pick');
+      var names = (data && data.names) || { me: 'Moi', remi: 'Rémi' };
+      [['me', names.me], ['remi', names.remi], ['both', 'Les deux']].forEach(function (o) {
+        var b = el('button', 'tl-rp-tg tl-rp-tg-' + o[0] + (o[0] === cur ? ' tl-on' : ''), esc(o[1]));
+        b.type = 'button';
+        b.addEventListener('click', function () { [].forEach.call(w.children, function (x) { x.classList.toggle('tl-on', x === b); }); onPick(o[0]); });
+        w.appendChild(b);
+      });
+      return w;
+    };
+    // réveil d'un jour pour Papa, Armand ou les deux (commandes « Exception » et « Rémi » du plugin)
+    var dayEdit = function (d) {
+      var canKid = !!(data.remi && data.cmds && data.cmds.remi);   // commande « Rémi » du plugin présente
+      var tg = canKid ? getTarget() : 'me', names = data.names || { me: 'Moi', remi: 'Rémi' };
+      var body = el('div', 'tl-rv-edit');
+      var note = el('div', 'tl-rv-edit-note');
+      var inp = el('input', 'tl-rv-edit-time'); inp.type = 'time';
+      var fill = function () {
+        var v = tg === 'remi' ? d.remi : d.time;
+        inp.value = /^\d{2}:\d{2}$/.test(v || '') ? v : (d.time || '07:00');
+        var noKid = data.onlyChild && d.child !== true;
+        note.style.display = noKid && tg !== 'me' ? '' : 'none';
+        note.textContent = names.remi + ' n\'est pas là ce jour : pas de réveil pour lui (outil « Enfant » pour basculer le jour).';
+      };
+      body.appendChild(el('div', 'tl-rv-edit-day', esc(d.date.split('-').reverse().join('/') + (d.source ? ' · ' + d.source : ''))));
+      if (canKid) body.appendChild(whoPicker(tg, function (v) { tg = v; keepTarget(v); fill(); }));
+      body.appendChild(note);
+      body.appendChild(inp);
+      fill();
+      var label = d.date.split('-').reverse().slice(0, 2).join('/');
+      var send = function (val, msg) {
+        var who = tg === 'me' ? names.me : (tg === 'remi' ? names.remi : names.me + ' et ' + names.remi);
+        if (tg === 'me') plugCmd('exception', d.date, val, msg + ' (' + who + ')');
+        else plugCmd('remi', d.date, (tg === 'both' ? 'both:' : '') + val, msg + ' (' + who + ')');
+      };
+      UI.modal({ title: 'Réveil du ' + label, body: body, buttons: [
+        { label: 'Fermer' },
+        { label: 'Pas de réveil', danger: true, click: function () { send('off', 'Pas de réveil le ' + label); } },
+        { label: 'Normal', click: function () { send('', 'Planning rétabli le ' + label); } },
+        { label: 'OK', primary: true, click: function () { if (!/^\d{2}:\d{2}$/.test(inp.value)) return false; send(inp.value, 'Réveil à ' + inp.value + ' le ' + label); } }
+      ] });
+    };
+    // semaine entière (clic sur S45) : profil de semaine, même heure lun-ven, pas de réveil — pour Papa, Armand ou les deux
+    var weekEdit = function (wk) {
+      var tg = data.remi ? getTarget() : 'me', names = data.names || { me: 'Moi', remi: 'Rémi' }, mdl = null;
+      var body = el('div', 'tl-rv-edit');
+      var fmtD = function (iso) { var x = iso.split('-'); return parseInt(x[2], 10) + '/' + parseInt(x[1], 10); };
+      body.appendChild(el('div', 'tl-rv-edit-day', esc('Du lundi ' + fmtD(wk.from) + ' au vendredi ' + fmtD(wk.to)) + (wk.custody === true ? ' · avec ' + esc(names.remi) : (wk.custody === false ? ' · sans ' + esc(names.remi) : ''))));
+      var profBox = el('div', 'tl-rp-wprof');
+      var profs = data.profiles || [];
+      if (profs.length) {
+        profBox.appendChild(el('div', 'tl-rv-edit-lbl', 'Profil de la semaine'));
+        var pw = el('div', 'tl-rp-wbtns');
+        profs.forEach(function (pr) {
+          var b = el('button', 'tl-rp-wbtn' + (wk.forced === pr ? ' tl-on' : ''), esc(pr));
+          b.type = 'button';
+          b.addEventListener('click', function () { send('profile:' + pr, 'Semaine ' + wk.num + ' : profil ' + pr); if (mdl) mdl.close(); });
+          pw.appendChild(b);
+        });
+        profBox.appendChild(pw);
+      }
+      var inp = el('input', 'tl-rv-edit-time'); inp.type = 'time';
+      var first = (data.days || []).filter(function (d) { return d.date >= wk.from && d.date <= wk.to; });
+      var fill = function () {
+        profBox.style.display = tg === 'remi' ? 'none' : '';
+        var v = null;
+        first.some(function (d) { v = tg === 'remi' ? d.remi : d.time; return /^\d{2}:\d{2}$/.test(v || ''); });
+        inp.value = /^\d{2}:\d{2}$/.test(v || '') ? v : '06:30';
+      };
+      if (data.remi) body.appendChild(whoPicker(tg, function (v) { tg = v; keepTarget(v); fill(); }));
+      body.appendChild(profBox);
+      body.appendChild(el('div', 'tl-rv-edit-lbl', 'Ou du lundi au vendredi'));
+      body.appendChild(inp);
+      fill();
+      var send = function (val, msg) {
+        if (tg === 'remi' && val.indexOf('profile:') === 0) return;
+        plugCmd('week', wk.key, (tg === 'remi' ? 'remi:' : (tg === 'both' ? 'both:' : '')) + val, msg);
+      };
+      mdl = UI.modal({ title: 'Semaine ' + wk.num, body: body, buttons: [
+        { label: 'Fermer' },
+        { label: 'Pas de réveil', danger: true, click: function () { send('off', 'Semaine ' + wk.num + ' : pas de réveil'); } },
+        { label: 'Normal', click: function () { send('normal', 'Semaine ' + wk.num + ' : retour à la règle habituelle'); } },
+        { label: 'Lun-ven à cette heure', primary: true, click: function () { if (!/^\d{2}:\d{2}$/.test(inp.value)) return false; send('time:' + inp.value, 'Semaine ' + wk.num + ' : ' + inp.value + ' du lundi au vendredi'); } }
+      ] });
+    };
     // heure à la main pour un jour (exception du plugin) : HH:MM, pas de réveil, ou retour au planning
     var timeEdit = function (d) {
+      if (data && data.cmds && data.cmds.exception) { dayEdit(d); return; }
       var body = el('div', 'tl-rv-edit');
       body.innerHTML = '<div class="tl-rv-edit-day"></div><input type="time" class="tl-rv-edit-time"><div class="tl-rv-edit-hint">Réveil manuel pour ce jour seulement ; le planning reste inchangé pour les autres jours.</div>';
       body.querySelector('.tl-rv-edit-day').textContent = d.date.split('-').reverse().join('/') + (d.source ? ' · ' + d.source : '');
@@ -5342,7 +5443,14 @@
       var days = data.days || [];
       grid.style.gridTemplateRows = 'auto repeat(' + Math.max(1, Math.ceil(days.length / 7)) + ', minmax(0, 1fr))';
       for (var w = 0; w < days.length; w += 7) {
-        grid.appendChild(el('div', 'tl-rp-wk', 'S' + days[w].week));
+        var wInfo = (data.weeks || [])[w / 7];
+        var wl = el('div', 'tl-rp-wk' + (wInfo && wInfo.custody ? ' tl-rp-wk-kid' : '') + (wInfo && wInfo.forced ? ' tl-rp-wk-forced' : ''), 'S' + days[w].week + (wInfo && wInfo.custody ? '<i class="fas fa-child"></i>' : '') + (wInfo && wInfo.forced ? '<small>' + esc(wInfo.forced) + '</small>' : ''));
+        if (wInfo && data.cmds && data.cmds.week && t.rpEdit !== 'non' && !p.opts.edit) {
+          wl.classList.add('tl-click');
+          wl.title = 'Régler la semaine ' + wInfo.num;
+          (function (wi) { wl.addEventListener('click', function (e) { e.stopPropagation(); weekEdit(wi); }); })(wInfo);
+        }
+        grid.appendChild(wl);
         days.slice(w, w + 7).forEach(function (d) {
           var cls = ['tl-rp-day'];
           if (d.past) cls.push('tl-rp-gone');
@@ -5353,8 +5461,11 @@
           if (d.exception) cls.push('tl-rp-exc');
           if (d.holiday) cls.push('tl-rp-hol');
           if (!d.time) cls.push('tl-rp-none');
-          var c = el('div', cls.join(' '), d.past ? '' : '<span class="tl-rp-n">' + parseInt(d.date.slice(8), 10) + '</span><b>' + (d.time ? esc(d.time) : '—') + '</b>' + (d.dayProfile ? '<i>' + esc(d.dayProfile) + '</i>' : ''));
-          c.title = d.source || '';
+          var two = !!data.remi, nm = data.names || {}, ini = function (x) { return esc(String(x || '?').charAt(0)); };
+          var meLine = two && (d.time || d.remi) ? '<b class="tl-rp-me"><span class="tl-rp-ini">' + ini(nm.me) + '</span>' + (d.time ? esc(d.time) : '—') + '</b>' : '<b>' + (d.time ? esc(d.time) : '—') + '</b>';
+          var kidLine = two && (d.remi || d.remiForced) ? '<b class="tl-rp-kid' + (d.remiForced ? ' tl-rp-forced' : '') + '"><span class="tl-rp-ini">' + ini(nm.remi) + '</span>' + (d.remi ? esc(d.remi) : '—') + '</b>' : '';
+          var c = el('div', cls.join(' ') + (two ? ' tl-rp-two' : ''), d.past ? '' : '<span class="tl-rp-n">' + parseInt(d.date.slice(8), 10) + '</span>' + meLine + kidLine + (d.dayProfile ? '<i>' + esc(d.dayProfile) + '</i>' : ''));
+          c.title = (d.source || '') + (two && d.remi ? ' · ' + (nm.remi || 'Rémi') + ' ' + d.remi + (d.remiForced ? ' (heure forcée)' : '') : '');
           if (!d.past) c.addEventListener('click', function (e) {
             e.stopPropagation();
             if (!mode.m || busy || p.opts.edit) { if (!mode.m && d.source) UI.toast(d.date.split('-').reverse().join('/') + ' : ' + (d.time || 'pas de réveil') + ' (' + d.source + ')'); return; }

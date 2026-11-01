@@ -498,3 +498,7 @@ La tuile **Liste des réveils (plugin Réveils)** a un réglage **Format → Acc
 ### Réveil : état de chaque appareil
 
 La tuile **Réveil** suit les statuts du plugin Réveils, appareil par appareil (commandes « Statut Alexa » et « Statut Rémi », reprises automatiquement) : ✓ vert = OK, … orange = vérification en attente, ✋ violet = **dérogation manuelle** (réveil changé à la main dans l'appli, laissé tel quel), ○ gris = désactivé (ex. Rémi hors semaine de garde), ✗ rouge = écart ou échec. La ligne « planning repris après HH:MM » s'affiche en italique. Réglage **Détail par appareil** : seulement s'il y a un souci, ou toujours. « Resynchroniser » demande confirmation, car il annule les dérogations manuelles en cours.
+
+### Planning Réveils : Papa / Armand et semaines
+
+Avec le Rémi activé dans le plugin Réveils, chaque jour du planning montre deux heures : la tienne (pastille orange, initiale du prénom réglé dans le plugin) et celle de l'enfant (pastille bleue ; soulignée quand c'est une heure forcée). Les jours sans enfant, seule ta ligne s'affiche. Outil **✎ Heure** : la fenêtre demande **pour qui** (toi, l'enfant, ou les deux), puis l'heure, « Pas de réveil » ou « Normal ». Un appui sur le **numéro de semaine** (S45) ouvre le réglage de la semaine : profil de semaine, même heure du lundi au vendredi, pas de réveil ou retour à la normale, pour toi, l'enfant ou les deux. Ce sont les commandes du plugin (Exception, Rémi, Semaine) : il faut une version du plugin Réveils qui les a (sauvegarder l'équipement pour les créer).
