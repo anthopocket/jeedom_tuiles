@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.71.1';
+  var VERSION = '1.71.3';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -1712,7 +1712,7 @@
     if (t.type === 'lien') {
       var la = linkAnim(this, t.cmdAnim, t.animOp, t.animVal, t.animOn);
       if (la !== null) {
-        var run = !!(this.opts && this.opts.edit) || la;
+        var run = la;   // réglage explicite : respecté aussi dans l'éditeur
         var svgAnim = !!api.el.querySelector('.tl-anim');
         api.el.classList.toggle('tl-run', run && svgAnim);
         api.el.classList.toggle('tl-pulse-on', run && !svgAnim);   // image ou icône simple : pulsation
@@ -1727,7 +1727,7 @@
       // dans l'éditeur, l'icône bouge toujours pour qu'on voie l'animation
       // sans info d'état (ex. lien d'accueil sans compteur), « quand actif » n'a pas de sens : l'icône bouge en permanence
       var hasState = (t.type === 'lien' && Array.isArray(t.cmdList) && t.cmdList.length) || !!(cleanId(t.cmdInfo) || cleanId(t.cmdV1) || cleanId(t.cmdBadge) || cleanId(t.cmdState));
-      api.el.classList.toggle('tl-run', !!(this.opts && this.opts.edit) || mode === 'toujours' || (mode !== 'jamais' && (!hasState || this.tileActive(t))));
+      api.el.classList.toggle('tl-run', mode !== 'jamais' && (!!(this.opts && this.opts.edit) || mode === 'toujours' || !hasState || this.tileActive(t)));
       var sp = { lent: 1.8, rapide: 0.55 }[t.animSpeed];
       api.el.style.setProperty('--tla-d', sp || 1);
     } else api.el.classList.remove('tl-run');
@@ -5890,7 +5890,7 @@
         }
         var la = linkAnim(p, t['cmdAnim' + h.K], t['animOp' + h.K], t['animVal' + h.K], t['animOn' + h.K]);
         if (la === null) la = h.svg;   // icône animée sans réglage : elle bouge
-        var run = !!p.opts.edit || la;
+        var run = la === false ? false : (!!p.opts.edit || la);
         h.el.classList.toggle('tl-run', run && h.svg);
         h.el.classList.toggle('tl-pulse-on', run && !h.svg && (la === true && (cleanId(t['cmdAnim' + h.K]) || t['animOn' + h.K] === true)));
       });

@@ -102,7 +102,7 @@
   }
 
   var F = {
-    iconAnim: { k: 'iconAnim', l: 'Icône animée : bouge', f: 'sel', o: { '': 'Quand la tuile est active (en marche)', toujours: 'Toujours', jamais: 'Jamais (figée)' }, help: 'Dans l\'éditeur, l\'icône bouge toujours pour l\'aperçu.', show: function (t) { return hasAnimIcon(t); } },
+    iconAnim: { k: 'iconAnim', l: 'Icône animée : bouge', f: 'sel', o: { '': 'Quand la tuile est active (en marche)', toujours: 'Toujours', jamais: 'Jamais (figée)' }, help: 'Dans l\'éditeur, « Quand la tuile est active » bouge toujours pour l\'aperçu ; « Jamais » reste figée.', show: function (t) { return hasAnimIcon(t); } },
     animSpeed: { k: 'animSpeed', l: 'Animation : vitesse', f: 'sel', o: { '': 'Normale', lent: 'Lente', rapide: 'Rapide' }, show: function (t) { return hasAnimIcon(t); } },
     info: { k: 'cmdInfo', l: 'Info', f: 'cmd', filter: C_INFO },
     th: { k: 'thresholds', base: 'thBase', l: 'Couleur de la valeur selon la valeur', f: 'thresholds', help: 'Jusqu\'à 10 lignes. Un nombre = à partir de cette valeur (le plus haut seuil atteint gagne). Un texte = si la valeur est égale à ce texte. La couleur s\'applique au texte comme à l\'icône.' },
@@ -278,7 +278,7 @@
       { k: 'url', l: 'Adresse', ph: 'index.php?v=d&p=plan&plan_id=1', show: function (t) { return t.target === 'url'; } },
       { k: 'newTab', l: 'Nouvel onglet', f: 'check', show: function (t) { return t.target === 'url'; } },
       { k: 'icon', l: 'Icône(s)', f: 'icon', help: 'Plusieurs icônes : séparez par |' }, { k: 'img', l: 'Ou image (adresse)', ph: 'plugins/…/logo.png' },
-      { k: 'animOn', l: 'Animer l\'icône / l\'image', f: 'check', keepFalse: true, help: 'Sans condition : coché = animée en permanence, décoché = fixe. Une image ou une icône simple pulse ; une icône animée bouge.' },
+      { k: 'animOn', l: 'Animer l\'icône / l\'image', f: 'check', keepFalse: true, defOn: function (t) { return !t.cmdAnim && hasAnimIcon(t); }, help: 'Sans condition : coché = animée en permanence, décoché = fixe. Une image ou une icône simple pulse ; une icône animée bouge.' },
       { k: 'cmdAnim', l: 'Animer seulement si l\'info…', f: 'cmd', filter: C_INFO, help: 'Option. Renseignée : animée quand la condition est vraie, sinon fixe (la case ci-dessus est alors ignorée).' },
       { k: 'animOp', l: '…a une valeur', f: 'sel', o: { '=': '=', '!=': '≠', '>': '>', '>=': '≥', '<': '<', '<=': '≤' }, keep: true, show: function (t) { return !!t.cmdAnim; } },
       { k: 'animVal', l: 'Valeur', ph: '1', show: function (t) { return !!t.cmdAnim; } },
@@ -301,7 +301,7 @@
       { k: 'aImg', l: 'Lien 1 : image (adresse)', ph: 'plugins/…/photo.jpg', help: 'Une image (photo, logo). Vide = l\'icône ci-dessous.' },
       { k: 'aIcon', l: 'Lien 1 : icône', f: 'icon', show: function (t) { return !t.aImg; } },
       { k: 'aColor', l: 'Lien 1 : couleur', f: 'color', ph: '#ffffff' },
-      { k: 'animOnA', l: 'Lien 1 : Animer l\'icône / l\'image', f: 'check', keepFalse: true, help: 'Sans condition : coché = animée en permanence, décoché = fixe. Une image ou une icône simple pulse ; une icône animée bouge.' },
+      { k: 'animOnA', l: 'Lien 1 : Animer l\'icône / l\'image', f: 'check', keepFalse: true, defOn: function (t) { return !t.cmdAnimA && /svg:a-/.test(t.aIcon || ''); }, help: 'Sans condition : coché = animée en permanence, décoché = fixe. Une image ou une icône simple pulse ; une icône animée bouge.' },
       { k: 'cmdAnimA', l: 'Lien 1 : Animer seulement si l\'info…', f: 'cmd', filter: C_INFO, help: 'Option. Renseignée : animée quand la condition est vraie, sinon fixe (la case ci-dessus est alors ignorée).' },
       { k: 'animOpA', l: 'Lien 1 : …a une valeur', f: 'sel', o: { '=': '=', '!=': '≠', '>': '>', '>=': '≥', '<': '<', '<=': '≤' }, keep: true, show: function (t) { return !!t.cmdAnimA; } },
       { k: 'animValA', l: 'Lien 1 : Valeur', ph: '1', show: function (t) { return !!t.cmdAnimA; } },
@@ -316,7 +316,7 @@
       { k: 'bImg', l: 'Lien 2 : image (adresse)', ph: 'plugins/…/photo.jpg', help: 'Une image (photo, logo). Vide = l\'icône ci-dessous.' },
       { k: 'bIcon', l: 'Lien 2 : icône', f: 'icon', show: function (t) { return !t.bImg; } },
       { k: 'bColor', l: 'Lien 2 : couleur', f: 'color', ph: '#ffffff' },
-      { k: 'animOnB', l: 'Lien 2 : Animer l\'icône / l\'image', f: 'check', keepFalse: true, help: 'Sans condition : coché = animée en permanence, décoché = fixe. Une image ou une icône simple pulse ; une icône animée bouge.' },
+      { k: 'animOnB', l: 'Lien 2 : Animer l\'icône / l\'image', f: 'check', keepFalse: true, defOn: function (t) { return !t.cmdAnimB && /svg:a-/.test(t.bIcon || ''); }, help: 'Sans condition : coché = animée en permanence, décoché = fixe. Une image ou une icône simple pulse ; une icône animée bouge.' },
       { k: 'cmdAnimB', l: 'Lien 2 : Animer seulement si l\'info…', f: 'cmd', filter: C_INFO, help: 'Option. Renseignée : animée quand la condition est vraie, sinon fixe (la case ci-dessus est alors ignorée).' },
       { k: 'animOpB', l: 'Lien 2 : …a une valeur', f: 'sel', o: { '=': '=', '!=': '≠', '>': '>', '>=': '≥', '<': '<', '<=': '≤' }, keep: true, show: function (t) { return !!t.cmdAnimB; } },
       { k: 'animValB', l: 'Lien 2 : Valeur', ph: '1', show: function (t) { return !!t.cmdAnimB; } }],
@@ -570,12 +570,12 @@
   var COMMON = [
     { k: 'title', l: 'Nom' },
     { k: 'type', l: 'Fonction', f: 'func' },
+    { k: 'pin', l: '🔒 Code de confirmation', f: 'sel', o: { '': 'Non', on: 'Sur le On (allumer, ouvrir, monter, armer…)', off: 'Sur le Off (éteindre, fermer, descendre, désarmer…)', all: 'Sur toutes les actions' }, keep: true, help: 'Un clavier demande le code avant d\'envoyer l\'action. Le code se règle dans la configuration du plugin.' },
     { k: 'stack', l: 'Empiler sous la tuile précédente', f: 'check', help: 'La tuile se met sous la précédente, dans la même case. La pile fait au moins 1 case de haut (plus si la première tuile est plus haute) et ses tuiles se la partagent à parts égales : la rangée reste droite, qu\'il y en ait 2, 3 ou plus.' },
     { k: 'w', l: 'Largeur (cases)', f: 'sel', o: SIZES, half: true, show: function (t) { return !t.stack; } },
     { k: 'h', l: 'Hauteur (cases)', f: 'sel', o: SIZES, half: true, show: function (t) { return !t.stack; } },
     { k: 'x', l: 'Position : colonne', f: 'pos', show: function (t) { return !t.stack; }, help: 'Placement libre. 1 = première colonne, 1.5 = milieu de la première case, 2.25… Vide = automatique. Plus simple : glissez la tuile dans l\'aperçu.' },
-    { k: 'y', l: 'Position : ligne', f: 'pos', show: function (t) { return !t.stack; }, help: '1 = première ligne, 1.5 = sous une tuile de ½ de haut… Vide = automatique.' },
-    { k: 'pin', l: 'Code de confirmation', f: 'sel', o: { '': 'Non', on: 'Sur le On (allumer, ouvrir, monter, armer…)', off: 'Sur le Off (éteindre, fermer, descendre, désarmer…)', all: 'Sur toutes les actions' }, keep: true, help: 'Un clavier demande le code avant d\'envoyer l\'action. Le code se règle dans la configuration du plugin.' }
+    { k: 'y', l: 'Position : ligne', f: 'pos', show: function (t) { return !t.stack; }, help: '1 = première ligne, 1.5 = sous une tuile de ½ de haut… Vide = automatique.' }
   ];
   /** Texte d'aide des tailles d'une tuile : taille commune de la page, sinon automatique. */
   function pagePx(k) {
@@ -1279,7 +1279,7 @@
     var set = function (v) { setPath(obj, f.k, v); onChange(f); if (f.after) f.after(obj); if (f.f === 'cmd' && v) autoFill(obj, f); };
     switch (f.f) {
       case 'check':
-        ctrl = $('<input type="checkbox">').prop('checked', !!val).on('change', function () {
+        ctrl = $('<input type="checkbox">').prop('checked', (val === undefined || val === null) && f.defOn ? !!f.defOn(obj) : !!val).on('change', function () {
           if (f.keepFalse) { obj[f.k] = $(this).is(':checked'); onChange(f); return; }
           set($(this).is(':checked'));
         });
