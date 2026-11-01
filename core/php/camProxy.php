@@ -31,6 +31,14 @@ $maxTime = $stream ? 60 : 10; // un flux est coupé au bout de 60 s (relancé d'
 while (ob_get_level() > 0) {
 	ob_end_clean();
 }
+// pas de compression ni de tampon : sinon un flux MJPEG reste figé sur la première image
+@ini_set('zlib.output_compression', '0');
+@ini_set('output_buffering', '0');
+@ini_set('implicit_flush', '1');
+if (function_exists('apache_setenv')) {
+	@apache_setenv('no-gzip', '1');
+	@apache_setenv('dont-vary', '1');
+}
 
 $ch = curl_init($target['url']);
 $sentHeaders = false;

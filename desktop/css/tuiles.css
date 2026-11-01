@@ -1697,3 +1697,13 @@ body.tl-kiosk #tl-panel-root { position: fixed !important; inset: 0 !important; 
 .tl-rp-head { font-size: clamp(11px, min(1.4cqw, 2.4cqh), 18px); }
 .tl-rp-wk { font-size: clamp(10px, min(1.1cqw, 2cqh), 14px); }
 .tl-rp-foot { font-size: clamp(11px, min(1.2cqw, 2.2cqh), 15px); }
+/* Réveil : état de chaque appareil (plugin Réveils : OK, attente, dérogation manuelle, désactivé, écart) */
+.tl-rv-dev-wait { background: rgba(245,166,35,.16); color: #f5c06a; }
+.tl-rv-dev-manual { background: rgba(167,139,250,.18); color: #c4b5fd; }
+.tl-rv-dev-off { background: rgba(255,255,255,.06); color: rgba(255,255,255,.45); }
+.tl-rv-dev-err { background: rgba(229,72,77,.2); color: #ff8b8f; }
+.tl-rv[data-sync="ok"] .tl-rv-sync { background: rgba(48,196,108,.08); border-color: #30c46c; }
+.tl-rv-sync .tl-rv-l em { font-style: normal; font-weight: 800; }
+.tl-rv-sync .tl-rv-l-ok { color: #6fe3a0; } .tl-rv-sync .tl-rv-l-wait { color: #f5c06a; } .tl-rv-sync .tl-rv-l-manual { color: #c4b5fd; }
+.tl-rv-sync .tl-rv-l-off { color: rgba(255,255,255,.5); } .tl-rv-sync .tl-rv-l-err { color: #ff8b8f; font-weight: 700; }
+.tl-rv-sync .tl-rv-repris { font-style: italic; color: #c4b5fd; opacity: 1; }

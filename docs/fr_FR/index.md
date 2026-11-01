@@ -490,3 +490,11 @@ Dans la configuration du plugin, réglez un **Code de confirmation** (4 à 8 chi
 - **Sur toutes les actions**.
 
 Un clavier à gros chiffres s'ouvre ; il valide tout seul quand tous les chiffres sont tapés. Le code est vérifié par Jeedom : il n'apparaît jamais dans les pages ni dans la sauvegarde « Tout exporter ». Après 3 codes faux, le clavier est bloqué 30 secondes. Un bouton « toggle » (une seule action pour allumer et éteindre) suit son info d'état : s'il est éteint, l'appui compte comme un On ; s'il est allumé, comme un Off. Sans info d'état, le code est demandé dans les deux cas.
+
+## Réveils : format accueil
+
+La tuile **Liste des réveils (plugin Réveils)** a un réglage **Format → Accueil** : une colonne par réveil, avec l'heure en grand dans la couleur de la personne (orange, violet, bleu, vert), le jour (« Demain », « Lun 3 »…), le prénom et la pastille de synchro (vert = OK, orange = en attente, rouge = erreur). L'icône **Réveil (sonne)** s'agite quand le réveil est dans moins de 12 h. Un appui ouvre la page choisie (ex. la page Réveils) ; sans page, il permet de changer l'heure de ce réveil. En tuile basse (barre du haut), l'icône disparaît et l'heure passe à gauche du jour et du prénom.
+
+### Réveil : état de chaque appareil
+
+La tuile **Réveil** suit les statuts du plugin Réveils, appareil par appareil (commandes « Statut Alexa » et « Statut Rémi », reprises automatiquement) : ✓ vert = OK, … orange = vérification en attente, ✋ violet = **dérogation manuelle** (réveil changé à la main dans l'appli, laissé tel quel), ○ gris = désactivé (ex. Rémi hors semaine de garde), ✗ rouge = écart ou échec. La ligne « planning repris après HH:MM » s'affiche en italique. Réglage **Détail par appareil** : seulement s'il y a un souci, ou toujours. « Resynchroniser » demande confirmation, car il annule les dérogations manuelles en cours.

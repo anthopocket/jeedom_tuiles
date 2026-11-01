@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.72.1';
+  var VERSION = '1.72.2';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -5011,6 +5011,37 @@
     return s2 ? 'wait' : 'none';
   }
   var RV_LABEL = { ok: 'Synchro OK', wait: 'Vérification en attente', manual: 'Dérogation manuelle', err: 'Écart', none: '' };
+  /** Niveau d'un appareil d'après son texte de statut (plugin Réveils : OK, attente, dérogation manuelle, désactivé, écart…). */
+  function rvDevLevel(txt) {
+    var s2 = String(txt || '').toLowerCase();
+    if (!s2) return 'none';
+    if (/échec|echec|écart|ecart|erreur|\bko\b/.test(s2)) return 'err';
+    if (/dérogation|derogation/.test(s2)) return 'manual';
+    if (/désactiv|desactiv/.test(s2)) return 'off';
+    if (/attente|programmé|programme|en cours/.test(s2)) return 'wait';
+    if (/\bok\b|libre|mis en place|à jour|a jour/.test(s2)) return 'ok';
+    return 'wait';
+  }
+  /** Lignes par appareil : statut propre (Statut Alexa / Statut Rémi), sinon le morceau du statut global qui le cite. */
+  function rvDevLines(p, t, st) {
+    var glob = String(st || '').replace(/^[^:|]{0,40}:\s*/, '').split(/\s*\|\s*|\n|,\s*(?=(?:alexa|r[ée]mi)\b)/i).filter(Boolean);
+    var repris = '';
+    glob = glob.filter(function (l) { if (/planning repris/i.test(l)) { repris = l.replace(/^.*?(planning repris)/i, '$1'); return false; } return true; });
+    var out = [];
+    [['Alexa', t.cmdStatusAlexa, t.cmdAlexaOk, /alexa/i, 'alexa'], ['Rémi', t.cmdStatusRemi, t.cmdRemiOk, /r[ée]mi/i, 'remi']].forEach(function (d) {
+      if (t.rvDevice && t.rvDevice !== d[4]) return;
+      var own = cleanId(d[1]) ? p.val(d[1]) : '';
+      var txt = isSet(own) && own !== '' ? String(own) : (glob.filter(function (l) { return d[3].test(l); })[0] || '');
+      txt = txt.replace(d[3], '').replace(/^\s*[:—-]\s*/, '').trim();
+      txt = txt.replace(/(\d{4})-(\d{2})-(\d{2})[ T](\d{2}:\d{2})(:\d{2})?/g, '$3/$2 $4');   // 2026-11-02 07:00 → 02/11 07:00
+      var lvl = rvDevLevel(txt);
+      if (lvl === 'none' && cleanId(d[2])) { var b = isActive(p.val(d[2])); lvl = b === true ? 'ok' : (b === false ? 'err' : 'none'); }
+      if (lvl === 'none' && !cleanId(d[2]) && !txt) return;
+      out.push({ name: d[0], lvl: lvl, text: txt });
+    });
+    return { devs: out, repris: repris };
+  }
+  var RV_ICON = { ok: '✓ ', err: '✗ ', manual: '✋ ', off: '○ ', wait: '… ', none: '' };
   function rvDay(d) {
     var now = new Date(), today = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
     var dd = Math.round((new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime() - today) / 86400000);
@@ -5033,7 +5064,7 @@
     if (d && cleanId(it.cmdSkip)) btns.push({ label: 'Pas de réveil', danger: true, click: function () { p.exec(it.cmdSkip).then(function () { done('Réveil du ' + rvDay(d).toLowerCase() + ' supprimé'); }, function (e) { UI.toast(e.message, 'error'); }); } });
     if (d && cleanId(it.cmdException)) btns.push({ label: 'Revenir au planning', click: function () { exc('').then(function () { done('Planning rétabli'); }, function (e) { UI.toast(e.message, 'error'); }); } });
     if (cleanId(it.cmdVerify)) btns.push({ label: 'Vérifier', click: function () { p.exec(it.cmdVerify).then(function () { done('Vérification lancée'); }, function (e) { UI.toast(e.message, 'error'); }); } });
-    if (cleanId(it.cmdResync)) btns.push({ label: 'Resynchroniser', click: function () { p.exec(it.cmdResync).then(function () { done('Resynchronisation lancée'); }, function (e) { UI.toast(e.message, 'error'); }); } });
+    if (cleanId(it.cmdResync)) btns.push({ label: 'Resynchroniser', click: function () { UI.confirm('Reprogrammer le planning sur l\'Alexa et le Rémi ? Les dérogations manuelles en cours seront annulées.', function () { p.exec(it.cmdResync).then(function () { done('Resynchronisation lancée'); }, function (e) { UI.toast(e.message, 'error'); }); }); } });
     if (d && cleanId(it.cmdException)) btns.push({ label: 'Changer l\'heure', primary: true, click: function () {
       if (!/^\d{2}:\d{2}$/.test(inp.value)) return false;
       exc(inp.value).then(function () { done('Réveil réglé à ' + inp.value); }, function (e) { UI.toast(e.message, 'error'); });
@@ -5054,7 +5085,7 @@
     var q = function (c) { return box.querySelector(c); };
     var it = { name: t.title, cmdNext: t.cmdNext, cmdException: t.cmdException, cmdSkip: t.cmdSkip, cmdResync: t.cmdResync, cmdVerify: t.cmdVerify };
     if (!p.opts.edit && (cleanId(t.cmdException) || cleanId(t.cmdSkip) || cleanId(t.cmdResync) || cleanId(t.cmdVerify))) p.press(api.el, function () { rvEdit(p, api, it); });
-    var devs = [['Alexa', t.cmdAlexaOk, 'alexa'], ['Rémi', t.cmdRemiOk, 'remi']].filter(function (x) { return cleanId(x[1]) && (!t.rvDevice || t.rvDevice === x[2]); });
+    var hasDevs = !!(cleanId(t.cmdAlexaOk) || cleanId(t.cmdRemiOk) || cleanId(t.cmdStatusAlexa) || cleanId(t.cmdStatusRemi));
     var paintNow = function () {
       var raw = p.val(t.cmdNext), d = parseWake(raw);
       if (p.opts.edit && !d) { d = new Date(); d.setDate(d.getDate() + 1); d.setHours(6, 45, 0, 0); }
@@ -5070,17 +5101,18 @@
       var mins = d ? Math.round((d.getTime() - Date.now()) / 60000) : 0;
       var lc = parseDate(p.val(t.cmdLastCheck));
       q('.tl-rv-left').textContent = [d && mins > 0 ? 'dans ' + (mins >= 60 ? Math.floor(mins / 60) + ' h ' + pad(mins % 60) : mins + ' min') : '', lc ? 'vérifié ' + relative(lc) : ''].filter(Boolean).join(' · ');
-      q('.tl-rv-devs').innerHTML = devs.map(function (x) {
-        var v = isActive(p.val(x[1]));
-        return '<span class="tl-rv-dev tl-rv-dev-' + (v === true ? 'ok' : (v === false ? 'ko' : 'na')) + '">' + (v === true ? '✓ ' : (v === false ? '✗ ' : '')) + x[0] + '</span>';
+      var dl = hasDevs ? rvDevLines(p, t, st) : { devs: [], repris: '' };
+      q('.tl-rv-devs').innerHTML = dl.devs.map(function (x) {
+        return '<span class="tl-rv-dev tl-rv-dev-' + x.lvl + '" title="' + esc(x.text) + '">' + RV_ICON[x.lvl] + x.name + '</span>';
       }).join('');
-      // détail du statut (une ligne par appareil), seulement s'il y a un souci
+      // détail en clair : une ligne par appareil (couleur selon son état), puis « planning repris après… »
       var sync = q('.tl-rv-sync');
-      if (!t.rvCompact && isSet(st) && lvl !== 'ok') {
-        var txt = String(st).replace(/^[^:]{0,40}:\s*/, '');
-        var dvRe = t.rvDevice === 'alexa' ? /alexa/i : (t.rvDevice === 'remi' ? /r[ée]mi/i : null);
-        sync.innerHTML = '<b>' + esc(RV_LABEL[lvl]) + '</b>' + txt.split(/\s*\|\s*|\n/).filter(Boolean).filter(function (l) { return !dvRe || dvRe.test(l) || !/alexa|r[ée]mi/i.test(l); }).slice(0, 3).map(function (l) { return '<span>' + esc(l) + '</span>'; }).join('');
-        sync.style.display = '';
+      var showAll = t.rvDetail === 'toujours';
+      if (!t.rvCompact && (showAll || lvl !== 'ok') && (dl.devs.length || isSet(st))) {
+        var lines = dl.devs.length ? dl.devs.filter(function (x) { return x.text; }).map(function (x) { return '<span class="tl-rv-l tl-rv-l-' + x.lvl + '"><em>' + esc(x.name) + '</em> ' + esc(x.text) + '</span>'; })
+          : String(st).replace(/^[^:]{0,40}:\s*/, '').split(/\s*\|\s*|\n/).filter(Boolean).slice(0, 3).map(function (l) { return '<span>' + esc(l) + '</span>'; });
+        sync.innerHTML = (lvl !== 'ok' ? '<b>' + esc(RV_LABEL[lvl]) + '</b>' : '') + lines.join('') + (dl.repris ? '<span class="tl-rv-repris">' + esc(dl.repris) + '</span>' : '');
+        sync.style.display = sync.innerHTML ? '' : 'none';
       } else sync.style.display = 'none';
     };
     p.timers.push(setInterval(paintNow, 30000));
