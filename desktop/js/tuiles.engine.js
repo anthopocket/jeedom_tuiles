@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.71.3';
+  var VERSION = '1.72.1';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -409,13 +409,20 @@
      '<circle class="fs" cx="50" cy="44" r="24"/><circle class="ln" cx="50" cy="44" r="24"/><circle class="lt" cx="50" cy="44" r="15"/>' +
      '<circle class="fl" cx="43.3" cy="44" r="2.4"/><circle class="fl" cx="56.7" cy="44" r="2.4"/><rect class="fl" x="48.6" y="29.6" width="2.8" height="4.8" rx="1"/>' +
      '<path class="fl fx mv" ' + AO('zap', 1, 50, 92, 'ease-in-out infinite') + ' d="M51.6 85.4 L46.7 93.1 H50 L48.4 98.6 L53.3 90.9 H50 Z"/>'],
+    ['Réveil (sonne)', '#ffb000',
+     '<g class="mv" ' + AO('ringer', 2.4, 50, 56, 'ease-in-out infinite') + '>' +
+     '<path class="ln" d="M22 26 A13 13 0 0 1 38 16"/><path class="ln" d="M78 26 A13 13 0 0 0 62 16"/>' +
+     '<path class="ln" d="M32 86 L26 94 M68 86 L74 94"/>' +
+     '<circle class="fs" cx="50" cy="56" r="31"/><circle class="ln" cx="50" cy="56" r="31"/>' +
+     '<path class="ln" d="M50 56 V38 M50 56 L62 64"/><circle class="fl" cx="50" cy="56" r="3.5"/></g>' +
+     '<path class="lt fx" d="M12 40 Q6 48 12 56 M88 40 Q94 48 88 56" style="animation:twinkle calc(1.2s * var(--d)) ease-in-out infinite"/>'],
     ['Divers (formes)', '#b39ddb',
      '<g class="mv" ' + AO('hop', 1.8, 28, 40, 'ease-in-out infinite') + '><circle class="fs" cx="28" cy="34" r="16"/><circle class="ln" cx="28" cy="34" r="16"/></g>' +
      '<g class="mv" style="' + O(72, 34) + 'animation:hop calc(1.8s * var(--d)) ease-in-out infinite;animation-delay:calc(.3s * var(--d))"><rect class="fs" x="57" y="19" width="30" height="30" rx="5"/><rect class="ln" x="57" y="19" width="30" height="30" rx="5"/></g>' +
      '<g class="mv" style="' + O(50, 88) + 'animation:hop calc(1.8s * var(--d)) ease-in-out infinite;animation-delay:calc(.6s * var(--d))"><path class="fs" d="M50 56 L68 86 H32 Z"/><path class="ln" d="M50 56 L68 86 H32 Z"/></g>' +
      '<path class="lt fx" d="M14 94 H86" style="opacity:.35"/>']
     ];
-    var slugs = ['pompe-piscine', 'pompe-arrosage', 'arroseur-rotatif', 'arroseur-oscillant', 'goutte-a-goutte', 'electrovanne', 'robot-piscine', 'cuve', 'ventilateur', 'radiateur', 'flamme', 'prise', 'solaire', 'batterie', 'voiture-charge', 'lave-linge', 'seche-linge', 'lave-vaisselle', 'robot-aspirateur', 'portail-motorise', 'ampoule', 'sirene', 'sonnette', 'mangeoire', 'piege-moustiques', 'pac-ext', 'pac-piscine', 'batterie-charge', 'batterie-decharge', 'bons-points', 'prise-fr', 'divers'];
+    var slugs = ['pompe-piscine', 'pompe-arrosage', 'arroseur-rotatif', 'arroseur-oscillant', 'goutte-a-goutte', 'electrovanne', 'robot-piscine', 'cuve', 'ventilateur', 'radiateur', 'flamme', 'prise', 'solaire', 'batterie', 'voiture-charge', 'lave-linge', 'seche-linge', 'lave-vaisselle', 'robot-aspirateur', 'portail-motorise', 'ampoule', 'sirene', 'sonnette', 'mangeoire', 'piege-moustiques', 'pac-ext', 'pac-piscine', 'batterie-charge', 'batterie-decharge', 'bons-points', 'prise-fr', 'reveil', 'divers'];
     var out = [];
     I.forEach(function (it, i) {
       var body = it[2]
@@ -5082,6 +5089,7 @@
 
   /** Liste de plusieurs réveils (une ligne par équipement Réveils). */
   R.reveils = function (p, t, api) {
+    if (t.rvStyle === 'accueil') return rvHome(p, t, api);
     api.el.classList.add('tl-rvl-tile');
     var list = el('div', 'tl-rvl');
     api.body.appendChild(list);
@@ -5112,11 +5120,57 @@
     return function () { paintNow(); };
   };
 
+  /** Réveils, format accueil : une colonne par réveil (heure en grand, jour, prénom), icône réveil animée.
+   *  Appui : ouvre la page choisie, sinon fenêtre pour changer l'heure de ce réveil. */
+  var RV_COLORS = ['#ffb000', '#ce93d8', '#4fc3f7', '#81c784'];
+  function rvHome(p, t, api) {
+    api.el.classList.add('tl-rvh-tile');
+    var items = (t.rvItems || []).filter(function (x) { return x && cleanId(x.cmdNext); });
+    if (p.opts.edit && !items.length) items = [{ name: 'Papa', demo: '06:30' }, { name: 'Armand', demo: '07:15' }];
+    var box = el('div', 'tl-rvh' + (items.length > 2 ? ' tl-rvh-many' : ''));
+    api.body.appendChild(box);
+    var page = cleanId(t.page);
+    var cols = items.slice(0, 4).map(function (x, i) {
+      var c = el('div', 'tl-rvh-col', '<div class="tl-rvh-ic"></div><b class="tl-rvh-time"></b><div class="tl-rvh-day"></div><div class="tl-rvh-name"><span class="tl-rvl-dot"></span><span></span></div>');
+      c.style.setProperty('--rvc', isSet(x.color) ? color(x.color) : RV_COLORS[i % RV_COLORS.length]);
+      c.querySelector('.tl-rvh-ic').innerHTML = iconHtml(t.icon || 'svg:a-reveil');
+      c.querySelector('.tl-rvh-name span:last-child').textContent = x.name || '';
+      box.appendChild(c);
+      if (!p.opts.edit) {
+        c.classList.add('tl-click');
+        c.addEventListener('click', function (e) {
+          e.stopPropagation();
+          if (page) p.navigate({ target: 'page', page: page });
+          else if (cleanId(x.cmdException) || cleanId(x.cmdSkip) || cleanId(x.cmdResync) || cleanId(x.cmdVerify)) rvEdit(p, api, x);
+        });
+      }
+      return { x: x, el: c };
+    });
+    var paintNow = function () {
+      var any = false;
+      cols.forEach(function (r) {
+        var d = r.x.demo ? parseWake(r.x.demo) : parseWake(p.val(r.x.cmdNext));
+        var lvl = rvLevel(p.val(r.x.cmdStatus), cleanId(r.x.cmdSyncOk) ? isActive(p.val(r.x.cmdSyncOk)) : null);
+        var soon = d && d.getTime() - now().getTime() < 12 * 3600000 && d.getTime() > now().getTime();
+        if (d) any = true;
+        r.el.setAttribute('data-sync', lvl);
+        r.el.classList.toggle('tl-rv-off', !d);
+        r.el.classList.toggle('tl-run', !!soon);
+        r.el.querySelector('.tl-rvh-time').textContent = d ? pad(d.getHours()) + ':' + pad(d.getMinutes()) : '--:--';
+        r.el.querySelector('.tl-rvh-day').textContent = d ? rvDay(d) : 'Aucun réveil';
+        r.el.querySelector('.tl-rvl-dot').title = p.val(r.x.cmdStatus) || RV_LABEL[lvl];
+      });
+      api.el.classList.toggle('tl-rvh-none', !any);
+    };
+    p.timers.push(setInterval(paintNow, 60000));
+    return function () { paintNow(); };
+  }
+
   /* ---- Planning du plugin Réveils : 4 semaines, congé / enfant / profil du jour d'un clic, paramètres ---- */
   var JL = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
   R.reveilplan = function (p, t, api) {
     api.el.classList.add('tl-rp-tile');
-    var eqId = cleanId(t.eqId);
+    var eqId = cleanId(t.eqId) || cleanId(t.cmdNext);   // équipement, ou une de ses commandes (le serveur remonte à l'équipement)
     var box = el('div', 'tl-rp');
     var bar = el('div', 'tl-rp-bar');
     var grid = el('div', 'tl-rp-grid');

@@ -873,6 +873,11 @@ class tuiles extends eqLogic {
 		}
 		$eq = eqLogic::byId(self::cleanId($id));
 		if (!is_object($eq) || $eq->getEqType_name() != 'reveil') {
+			// id d'une commande du réveil (ex. « Prochain réveil ») : on remonte à son équipement
+			$cmd = cmd::byId(self::cleanId($id));
+			$eq = is_object($cmd) ? $cmd->getEqLogic() : null;
+		}
+		if (!is_object($eq) || $eq->getEqType_name() != 'reveil') {
 			throw new Exception(__('Réveil introuvable', __FILE__));
 		}
 		return $eq;
