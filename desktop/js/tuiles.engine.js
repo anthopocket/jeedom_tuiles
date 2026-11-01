@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.70.1';
+  var VERSION = '1.70.3';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -282,6 +282,7 @@
     function drops(xs, y0, name, base, cls) { return xs.map(function (x, i) { return '<circle class="' + (cls || 'fl') + ' fx" cx="' + x + '" cy="' + y0 + '" r="2.4" ' + 'style="animation:' + name + ' calc(' + base + 's * var(--d)) linear infinite;animation-delay:calc(' + (i * base / xs.length).toFixed(2) + 's * var(--d))"/>'; }).join(''); }
     var blades6 = ''; for (var i = 0; i < 6; i++) blades6 += '<path class="fl" d="M45 58 C47 50 52 46 57 46 C55 51 51 55 45 58 Z" transform="rotate(' + i * 60 + ' 45 58)"/>';
     var fan3 = function (cx, cy, r) { var s = ''; for (var i = 0; i < 3; i++) s += '<path class="fl" d="M' + cx + ' ' + cy + ' C' + (cx + r * .25) + ' ' + (cy - r * .45) + ' ' + (cx + r * .75) + ' ' + (cy - r * .6) + ' ' + (cx + r) + ' ' + (cy - r * .2) + ' C' + (cx + r * .6) + ' ' + (cy - r * .05) + ' ' + (cx + r * .3) + ' ' + cy + ' ' + cx + ' ' + cy + ' Z" transform="rotate(' + i * 120 + ' ' + cx + ' ' + cy + ')"/>'; return s; };
+    var star = function (cx, cy, r) { var p = []; for (var k = 0; k < 10; k++) { var g = -Math.PI / 2 + k * Math.PI / 5, rr = k % 2 ? r * .45 : r; p.push((cx + rr * Math.cos(g)).toFixed(1) + ' ' + (cy + rr * Math.sin(g)).toFixed(1)); } return 'M' + p.join(' L') + ' Z'; };
     var I = [
     ['Pompe piscine', '#4fc3f7',
      '<path class="ln" d="M6 70 H20"/><path class="ln" d="M45 32 V16 H66"/><circle class="lt" cx="45" cy="58" r="25" style="stroke-width:4"/><rect class="fs" x="20" y="64" width="6" height="12" rx="2"/>' +
@@ -397,9 +398,19 @@
      '<rect class="lt" x="4" y="30" width="42" height="40" rx="6" style="stroke-width:4"/><rect class="fl" x="47" y="42" width="5" height="16" rx="2"/>' +
      [0, 1, 2, 3].map(function (k) { return '<rect class="fl" x="' + (9 + k * 9) + '" y="35" width="6.5" height="30" rx="2" style="animation:drain1 calc(2.4s * var(--d)) steps(1) infinite;animation-delay:calc(' + ((3 - k) * 0.4) + 's * var(--d))"/>'; }).join('') +
       [58,65,72].map(function (x, i) { return '<path class="ln fx" d="M' + x + ' 43 l6 7 l-6 7" style="stroke-width:3.5;opacity:.15;animation:chev calc(1.2s * var(--d)) ease-in-out infinite;animation-delay:calc(' + (i * .2) + 's * var(--d))"/>'; }).join('') + '' +
-     '<path class="ln" d="M82 50 L90 42 L98 50 M84 48 V60 H96 V48" style="stroke-width:3.5"/>']
+     '<path class="ln" d="M82 50 L90 42 L98 50 M84 48 V60 H96 V48" style="stroke-width:3.5"/>'],
+    ['Bons points (étoile)', '#ffca28',
+     '<g class="mv" ' + AO('breath', 1.6, 50, 52, 'ease-in-out infinite') + '><path class="fs" d="' + star(50, 52, 34) + '"/><path class="ln" d="' + star(50, 52, 34) + '"/></g>' +
+     [[16, 20, 0], [84, 24, .5], [86, 78, 1], [14, 74, 1.3], [50, 6, .8]].map(function (p) { var x = p[0], y = p[1];
+       return '<path class="fl fx mv" style="' + O(x, y) + 'animation:twinkle calc(1.8s * var(--d)) ease-in-out infinite;animation-delay:calc(' + p[2] + 's * var(--d))" d="M' + x + ' ' + (y - 6) + ' L' + (x + 1.6) + ' ' + (y - 1.6) + ' L' + (x + 6) + ' ' + y + ' L' + (x + 1.6) + ' ' + (y + 1.6) + ' L' + x + ' ' + (y + 6) + ' L' + (x - 1.6) + ' ' + (y + 1.6) + ' L' + (x - 6) + ' ' + y + ' L' + (x - 1.6) + ' ' + (y - 1.6) + ' Z"/>'; }).join('')],
+    ['Prise française', '#ffb000',
+     '<rect class="ln fx mv" x="14" y="8" width="72" height="72" rx="16" ' + AO('halo', 1.6, 50, 44, 'ease-out infinite').replace('style="', 'style="stroke-width:2;') + '/>' +
+     '<rect class="fs" x="14" y="8" width="72" height="72" rx="16"/><rect class="ln" x="14" y="8" width="72" height="72" rx="16"/>' +
+     '<circle class="fs" cx="50" cy="44" r="24"/><circle class="ln" cx="50" cy="44" r="24"/><circle class="lt" cx="50" cy="44" r="15"/>' +
+     '<circle class="fl" cx="43.3" cy="44" r="2.4"/><circle class="fl" cx="56.7" cy="44" r="2.4"/><rect class="fl" x="48.6" y="29.6" width="2.8" height="4.8" rx="1"/>' +
+     '<path class="fl fx mv" ' + AO('zap', 1, 50, 92, 'ease-in-out infinite') + ' d="M51.6 85.4 L46.7 93.1 H50 L48.4 98.6 L53.3 90.9 H50 Z"/>']
     ];
-    var slugs = ['pompe-piscine', 'pompe-arrosage', 'arroseur-rotatif', 'arroseur-oscillant', 'goutte-a-goutte', 'electrovanne', 'robot-piscine', 'cuve', 'ventilateur', 'radiateur', 'flamme', 'prise', 'solaire', 'batterie', 'voiture-charge', 'lave-linge', 'seche-linge', 'lave-vaisselle', 'robot-aspirateur', 'portail-motorise', 'ampoule', 'sirene', 'sonnette', 'mangeoire', 'piege-moustiques', 'pac-ext', 'pac-piscine', 'batterie-charge', 'batterie-decharge'];
+    var slugs = ['pompe-piscine', 'pompe-arrosage', 'arroseur-rotatif', 'arroseur-oscillant', 'goutte-a-goutte', 'electrovanne', 'robot-piscine', 'cuve', 'ventilateur', 'radiateur', 'flamme', 'prise', 'solaire', 'batterie', 'voiture-charge', 'lave-linge', 'seche-linge', 'lave-vaisselle', 'robot-aspirateur', 'portail-motorise', 'ampoule', 'sirene', 'sonnette', 'mangeoire', 'piege-moustiques', 'pac-ext', 'pac-piscine', 'batterie-charge', 'batterie-decharge', 'bons-points', 'prise-fr'];
     var out = [];
     I.forEach(function (it, i) {
       var body = it[2]

@@ -1636,3 +1636,11 @@ body.tl-kiosk #tl-panel-root { position: fixed !important; inset: 0 !important; 
 .tl-homezone-tl { top: 0; left: 0; } .tl-homezone-tr { top: 0; right: 0; } .tl-homezone-bl { bottom: 0; left: 0; } .tl-homezone-br { bottom: 0; right: 0; }
 .tl-homezone svg { width: 40%; height: 40%; fill: currentColor; } .tl-homezone i { font-size: 28px; }
 .tl-homezone.tl-homezone-hit { background: radial-gradient(circle, rgba(31,111,235,.45), transparent 70%); color: #fff; }
+/* bons points (grande) : les boutons occupent toute la hauteur libre et grossissent avec la tuile */
+.tl-bp-grande .tl-bp-bh { grid-auto-rows: minmax(min-content, 1fr); align-content: stretch; }
+.tl-bp-grande .tl-bp-b { font-size: clamp(13px, 1.3cqw, 20px); padding: 6px 12px; }
+.tl-bp-grande .tl-bp-b em { min-width: clamp(34px, 3cqw, 48px); height: clamp(26px, 2.2cqw, 36px); font-size: clamp(13px, 1.3cqw, 19px); }
+@keyframes tla-breath { 0%,100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+@keyframes tla-twinkle { 0%,100% { opacity: 0; transform: scale(.3); } 45% { opacity: 1; transform: scale(1); } 70% { opacity: 0; transform: scale(.5); } }
+@keyframes tla-halo { 0% { opacity: .8; transform: scale(.9); } 100% { opacity: 0; transform: scale(1.25); } }
+@keyframes tla-zap { 0%,100% { opacity: .25; transform: scale(.85); } 50% { opacity: 1; transform: scale(1.12); } }
