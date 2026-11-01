@@ -1021,7 +1021,7 @@
           swipeHome: c.swipeHome !== undefined ? !!c.swipeHome : !!nav.swipeHome, swipeDist: c.swipeDist || nav.swipeDist || 100, idleHome: c.idleHome !== undefined ? c.idleHome : (nav.idleHome || 0),
           veille: c.veille !== undefined ? c.veille : (nav.veille || 0), veilleDate: c.veilleDate !== undefined ? !!c.veilleDate : !!nav.veilleDate, veilleLogo: c.veilleLogo !== undefined ? c.veilleLogo : (nav.veilleLogo || ''),
           veilleColor: c.veilleColor || nav.veilleColor || '#8a8a8a', veilleLum: c.veilleLum || nav.veilleLum || 100, veilleSize: c.veilleSize || nav.veilleSize || 100, veilleBg: c.veilleBg || nav.veilleBg || '#000000',
-          alerts: Object.assign({ on: false, bat: true, stale: 72, net: true, dm: true, to: false, every: 300, page: '', ignore: '' }, c.alerts || {}),
+          alerts: Object.assign({ on: false, bat: true, stale: 72, net: true, dm: true, to: false, every: 300, page: '', ignore: '', onPage: 'home' }, c.alerts || {}),
           homeZone: c.homeZone !== undefined ? c.homeZone : (nav.homeZone || ''), homeZoneSize: c.homeZoneSize || nav.homeZoneSize || 70, homeZoneShow: c.homeZoneShow !== undefined ? !!c.homeZoneShow : !!nav.homeZoneShow,
           full: c.full !== undefined ? !!c.full : d[0] === 'mobile'
         };
@@ -1106,6 +1106,10 @@
         var al = c.alerts, ab = $('<div class="tl-ed-navhome"></div>');
         var ack = function (k, label) { var x = $('<input type="checkbox">').prop('checked', !!al[k]).on('change', function () { al[k] = x.is(':checked'); }); return $('<label class="tl-ed-inline"></label>').append(x).append(' ' + label); };
         ab.append(ack('on', '<b>Afficher un bandeau rouge en haut de l\'écran quand il y a un problème</b> (invisible sinon)'));
+        var wh = $('<select class="form-control input-sm" style="width:auto;display:inline-block"></select>').append('<option value="home">La page d\'accueil seulement</option>').append('<option value="">Toutes les pages</option>');
+        E.pages.filter(function (pg) { return devOf(pg) === dev; }).forEach(function (pg) { wh.append($('<option>').val(String(pg.id)).text('Seulement : ' + pg.name)); });
+        wh.val(al.onPage === undefined ? 'home' : String(al.onPage)).on('change', function () { al.onPage = wh.val(); });
+        ab.append($('<label class="tl-ed-inline"></label>').text('Afficher sur : ').append(wh));
         ab.append(ack('bat', '🔋 Piles faibles (seuils des équipements Jeedom)'));
         var stl = $('<input type="number" min="0" max="2000" step="12" class="form-control input-sm" style="width:80px">').val(al.stale).on('input', function () { al.stale = parseInt($(this).val(), 10) || 0; });
         ab.append($('<label class="tl-ed-inline" style="margin-left:22px"></label>').text('… et piles sans nouvelles depuis plus de ').append(stl).append(' h (0 = non)'));

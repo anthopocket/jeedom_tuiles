@@ -361,6 +361,7 @@ class tuiles extends eqLogic {
 			'every' => isset($a['every']) && is_numeric($a['every']) ? max(60, min(3600, intval($a['every']))) : 300,
 			'page' => isset($a['page']) ? self::cleanId($a['page']) : '',
 			'ignore' => isset($a['ignore']) ? substr(trim((string) $a['ignore']), 0, 500) : '',
+			'onPage' => isset($a['onPage']) ? ($a['onPage'] === 'home' ? 'home' : self::cleanId($a['onPage'])) : '',
 		);
 	}
 

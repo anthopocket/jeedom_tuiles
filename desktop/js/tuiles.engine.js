@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.74.0';
+  var VERSION = '1.74.1';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -802,6 +802,10 @@
     var dev = this.data.device === 'mobile' ? 'mobile' : 'tablette', self = this, nav = navFor(this.data.nav, dev);
     var a = nav.alerts || {};
     if (!a.on) return;
+    // seulement sur une page : la page d'accueil de l'appareil, ou une page choisie
+    var where = String(a.onPage || ''), cur = String(this.data.id || '');
+    if (where === 'home') { var hp = String(((nav.homePages || {})[dev]) || this.data.homeId || ''); if (!hp || hp !== cur) return; }
+    else if (where && where !== cur) return;
     var ign = String(a.ignore || '').toLowerCase().split(/[;\n,]+/).map(function (x) { return x.trim(); }).filter(Boolean);
     var ignored = function (name) { var n = String(name || '').toLowerCase(); return ign.some(function (x) { return n.indexOf(x) >= 0; }); };
     var pill = el('button', 'tl-alert-pill');
