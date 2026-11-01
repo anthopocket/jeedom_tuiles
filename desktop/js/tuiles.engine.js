@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.72.2';
+  var VERSION = '1.72.3';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -5182,14 +5182,20 @@
       var any = false;
       cols.forEach(function (r) {
         var d = r.x.demo ? parseWake(r.x.demo) : parseWake(p.val(r.x.cmdNext));
-        var lvl = rvLevel(p.val(r.x.cmdStatus), cleanId(r.x.cmdSyncOk) ? isActive(p.val(r.x.cmdSyncOk)) : null);
+        var stTxt = String(p.val(r.x.cmdStatus) || '');
+        var lvl = rvLevel(stTxt, cleanId(r.x.cmdSyncOk) ? isActive(p.val(r.x.cmdSyncOk)) : null);
+        // statut de l'appareil (plugin Réveils) : désactivé → pas de réveil ; dérogation manuelle → l'heure réglée à la main
+        var off = /désactiv|desactiv/i.test(stTxt);
+        var man = /d[ée]rogation manuelle\s*\((?:(\d{4}-\d{2}-\d{2})[ T])?(\d{1,2}:\d{2})/i.exec(stTxt);
+        if (man) { var dm = parseWake((man[1] ? man[1] + ' ' : '') + man[2]); if (dm) d = dm; }
+        if (off) { d = null; lvl = 'none'; }
         var soon = d && d.getTime() - now().getTime() < 12 * 3600000 && d.getTime() > now().getTime();
         if (d) any = true;
         r.el.setAttribute('data-sync', lvl);
         r.el.classList.toggle('tl-rv-off', !d);
         r.el.classList.toggle('tl-run', !!soon);
         r.el.querySelector('.tl-rvh-time').textContent = d ? pad(d.getHours()) + ':' + pad(d.getMinutes()) : '--:--';
-        r.el.querySelector('.tl-rvh-day').textContent = d ? rvDay(d) : 'Aucun réveil';
+        r.el.querySelector('.tl-rvh-day').textContent = d ? rvDay(d) + (man ? ' ✋' : '') : (off ? 'Désactivé' : 'Aucun réveil');
         r.el.querySelector('.tl-rvl-dot').title = p.val(r.x.cmdStatus) || RV_LABEL[lvl];
       });
       api.el.classList.toggle('tl-rvh-none', !any);
