@@ -49,6 +49,14 @@ if (!isConnect()) {
 			</div>
 		</div>
 		<div class="form-group">
+			<label class="col-md-4 control-label">{{Code de confirmation}}
+				<sup><i class="fas fa-question-circle tooltips" title="{{Chiffres uniquement (4 à 8). Demandé par les tuiles réglées sur « Code de confirmation ». Vérifié par Jeedom : il n'apparaît pas dans les pages. 3 erreurs = blocage 30 s.}}"></i></sup>
+			</label>
+			<div class="col-md-2">
+				<input type="password" inputmode="numeric" autocomplete="new-password" pattern="[0-9]*" maxlength="8" class="configKey form-control" data-l1key="pinCode" placeholder="ex. 1234"/>
+			</div>
+		</div>
+		<div class="form-group">
 			<label class="col-md-4 control-label">{{Rafraîchissement de secours (s)}}
 				<sup><i class="fas fa-question-circle tooltips" title="{{0 = désactivé (recommandé). Les valeurs arrivent en direct par le core. À n'activer que si une interface ne reçoit pas les événements.}}"></i></sup>
 			</label>

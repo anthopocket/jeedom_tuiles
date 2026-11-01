@@ -23,6 +23,10 @@ try {
 	};
 
 	switch ($action) {
+		case 'checkPin':
+			ajax::success(tuiles::checkPin(init('pin')));
+			break;
+
 		case 'serverTime':
 			ajax::success(array('ms' => round(microtime(true) * 1000)));
 			break;

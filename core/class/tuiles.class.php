@@ -344,6 +344,33 @@ class tuiles extends eqLogic {
 		return $d === 'mobile' ? 'mobile' : 'tablette';
 	}
 
+	/** Code de confirmation : vérifié ici, jamais envoyé aux pages. 3 erreurs = 30 s de blocage. */
+	public static function checkPin($pin) {
+		$code = preg_replace('/[^0-9]/', '', (string) config::byKey('pinCode', 'tuiles', ''));
+		if ($code === '') {
+			return array('ok' => false, 'nocode' => true);
+		}
+		$raw = cache::byKey('tuiles::pinFail')->getValue('');
+		$st = is_array($raw) ? $raw : json_decode((string) $raw, true);
+		if (!is_array($st)) {
+			$st = array('n' => 0, 'until' => 0);
+		}
+		if ($st['until'] > time()) {
+			return array('ok' => false, 'locked' => $st['until'] - time());
+		}
+		if (hash_equals($code, preg_replace('/[^0-9]/', '', (string) $pin))) {
+			cache::set('tuiles::pinFail', json_encode(array('n' => 0, 'until' => 0)));
+			return array('ok' => true);
+		}
+		$st['n'] = intval($st['n']) + 1;
+		if ($st['n'] >= 3) {
+			$st = array('n' => 0, 'until' => time() + 30);
+			log::add('tuiles', 'warning', 'Code de confirmation : 3 erreurs, blocage 30 s');
+		}
+		cache::set('tuiles::pinFail', json_encode($st));
+		return array('ok' => false, 'left' => $st['until'] > time() ? 0 : 3 - $st['n'], 'locked' => $st['until'] > time() ? $st['until'] - time() : 0);
+	}
+
 	public static function devices() {
 		return array('tablette' => 'Tablette', 'mobile' => 'Mobile');
 	}
@@ -371,6 +398,7 @@ class tuiles extends eqLogic {
 			'pages'   => self::pagesList(),
 			'homeId'  => self::homeId($mobile),
 			'homeUrl' => config::byKey('homeUrl', 'tuiles', ''),
+			'pinLen'  => strlen(preg_replace('/[^0-9]/', '', (string) config::byKey('pinCode', 'tuiles', ''))),
 			'poll'    => intval(config::byKey('pollFallback', 'tuiles', 0)),
 			'nav'     => self::nav(),
 			// position de la maison (configuration Jeedom) : tuile soleil

@@ -574,7 +574,8 @@
     { k: 'w', l: 'Largeur (cases)', f: 'sel', o: SIZES, half: true, show: function (t) { return !t.stack; } },
     { k: 'h', l: 'Hauteur (cases)', f: 'sel', o: SIZES, half: true, show: function (t) { return !t.stack; } },
     { k: 'x', l: 'Position : colonne', f: 'pos', show: function (t) { return !t.stack; }, help: 'Placement libre. 1 = première colonne, 1.5 = milieu de la première case, 2.25… Vide = automatique. Plus simple : glissez la tuile dans l\'aperçu.' },
-    { k: 'y', l: 'Position : ligne', f: 'pos', show: function (t) { return !t.stack; }, help: '1 = première ligne, 1.5 = sous une tuile de ½ de haut… Vide = automatique.' }
+    { k: 'y', l: 'Position : ligne', f: 'pos', show: function (t) { return !t.stack; }, help: '1 = première ligne, 1.5 = sous une tuile de ½ de haut… Vide = automatique.' },
+    { k: 'pin', l: 'Code de confirmation', f: 'sel', o: { '': 'Non', on: 'Sur le On (allumer, ouvrir, monter, armer…)', off: 'Sur le Off (éteindre, fermer, descendre, désarmer…)', all: 'Sur toutes les actions' }, keep: true, help: 'Un clavier demande le code avant d\'envoyer l\'action. Le code se règle dans la configuration du plugin.' }
   ];
   /** Texte d'aide des tailles d'une tuile : taille commune de la page, sinon automatique. */
   function pagePx(k) {

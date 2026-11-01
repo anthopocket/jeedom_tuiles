@@ -1645,3 +1645,18 @@ body.tl-kiosk #tl-panel-root { position: fixed !important; inset: 0 !important; 
 @keyframes tla-halo { 0% { opacity: .8; transform: scale(.9); } 100% { opacity: 0; transform: scale(1.25); } }
 @keyframes tla-zap { 0%,100% { opacity: .25; transform: scale(.85); } 50% { opacity: 1; transform: scale(1.12); } }
 @keyframes tla-hop { 0%, 45%, 100% { transform: translateY(0) scale(1); } 15% { transform: translateY(-9px) scale(1.06); } 28% { transform: translateY(0) scale(1.04, .94); } }
+
+/* ===== Code de confirmation ===== */
+.tl-pin-ov { position: fixed; inset: 0; z-index: 99990; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; -webkit-tap-highlight-color: transparent; font-family: Inter, Roboto, "Segoe UI", system-ui, sans-serif; }
+.tl-pin { width: min(380px, 92vw); background: #161b22; color: #e6edf3; border: 1px solid #3a414c; border-radius: 22px; padding: 22px; box-shadow: 0 20px 60px rgba(0,0,0,.8); text-align: center; box-sizing: border-box; }
+.tl-pin-h { font-size: 22px; font-weight: 800; }
+.tl-pin-s { color: #9aa4b2; font-size: 15px; margin: 4px 0 14px; min-height: 1.3em; } .tl-pin-s.tl-pin-bad { color: #ef5350; }
+.tl-pin-dots { display: flex; justify-content: center; gap: 14px; margin-bottom: 18px; }
+.tl-pin-dots i { width: 18px; height: 18px; border-radius: 50%; border: 2px solid #9aa4b2; box-sizing: border-box; } .tl-pin-dots i.on { background: #ffb000; border-color: #ffb000; }
+.tl-pin-keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.tl-pin-keys button { height: min(70px, 9vh); border: 0; border-radius: 16px; background: #222a33; color: #e6edf3; font: inherit; font-size: 30px; font-weight: 700; cursor: pointer; touch-action: manipulation; }
+.tl-pin-keys button:active { background: #2f3a46; transform: scale(.96); }
+.tl-pin-keys button.tl-pin-x { background: transparent; color: #9aa4b2; font-size: 18px; }
+.tl-pin-locked .tl-pin-keys { opacity: .35; pointer-events: none; }
+.tl-pin-shake { animation: tl-pin-shake .4s; }
+@keyframes tl-pin-shake { 20%, 60% { transform: translateX(-10px); } 40%, 80% { transform: translateX(10px); } }
