@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.75.3';
+  var VERSION = '1.75.4';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -6302,6 +6302,29 @@
     var box = el('div', 'tl-text tl-fitbox' + (t.size === 'grand' ? ' tl-big' : '') + (t.size === 'petit' ? ' tl-small' : ''));
     api.body.appendChild(box);
     if (t.cmdOn) p.press(api.el, function () { p.run(api, t.cmdOn, {}, { confirm: t.confirm }); });
+    if (t.evList) {
+      // journal d'événements dans une seule info : une ligne par événement (coupé avant chaque date « 02/11 18:08 »)
+      box.className = 'tl-ev-box';
+      var evl = el('div', 'tl-ev-list');
+      box.appendChild(evl);
+      scrollPad(evl, box);
+      var DATE = /(\d{1,2}\/\d{1,2}(?:\/\d{2,4})?[ T]+\d{1,2}[:h]\d{2}(?::\d{2})?)/;
+      return function () {
+        var raw = String(p.val(t.cmdV1) || '').trim();
+        var parts = /\n|\|/.test(raw) ? raw.split(/\s*(?:\n|\|)\s*/) : raw.split(/(?=\b\d{1,2}\/\d{1,2}(?:\/\d{2,4})?[ T]+\d{1,2}[:h]\d{2})/);
+        parts = parts.map(function (x) { return x.trim(); }).filter(Boolean).slice(0, Math.max(1, Math.round(num(t.evMax, 8))));
+        evl.innerHTML = '';
+        if (!parts.length) { evl.appendChild(el('div', 'tl-ev-empty', 'Aucun événement')); return; }
+        parts.forEach(function (x, i) {
+          var m = DATE.exec(x), d = m ? m[1] : '', txt = m ? x.replace(m[1], '').trim() : x;
+          var lc = txt.toLowerCase(), cls = /alarme|intrusion|sabotage|panne|d[ée]faut/.test(lc) ? ' tl-ev-err' : (/d[ée]sarm/.test(lc) ? ' tl-ev-off' : (/arm/.test(lc) ? ' tl-ev-on' : ''));
+          var r = el('div', 'tl-ev' + cls + (i === 0 ? ' tl-ev-first' : ''), (d ? '<span class="tl-ev-d"></span>' : '') + '<span class="tl-ev-t"></span>');
+          if (d) r.querySelector('.tl-ev-d').textContent = d;
+          r.querySelector('.tl-ev-t').textContent = txt;
+          evl.appendChild(r);
+        });
+      };
+    }
     return function () {
       var html = esc(t.template || '').replace(/\n/g, '<br>').replace(/\{([1-4])\}/g, function (all, i) {
         var m = p.meta(t['cmdV' + i]);

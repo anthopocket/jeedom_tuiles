@@ -523,3 +523,8 @@ Sources au choix dans chaque tuile : piles faibles et piles sans nouvelles, rés
 ### Volets : taille des boutons
 
 Réglage **Taille des boutons ▲ ■ ▼ (%)** dans les tuiles Volet et Groupe de volets : 140 % par défaut (plus gros qu'avant, pour le doigt), de 60 à 300 %.
+
+
+### Texte : journal d'événements
+
+Tuile **Texte avec infos**, case **« Journal : une ligne par événement »** : pour une info qui contient plusieurs événements à la suite (ex. « 02/11 18:08 🔓 Désarmement Partition 1 02/11 18:08 🔒 Armement total… »), la tuile affiche une ligne par date, le plus récent en haut. Bord vert pour un désarmement, orange pour un armement, rouge pour une alarme ou un défaut. Les événements séparés par un retour à la ligne ou « | » sont aussi reconnus. Réglage du nombre d'événements affichés (8 par défaut) ; boutons ▲ ▼ si la liste dépasse.
