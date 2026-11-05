@@ -368,6 +368,7 @@
       { k: 'talkOnAnswer', l: 'Décrocher ouvre aussi Parler', f: 'check', show: function (t) { return !!t.cmdTalkUrl; } },
       { k: 'talkAlways', l: 'Bouton Parler aussi au repos', f: 'check', show: function (t) { return !!t.cmdTalkUrl; } },
       { k: 'ringPopup', l: 'Fenêtre automatique quand ça sonne', f: 'check', help: 'Sur la tablette, une fenêtre s\'ouvre avec l\'image et les boutons dès qu\'on sonne, et se ferme 4 s après la fin de l\'appel.' },
+      { k: 'ringAll', l: 'Fenêtre sur toutes les pages', f: 'check', show: function (t) { return !!t.ringAll; }, help: 'Ancien réglage : utilisez plutôt Navigation → Fenêtre portier (activer, désactiver, taille…).' },
       { k: 'cmdEvent', l: 'Info dernier événement (option)', f: 'cmd', filter: C_INFO },
       { k: 'showEvent', l: 'Afficher le dernier événement', f: 'check' },
       { k: 'frigateUrl', l: 'Caméra : adresse de Frigate (option)', ph: 'http://192.168.1.x:5000' },
@@ -1049,6 +1050,7 @@
           veille: c.veille !== undefined ? c.veille : (nav.veille || 0), veilleDate: c.veilleDate !== undefined ? !!c.veilleDate : !!nav.veilleDate, veilleLogo: c.veilleLogo !== undefined ? c.veilleLogo : (nav.veilleLogo || ''),
           veilleColor: c.veilleColor || nav.veilleColor || '#8a8a8a', veilleLum: c.veilleLum || nav.veilleLum || 100, veilleSize: c.veilleSize || nav.veilleSize || 100, veilleBg: c.veilleBg || nav.veilleBg || '#000000',
           alerts: Object.assign({ on: false, bat: true, stale: 72, net: true, dm: true, to: false, every: 300, page: '', ignore: '', onPage: 'home' }, c.alerts || {}),
+          ring: Object.assign({ on: false, page: '', tile: '', size: 'grand', close: 4, mute: '', muteVal: '1' }, c.ring || {}),
           homeZone: c.homeZone !== undefined ? c.homeZone : (nav.homeZone || ''), homeZoneSize: c.homeZoneSize || nav.homeZoneSize || 70, homeZoneShow: c.homeZoneShow !== undefined ? !!c.homeZoneShow : !!nav.homeZoneShow,
           full: c.full !== undefined ? !!c.full : d[0] === 'mobile'
         };
@@ -1152,6 +1154,39 @@
         var ig = $('<input type="text" class="form-control input-sm" style="width:340px" placeholder="ex. OMG Garage; HomeAssistant">').val(al.ignore || '').on('input', function () { al.ignore = $(this).val(); });
         ab.append($('<label class="tl-ed-inline"></label>').text('Ignorer (noms, séparés par ;) : ').append(ig));
         pane.append($('<div class="tl-ed-navopt"><b>Bandeau d\'alertes :</b></div>')).append(ab);
+        // fenêtre portier : la tuile interphone choisie s'ouvre sur toutes les pages quand on sonne
+        var rg = c.ring, rb = $('<div class="tl-ed-navhome"></div>');
+        var ron = $('<input type="checkbox">').prop('checked', !!rg.on).on('change', function () { rg.on = ron.is(':checked'); });
+        rb.append($('<label class="tl-ed-inline"></label>').append(ron).append(' <b>Ouvrir la fenêtre du portier sur toutes les pages quand ça sonne</b> (décoché = désactivée)'));
+        var rsel = $('<select class="form-control input-sm" style="width:auto;display:inline-block"></select>').append('<option value="">Choisir…</option>');
+        var rhint = $('<div class="tl-ed-hint"></div>');
+        rb.append($('<label class="tl-ed-inline"></label>').text('Tuile affichée : ').append(rsel)).append(rhint);
+        T.ajax('interphoneTiles', {}).then(function (list) {
+          (list || []).filter(function (x) { return x.device === dev && x.tile; }).forEach(function (x) {
+            rsel.append($('<option>').val(x.page + '|' + x.tile).text(x.pageName + ' › ' + (x.title || 'Interphone')));
+          });
+          if (rg.page && rg.tile) rsel.val(rg.page + '|' + rg.tile);
+          if (rsel.find('option').length < 2) rhint.text('Aucune tuile interphone sur une page ' + dev + ' : ajoutez-en une (fonction Interphone).');
+          else rhint.text('C\'est cette tuile qui s\'affiche : pour changer les boutons, la caméra, le nom… modifiez-la sur sa page.');
+        });
+        rsel.on('change', function () { var v = String(rsel.val() || '').split('|'); rg.page = v[0] || ''; rg.tile = v[1] || ''; });
+        var rsz = $('<select class="form-control input-sm" style="width:auto;display:inline-block"></select>').append('<option value="normal">Normale</option><option value="grand">Grande</option><option value="plein">Plein écran</option>').val(rg.size || 'grand').on('change', function () { rg.size = rsz.val(); });
+        rb.append($('<label class="tl-ed-inline"></label>').text('Taille de la fenêtre : ').append(rsz));
+        var rcl = $('<input type="number" min="0" max="120" step="1" class="form-control input-sm" style="width:70px">').val(rg.close).on('input', function () { var n = parseInt($(this).val(), 10); rg.close = isNaN(n) ? 4 : n; });
+        rb.append($('<label class="tl-ed-inline"></label>').text('Fermer ').append(rcl).append(' s après la fin de l\'appel (0 = rester ouverte)'));
+        var rmi = $('<input type="text" class="form-control input-sm" readonly style="width:200px;display:inline-block">').attr('placeholder', 'Aucune');
+        var paintMute = function () { rmi.val(rg.mute ? cmdLabel(rg.mute) : ''); };
+        if (rg.mute) ensureMetas([rg.mute]).then(paintMute, paintMute); else paintMute();
+        var rmp = $('<a class="btn btn-default btn-sm"><i class="fas fa-list-alt"></i></a>').on('click', function () { pickCmd(C_INFO, function (cid) { rg.mute = cid; paintMute(); }); });
+        var rmx = $('<a class="btn btn-default btn-sm"><i class="fas fa-times"></i></a>').on('click', function () { rg.mute = ''; paintMute(); });
+        var rmv = $('<input type="text" class="form-control input-sm" style="width:60px;display:inline-block">').val(rg.muteVal || '1').on('input', function () { rg.muteVal = $(this).val(); });
+        rb.append($('<label class="tl-ed-inline"></label>').text('Ne pas déranger : ').append(rmi).append(rmp).append(rmx).append(' → pas de fenêtre si = ').append(rmv));
+        var rtest = $('<a class="btn btn-default btn-sm"><i class="fas fa-bell"></i> Tester la fenêtre</a>').on('click', function () {
+          if (!rg.page || !rg.tile) { fail('Choisissez d\'abord la tuile'); return; }
+          if (window.Tuiles && Tuiles.ringPreview) Tuiles.ringPreview(rg); else fail('Rechargez la page (Ctrl+F5)');
+        });
+        rb.append($('<div style="margin-top:6px"></div>').append(rtest).append(' <span class="tl-ed-hint" style="display:inline">aperçu avec la sonnerie simulée (aucune commande envoyée)</span>'));
+        pane.append($('<div class="tl-ed-navopt"><b>Fenêtre portier :</b></div>')).append(rb);
         pane.append('<div class="tl-ed-hint">Onglets : glissez les lignes pour changer l\'ordre, décochez pour masquer. Une page peut masquer la barre dans ses réglages (Style → Onglets).</div>');
         var listEl = $('<div class="tl-ed-navlist"></div>');
         pane.append(listEl);
@@ -1203,7 +1238,7 @@
           var dev = {}, flat = [];
           DEVS.forEach(function (d) {
             var c = conf[d[0]];
-            dev[d[0]] = { size: c.size || 100, full: !!c.full, home: !!c.home, homeLabel: c.homeLabel || '', homeIcon: c.homeIcon || '', swipeHome: !!c.swipeHome, swipeDist: c.swipeDist || 100, idleHome: c.idleHome || 0, veille: c.veille || 0, veilleDate: !!c.veilleDate, veilleLogo: c.veilleLogo || '', veilleColor: c.veilleColor || '#8a8a8a', veilleLum: c.veilleLum || 100, veilleSize: c.veilleSize || 100, veilleBg: c.veilleBg || '#000000', alerts: c.alerts, homeZone: c.homeZone || '', homeZoneSize: c.homeZoneSize || 70, homeZoneShow: !!c.homeZoneShow, items: items[d[0]].map(mapIt) };
+            dev[d[0]] = { size: c.size || 100, full: !!c.full, home: !!c.home, homeLabel: c.homeLabel || '', homeIcon: c.homeIcon || '', swipeHome: !!c.swipeHome, swipeDist: c.swipeDist || 100, idleHome: c.idleHome || 0, veille: c.veille || 0, veilleDate: !!c.veilleDate, veilleLogo: c.veilleLogo || '', veilleColor: c.veilleColor || '#8a8a8a', veilleLum: c.veilleLum || 100, veilleSize: c.veilleSize || 100, veilleBg: c.veilleBg || '#000000', alerts: c.alerts, ring: c.ring, homeZone: c.homeZone || '', homeZoneSize: c.homeZoneSize || 70, homeZoneShow: !!c.homeZoneShow, items: items[d[0]].map(mapIt) };
             flat = flat.concat(items[d[0]].map(mapIt));
           });
           var c0 = conf[DEVS[0][0]];

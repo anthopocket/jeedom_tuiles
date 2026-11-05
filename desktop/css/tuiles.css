@@ -1796,3 +1796,15 @@ body.tl-kiosk #tl-panel-root { position: fixed !important; inset: 0 !important; 
 .tl-ev-on { border-left-color: #ffa726; } .tl-ev-off { border-left-color: #2ecc71; } .tl-ev-err { border-left-color: #e5484d; } .tl-ev-err .tl-ev-t { color: #ff8b8f; }
 .tl-ev-empty { opacity: .6; text-align: center; margin: auto; }
 .tl-ev-box.tl-has-pad.tl-pad-on > .tl-ev-list { padding-right: clamp(62px, 9cqw, 92px); }
+/* fenêtre portier : tailles */
+.tl-modal.tl-hk-modal-grand { width: min(1200px, calc(100vw - 24px)); max-width: none; }
+.tl-modal.tl-hk-modal-grand .tl-hk-pop { height: min(72vh, 820px); }
+.tl-modal.tl-hk-modal-grand .tl-hk-pop .tl-hk-b { min-height: 76px; font-size: 22px; }
+.tl-modal.tl-hk-modal-plein { width: 100vw; max-width: none; height: 100vh; max-height: none; border-radius: 0; display: flex; flex-direction: column; }
+.tl-modal.tl-hk-modal-plein .tl-modal-body { flex: 1; display: flex; }
+.tl-modal.tl-hk-modal-plein .tl-hk-pop { height: auto; flex: 1; }
+.tl-modal.tl-hk-modal-plein .tl-hk-pop .tl-hk-b { min-height: 90px; font-size: 26px; }
+.tl-modal-ov:has(.tl-hk-modal-plein) { padding: 0; }
+.tl-hk-pop .tl-hk-view { position: relative; }
+.tl-hk-pop .tl-hk-state { font-size: 20px; }
+.tl-modal.tl-hk-modal-grand .tl-mbtn, .tl-modal.tl-hk-modal-plein .tl-mbtn { font-size: 20px; padding: 12px 34px; }

@@ -329,6 +329,7 @@ class tuiles extends eqLogic {
 				'homeZoneSize' => isset($c['homeZoneSize']) && is_numeric($c['homeZoneSize']) ? max(30, min(200, intval($c['homeZoneSize']))) : 70,
 				'homeZoneShow' => !empty($c['homeZoneShow']) && $c['homeZoneShow'] !== 'false',
 				'alerts' => self::cleanAlerts(isset($c['alerts']) ? $c['alerts'] : array()),
+				'ring' => self::cleanRing(isset($c['ring']) ? $c['ring'] : null),
 				'items' => $dItems,
 			);
 		}
@@ -346,6 +347,22 @@ class tuiles extends eqLogic {
 	}
 
 	/** Bandeau d'alertes d'un appareil : sources surveillées et réglages. */
+	/** Fenêtre portier sur toutes les pages : tuile interphone source (page + id) et options de la fenêtre. */
+	private static function cleanRing($a) {
+		if (!is_array($a)) {
+			return null;
+		}
+		return array(
+			'on' => !empty($a['on']) && $a['on'] !== 'false' && $a['on'] !== '0',
+			'page' => isset($a['page']) ? self::cleanId($a['page']) : '',
+			'tile' => isset($a['tile']) ? substr(preg_replace('/[^A-Za-z0-9_\-]/', '', (string) $a['tile']), 0, 60) : '',
+			'size' => isset($a['size']) && in_array($a['size'], array('normal', 'grand', 'plein'), true) ? $a['size'] : 'grand',
+			'close' => isset($a['close']) && is_numeric($a['close']) ? max(0, min(120, intval($a['close']))) : 4,
+			'mute' => isset($a['mute']) ? self::cleanId($a['mute']) : '',
+			'muteVal' => isset($a['muteVal']) ? substr(trim((string) $a['muteVal']), 0, 30) : '',
+		);
+	}
+
 	private static function cleanAlerts($a) {
 		if (!is_array($a)) {
 			return array('on' => false);
@@ -428,6 +445,94 @@ class tuiles extends eqLogic {
 		);
 	}
 
+	/**
+	 * Fenêtre portier sur toutes les pages : réglage « Navigation » de l'appareil (tuile choisie, activée ou non) ;
+	 * sans réglage, les tuiles interphone cochées « Fenêtre sur toutes les pages ».
+	 */
+	public static function ringTiles($device, $excludeId) {
+		$nav = self::nav();
+		$cfg = isset($nav['dev'][$device]['ring']) && is_array($nav['dev'][$device]['ring']) ? $nav['dev'][$device]['ring'] : null;
+		$out = array();
+		if ($cfg !== null) {
+			if (empty($cfg['on']) || $cfg['page'] === '' || $cfg['tile'] === '') {
+				return $out;
+			}
+			$eqLogic = eqLogic::byId($cfg['page']);
+			if (!is_object($eqLogic) || $eqLogic->getEqType_name() != 'tuiles' || $eqLogic->getIsEnable() != 1) {
+				return $out;
+			}
+			$found = array();
+			self::findRing($eqLogic->getLayout()['tiles'], $found, $cfg['tile']);
+			if (count($found)) {
+				$t = $found[0];
+				if ($cfg['mute'] !== '') {
+					$t['cmdRingMute'] = $cfg['mute'];
+				}
+				$out[] = array('page' => $eqLogic->getId(), 'tile' => $t, 'opts' => array('size' => $cfg['size'], 'close' => $cfg['close'], 'muteVal' => $cfg['muteVal']));
+			}
+			return $out;
+		}
+		foreach (eqLogic::byType('tuiles') as $eqLogic) {
+			if ($eqLogic->getIsEnable() != 1) {
+				continue;
+			}
+			$layout = $eqLogic->getLayout();
+			if (self::deviceOf($layout) !== $device) {
+				continue;
+			}
+			$found = array();
+			self::findRing($layout['tiles'], $found);
+			foreach ($found as $t) {
+				$out[] = array('page' => $eqLogic->getId(), 'tile' => $t);
+			}
+		}
+		return $out;
+	}
+
+	/** Tuiles interphone d'une arborescence : celle d'id $id, ou celles cochées « Fenêtre sur toutes les pages ». */
+	private static function findRing($node, &$found, $id = null) {
+		if (!is_array($node)) {
+			return;
+		}
+		if (isset($node['type']) && $node['type'] === 'interphone' && ($id !== null ? (isset($node['id']) && (string) $node['id'] === $id) : !empty($node['ringAll']))) {
+			$found[] = $node;
+			return;
+		}
+		foreach ($node as $v) {
+			if (is_array($v)) {
+				self::findRing($v, $found, $id);
+			}
+		}
+	}
+
+	/** Liste des tuiles interphone de toutes les pages (réglage « Fenêtre portier »). */
+	public static function interphoneTiles() {
+		$out = array();
+		foreach (eqLogic::byType('tuiles') as $eqLogic) {
+			$layout = $eqLogic->getLayout();
+			$found = array();
+			self::collectType($layout['tiles'], 'interphone', $found);
+			foreach ($found as $t) {
+				$out[] = array('page' => $eqLogic->getId(), 'pageName' => $eqLogic->getName(), 'device' => self::deviceOf($layout), 'tile' => isset($t['id']) ? (string) $t['id'] : '', 'title' => isset($t['title']) ? (string) $t['title'] : '');
+			}
+		}
+		return $out;
+	}
+
+	private static function collectType($node, $type, &$found) {
+		if (!is_array($node)) {
+			return;
+		}
+		if (isset($node['type']) && $node['type'] === $type) {
+			$found[] = $node;
+		}
+		foreach ($node as $v) {
+			if (is_array($v)) {
+				self::collectType($v, $type, $found);
+			}
+		}
+	}
+
 	public static function pageData($id, $forceIndex = false, $mobile = false) {
 		$id = self::cleanId($id);
 		if ($id === '' && !$forceIndex) {
@@ -450,7 +555,14 @@ class tuiles extends eqLogic {
 		$data['name'] = $eqLogic->getName();
 		$data['device'] = self::deviceOf($layout);
 		$data['layout'] = $layout;
-		$cmds = self::cmdMetas(self::collectCmdIds(array($layout['tiles'], isset($layout['grid']['alerts']) ? $layout['grid']['alerts'] : array())));
+		// interphones « fenêtre sur toutes les pages » des autres pages du même appareil
+		$ring = self::ringTiles($data['device'], $eqLogic->getId());   // la page source aussi : c'est la même fenêtre partout
+		$data['ringTiles'] = $ring;
+		$ringTiles = array();
+		foreach ($ring as $r) {
+			$ringTiles[] = $r['tile'];
+		}
+		$cmds = self::cmdMetas(self::collectCmdIds(array($layout['tiles'], isset($layout['grid']['alerts']) ? $layout['grid']['alerts'] : array(), $ringTiles)));
 		// infos liées aux actions (valeur de retour d'état), pour les sliders et selects
 		$linked = array();
 		foreach ($cmds as $meta) {

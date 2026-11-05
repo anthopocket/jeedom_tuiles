@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.75.4';
+  var VERSION = '1.77.0';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -503,7 +503,7 @@
     },
     modal: function (opts) {
       var ov = el('div', 'tl-modal-ov');
-      var box = el('div', 'tl-modal' + (opts.wide ? ' tl-modal-wide' : ''));
+      var box = el('div', 'tl-modal' + (opts.wide ? ' tl-modal-wide' : '') + (opts.cls ? ' ' + opts.cls : ''));
       if (opts.title) box.appendChild(el('div', 'tl-modal-title', esc(opts.title)));
       var body = el('div', 'tl-modal-body');
       if (typeof opts.body === 'string') body.innerHTML = opts.body; else if (opts.body) body.appendChild(opts.body);
@@ -512,6 +512,7 @@
       function close() {
         document.removeEventListener('keydown', onKey);
         if (ov.parentNode) ov.parentNode.removeChild(ov);
+        if (opts.onClose) { var f = opts.onClose; opts.onClose = null; f(); }
       }
       function onKey(e) { if (e.key === 'Escape') close(); }
       (opts.buttons || [{ label: 'Fermer' }]).forEach(function (b) {
@@ -678,6 +679,10 @@
     if (rootEl.__tuilesPage) rootEl.__tuilesPage.destroy();
     rootEl.__tuilesPage = this;
     Hub.add(this);
+    // tuiles dont la fenêtre « quand ça sonne » est gérée par la fenêtre portier (Navigation) : pas de deuxième fenêtre
+    this.ringIds = {};
+    var selfId = String(this.data.id || ''), rids = this.ringIds;
+    (this.data.ringTiles || []).forEach(function (r) { if (r && r.tile && String(r.page) === selfId) rids[String(r.tile.id)] = true; });
     this.render();
     var self = this;
     this.onResize = function () {
@@ -690,8 +695,34 @@
     }
     this.timers.push(setInterval(function () { self.tiles.forEach(function (a) { self.markAge(a); }); }, 60000));
     syncTime(); this.timers.push(setInterval(syncTime, 5 * 60000));
-    if (!this.opts.edit) { this.setupHomeReturn(); this.setupHomeZone(); this.setupVeille(); this.setupAlertBar(); }
+    if (!this.opts.edit) { this.setupHomeReturn(); this.setupHomeZone(); this.setupVeille(); this.setupAlertBar(); this.setupRingAll(); }
   }
+
+  /** Interphones « fenêtre sur toutes les pages » : tuile invisible qui ouvre la fenêtre quand on sonne. */
+  Page.prototype.setupRingAll = function () {
+    var self = this, list = this.data.ringTiles || [];
+    if (!list.length) return;
+    var here = {};
+    this.tiles.forEach(function (a) { if (a.t && a.t.type === 'interphone') here[cleanId(a.t.cmdEtat) + '|' + cleanId(a.t.cmdRing)] = true; });
+    var host = el('div', 'tl-ring-host');
+    host.style.display = 'none';
+    this.root.appendChild(host);
+    list.forEach(function (r) {
+      var src = r && r.tile;
+      if (!src) return;
+      if (!r.opts && here[cleanId(src.cmdEtat) + '|' + cleanId(src.cmdRing)]) return;   // ancien réglage : déjà sur cette page
+      var t = Object.assign({}, src, { ringPopup: true, ringAll: false, __pid: r.page, __ring: r.opts || {} });
+      var tileEl = el('div', 'tl-tile tl-t-interphone'), body = el('div', 'tl-body');
+      tileEl.appendChild(body); host.appendChild(tileEl);
+      var api = { t: t, el: tileEl, body: body, w: 1, h: 1, deps: collectIds(t), waiting: null, hidden: true };
+      api.onPopClose = function () { if (self.opts.preview && self.ringPop) self.ringPop(); };
+      var refresh = function () {};
+      try { refresh = R.interphone(self, t, api) || refresh; } catch (e) { if (root.console) console.error('[tuiles]', e); return; }
+      api.refresh = function (id) { try { refresh(id); } catch (e) { if (root.console) console.error('[tuiles]', e); } };
+      api.deps.forEach(function (id) { (self.byCmd[id] = self.byCmd[id] || []).push(api); Hub.watch(id); });
+      api.refresh();
+    });
+  };
 
   /** Retour à la page d'accueil sans bouton : glisser depuis le bord gauche, et / ou retour automatique après inactivité. */
   Page.prototype.setupHomeReturn = function () {
@@ -1241,7 +1272,7 @@
   /** Barre d'onglets : les pages du même appareil, la page courante en surbrillance. */
   /** Liste ordonnée des onglets : réglage commun (ordre, nom, icône, visible), puis les pages non classées. */
   /** Réglages de la barre pour un appareil : ceux de l'appareil (nav.dev[dev]) priment sur les réglages communs. */
-  var NAV_DEV_KEYS = ['size', 'home', 'homeLabel', 'homeIcon', 'swipeHome', 'swipeDist', 'idleHome', 'full', 'veille', 'veilleDate', 'veilleLogo', 'veilleColor', 'veilleLum', 'veilleSize', 'veilleBg', 'homeZone', 'homeZoneSize', 'homeZoneShow', 'alerts'];
+  var NAV_DEV_KEYS = ['size', 'home', 'homeLabel', 'homeIcon', 'swipeHome', 'swipeDist', 'idleHome', 'full', 'veille', 'veilleDate', 'veilleLogo', 'veilleColor', 'veilleLum', 'veilleSize', 'veilleBg', 'homeZone', 'homeZoneSize', 'homeZoneShow', 'alerts', 'ring'];
   function navFor(nav, dev) {
     nav = nav || {};
     var out = {}, d = (nav.dev && nav.dev[dev]) || {};
@@ -2391,6 +2422,7 @@
       id = cleanId(id);
       if (!id) { reject(new Error('Aucune commande action configurée')); return; }
       if (self.opts.edit) { resolve(); return; }
+      if (self.opts.preview) { UI.toast('Aperçu : commande non envoyée'); resolve(); return; }
       var j = root.jeedom;
       if (!j || !j.cmd || typeof j.cmd.execute !== 'function') { reject(new Error('jeedom.cmd.execute indisponible')); return; }
       j.cmd.execute({
@@ -3786,7 +3818,7 @@
     api.el.classList.add('tl-hk-tile');
     var box = el('div', 'tl-hk');
     var fb = String(t.frigateUrl || '').replace(/\/+$/, ''), cam = encodeURIComponent(t.frigateCam || '');
-    var pid = String((p.data && p.data.id) || '');
+    var pid = String(t.__pid || (p.data && p.data.id) || '');   // tuile d'une autre page (fenêtre sur toutes les pages)
     var proxy = (t.camProxy && !p.opts.edit && pid && t.id) ? PROXY_URL + '?page=' + encodeURIComponent(pid) + '&tile=' + encodeURIComponent(t.id) + '&snap=1' : '';
     var hh = Math.round(num(t.frigateH, 720));
     var snap = proxy || (fb && cam ? fb + '/api/' + cam + '/latest.jpg?h=' + hh : '');
@@ -3802,6 +3834,13 @@
     api.body.appendChild(box);
     var q = function (x) { return box.querySelector(x); };
     var img = q('.tl-hk-img'), cur = null, callStart = 0, popup = null;
+    var ro = t.__ring || {}, closeMs = isNum(ro.close) ? Math.max(0, parseFloat(ro.close)) * 1000 : 4000;
+    var managed = !api.hidden && p.ringIds && p.ringIds[String(t.id)];   // la fenêtre portier s'en charge
+    var muted = function () {
+      if (!cleanId(t.cmdRingMute) || p.opts.preview) return false;
+      var v = p.val(t.cmdRingMute);
+      return isSet(v) && String(v).trim().toLowerCase() === String(isSet(ro.muteVal) && ro.muteVal !== '' ? ro.muteVal : '1').trim().toLowerCase();
+    };
     // image de la caméra : rafraîchie vite pendant un appel, lentement au repos
     var loadImg = function (target) {
       if (!snap || !target) return;
@@ -3810,10 +3849,10 @@
       pre.src = bust(snap);
     };
     if (img) {
-      loadImg(img);
+      if (!api.hidden) loadImg(img);
       var lastLoad = Date.now();
       p.timers.push(setInterval(function () {
-        if (document.hidden) return;
+        if (document.hidden || (api.hidden && !popup)) return;   // tuile invisible : image seulement fenêtre ouverte
         var busy = cur === 'ring' || cur === 'call';
         var every = busy ? 1000 : Math.max(2, num(t.camRefresh, 10)) * 1000;
         if (Date.now() - lastLoad >= every) { lastLoad = Date.now(); loadImg(img); if (popup && popup.img) loadImg(popup.img); }
@@ -3858,10 +3897,15 @@
     bind(box);
     // fenêtre automatique quand ça sonne (tablette murale)
     var openPopup = function () {
-      if (popup || p.opts.edit) return;
+      if (popup && document.body.contains(popup.root)) return;
+      popup = null;
+      if (p.opts.edit || document.querySelector('.tl-hk-pop')) return;   // une seule fenêtre interphone à la fois
+      if (p.veilleOff) p.veilleOff();                                  // on sort de la veille
       var body = el('div', 'tl-hk tl-hk-pop');
-      body.innerHTML = (snap ? '<div class="tl-hk-view"><img class="tl-hk-img" alt=""></div>' : '<div class="tl-hk-view"><div class="tl-hk-bell">' + iconHtml('svg:a-sonnette') + '</div></div>') + q('.tl-hk-btns').outerHTML;
-      popup = UI.modal({ title: t.title || 'Interphone', body: body, wide: true, buttons: [{ label: 'Fermer', click: function () { popup = null; } }] });
+      var stateHtml = '<div class="tl-hk-state"><i></i><span></span><em></em></div>';
+      body.innerHTML = (snap ? '<div class="tl-hk-view"><img class="tl-hk-img" alt="">' + stateHtml + '</div>' : '<div class="tl-hk-view"><div class="tl-hk-bell">' + iconHtml('svg:a-sonnette') + '</div>' + stateHtml + '</div>') + q('.tl-hk-btns').outerHTML;
+      var sz = ro.size === 'plein' ? 'tl-hk-modal-plein' : (ro.size === 'normal' ? '' : 'tl-hk-modal-grand');
+      popup = UI.modal({ title: t.title || 'Interphone', body: body, wide: true, cls: sz, buttons: [{ label: 'Fermer', click: function () { popup = null; } }], onClose: function () { popup = null; if (api.onPopClose) api.onPopClose(); } });
       popup.img = body.querySelector('.tl-hk-img');
       popup.root = body;
       body.classList.add('tl-run');
@@ -3871,16 +3915,18 @@
     var closePopup = function () { if (popup) { popup.close(); popup = null; } };
     var tick = null;
     var paintTime = function () {
-      q('.tl-hk-state em').textContent = cur === 'call' && callStart ? (function (sec) { return pad(Math.floor(sec / 60)) + ':' + pad(sec % 60); })(Math.floor((Date.now() - callStart) / 1000)) : '';
+      var tx = cur === 'call' && callStart ? (function (sec) { return pad(Math.floor(sec / 60)) + ':' + pad(sec % 60); })(Math.floor((Date.now() - callStart) / 1000)) : '';
+      q('.tl-hk-state em').textContent = tx;
+      if (popup && popup.root) { var pe = popup.root.querySelector('.tl-hk-state em'); if (pe) pe.textContent = tx; }
     };
     return function () {
       var st = hikState(p, t);
       if (st !== cur) {
         if (st === 'call') { callStart = Date.now(); clearInterval(tick); tick = setInterval(paintTime, 1000); p.timers.push(tick); } else { clearInterval(tick); callStart = 0; }
-        if (st === 'ring' && t.ringPopup) openPopup();
-        if ((st === 'idle' || st === 'off') && popup && popup.root) setTimeout(function () { if (cur === 'idle' || cur === 'off') closePopup(); }, 4000);
+        if (st === 'ring' && (t.ringPopup || t.ringAll) && !managed && !muted()) openPopup();
+        if ((st === 'idle' || st === 'off') && popup && popup.root && closeMs > 0 && !p.opts.preview) setTimeout(function () { if (cur === 'idle' || cur === 'off') closePopup(); }, closeMs);
         cur = st;
-        if (img && (st === 'ring' || st === 'call')) loadImg(img);
+        if (img && !api.hidden && (st === 'ring' || st === 'call')) loadImg(img);
       }
       box.className = 'tl-hk tl-hk-' + st;
       [box, popup && popup.root].forEach(function (b) {
@@ -3891,6 +3937,7 @@
       });
       if (popup && popup.root) popup.root.className = 'tl-hk tl-hk-pop tl-run tl-hk-' + st;
       q('.tl-hk-state span').textContent = HIK_TXT[st];
+      if (popup && popup.root) { var ps = popup.root.querySelector('.tl-hk-state span'); if (ps) ps.textContent = (p.opts.preview ? 'Aperçu · ' : '') + HIK_TXT[st]; }
       paintTime();
       var ev = t.showEvent && cleanId(t.cmdEvent) ? p.val(t.cmdEvent) : '';
       q('.tl-hk-ev').textContent = isSet(ev) ? String(ev) : '';
@@ -6468,6 +6515,26 @@
   /*  API publique                                                       */
   /* ================================================================== */
 
+  /** Aperçu de la fenêtre portier depuis l'éditeur : sonnerie simulée, aucune commande envoyée. */
+  function ringPreview(rg) {
+    return ajax('getPage', { id: rg.page }).then(function (data) {
+      var tile = null;
+      var walk = function (n) { if (tile || !n || typeof n !== 'object') return; if (n.type === 'interphone' && String(n.id) === String(rg.tile)) { tile = n; return; } Object.keys(n).forEach(function (k) { walk(n[k]); }); };
+      walk(data.layout && data.layout.tiles);
+      if (!tile) throw new Error('Tuile interphone introuvable sur cette page (sauvegardez la page)');
+      var host = el('div'); host.style.display = 'none'; document.body.appendChild(host);
+      var cmds = Object.assign({}, data.cmds || {});
+      var pg = new Page(host, { id: data.id, device: data.device, nav: {}, layout: { grid: {}, tiles: [] }, cmds: cmds,
+        ringTiles: [{ page: data.id, tile: tile, opts: { size: rg.size, close: rg.close } }] }, { preview: true });
+      var rid = cleanId(tile.cmdEtat) || cleanId(tile.cmdRing);
+      if (!rid) { pg.destroy(); host.remove(); throw new Error('La tuile n\'a pas d\'info d\'état ou de sonnerie'); }
+      if (!cmds[rid]) cmds[rid] = { id: rid, type: 'info' };
+      pg.ringPop = function () { pg.destroy(); if (host.parentNode) host.parentNode.removeChild(host); };
+      pg.onUpdate(rid, { value: cleanId(tile.cmdEtat) ? 'ringing' : '1' });
+      return pg;
+    }).catch(function (e) { UI.toast(e.message, 'error'); });
+  }
+
   var Tuiles = {
     version: VERSION,
     ajax: ajax,
@@ -6477,6 +6544,7 @@
     icons: ICONS,
     iconHtml: iconHtml,
     veillePreview: veillePreview,
+    ringPreview: ringPreview,
     animIcons: ANIM_ICONS,
     coreIconClass: coreIconClass,
     sliderRange: sliderRange,

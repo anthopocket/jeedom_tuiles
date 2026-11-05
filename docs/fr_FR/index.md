@@ -408,6 +408,8 @@ Le sélecteur « Tuiles » propose un groupe **Animées** : pompe piscine, pompe
 - **Parler** (micro de la tablette) : renseigner l'info « Lien Parler » du plugin hikinterphone (reprise automatiquement). Un bouton Parler apparaît quand ça sonne et pendant l'appel (option : aussi au repos) ; il ouvre la page Parler du plugin dans une fenêtre (appuyer pour parler ou mains libres). Option « Décrocher ouvre aussi Parler ».
 - Conditions du navigateur pour le micro : accepter une fois le certificat de la page Parler (lien dans la fenêtre), et ouvrir Jeedom en https ou le déclarer comme origine sûre (Chrome : chrome://flags ; Fully Kiosk : accès micro). La fenêtre l'indique en rouge si ce n'est pas le cas. L'appli mobile Jeedom ne transmet en général pas le micro.
 
+- **Fenêtre portier sur toutes les pages** (Navigation → appareil → *Fenêtre portier*) : case pour l'activer ou la désactiver, choix de la tuile interphone affichée (c'est elle qu'on modifie pour changer nom, caméra, boutons), taille (normale, grande, plein écran), fermeture N s après l'appel (0 = reste ouverte), « Ne pas déranger » (une info : pas de fenêtre quand elle vaut la valeur choisie, ex. 1), et un bouton « Tester la fenêtre » (sonnerie simulée, aucune commande envoyée). La fenêtre s'ouvre sur toutes les pages de l'appareil et fait sortir de l'écran de veille.
+
 ## Bons Points (plugin bonsPoints)
 
 - Choisir l'**enfant** (équipement bonsPoints) : scores, « annuler », comportements (un bouton chacun, avec ses points) et paliers sont repris automatiquement. Après avoir changé les comportements ou les paliers dans le plugin, choisir à nouveau l'équipement pour les relire.

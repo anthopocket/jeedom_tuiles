@@ -27,6 +27,10 @@ try {
 			ajax::success(tuiles::checkPin(init('pin')));
 			break;
 
+		case 'interphoneTiles':
+			ajax::success(tuiles::interphoneTiles());
+			break;
+
 		case 'serverTime':
 			ajax::success(array('ms' => round(microtime(true) * 1000)));
 			break;
