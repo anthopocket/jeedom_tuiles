@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.77.0';
+  var VERSION = '1.77.1';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -2725,7 +2725,14 @@
       if (!conf.cmdOn) { p.toast('Aucune commande action configurée', 'error'); return; }
       var act = getAct();
       if (mode === 'single' && conf.disableWhenActive && act === true) { p.toast('Déjà actif'); return; }
-      var cmd = (mode === 'onoff' && act === true) ? conf.cmdOff : conf.cmdOn;
+      var cmd = conf.cmdOn;
+      if (mode === 'onoff') {
+        // « Inverser l'état » ne change que l'affichage : la commande suit la vraie valeur de l'info (allumé → Off)
+        var raw = isActive(p.val(conf.cmdInfo), conf.onValue, false);
+        var off = raw === true;
+        if (conf.swapCmds) off = !off;           // « Inverser les commandes »
+        cmd = off ? conf.cmdOff : conf.cmdOn;
+      }
       var info = btnKind(conf) === 'impulsion' ? '' : conf.cmdInfo;
       p.run(api, cmd, {}, { confirm: conf.confirm, infoId: info, wait: conf.wait });
     };
