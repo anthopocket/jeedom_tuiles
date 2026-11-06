@@ -1808,3 +1808,11 @@ body.tl-kiosk #tl-panel-root { position: fixed !important; inset: 0 !important; 
 .tl-hk-pop .tl-hk-view { position: relative; }
 .tl-hk-pop .tl-hk-state { font-size: 20px; }
 .tl-modal.tl-hk-modal-grand .tl-mbtn, .tl-modal.tl-hk-modal-plein .tl-mbtn { font-size: 20px; padding: 12px 34px; }
+/* fenêtre portier : caméra en plus */
+.tl-hk-views { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tl-hk-views > .tl-hk-view { min-height: 0; }
+.tl-hk-cam2 { position: relative; }
+.tl-hk-cam2 > .tl-tile { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; border-radius: 10px; background: transparent; padding: 0; box-shadow: none; }
+.tl-hk-cam2 > .tl-tile > .tl-body { width: 100%; height: 100%; padding: 0; }
+.tl-hk-cam2 > .tl-hk-state { z-index: 3; }
+@container (max-aspect-ratio: 1/1) { .tl-hk-views { grid-template-columns: 1fr; grid-template-rows: 1fr 1fr; } }

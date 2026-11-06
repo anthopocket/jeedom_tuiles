@@ -28,7 +28,7 @@ try {
 			break;
 
 		case 'interphoneTiles':
-			ajax::success(tuiles::interphoneTiles());
+			ajax::success(tuiles::interphoneTiles(init('type', 'interphone')));
 			break;
 
 		case 'serverTime':

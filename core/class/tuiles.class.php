@@ -360,6 +360,12 @@ class tuiles extends eqLogic {
 			'close' => isset($a['close']) && is_numeric($a['close']) ? max(0, min(120, intval($a['close']))) : 4,
 			'mute' => isset($a['mute']) ? self::cleanId($a['mute']) : '',
 			'muteVal' => isset($a['muteVal']) ? substr(trim((string) $a['muteVal']), 0, 30) : '',
+			'sound' => isset($a['sound']) && in_array($a['sound'], array('', 'dingdong', 'carillon', 'triton', 'bip', 'url'), true) ? $a['sound'] : '',
+			'soundUrl' => isset($a['soundUrl']) && preg_match('#^(https?://|/|plugins/|data/)#i', trim((string) $a['soundUrl'])) ? substr(trim((string) $a['soundUrl']), 0, 300) : '',
+			'vol' => isset($a['vol']) && is_numeric($a['vol']) ? max(0, min(100, intval($a['vol']))) : 80,
+			'cam' => isset($a['cam']) ? substr(preg_replace('/[^A-Za-z0-9_|\-]/', '', (string) $a['cam']), 0, 80) : '',
+			'camPos' => isset($a['camPos']) && $a['camPos'] === 'remplace' ? 'remplace' : 'cote',
+			'repeat' => isset($a['repeat']) && is_numeric($a['repeat']) ? max(0, min(600, intval($a['repeat']))) : 0,
 		);
 	}
 
@@ -468,7 +474,23 @@ class tuiles extends eqLogic {
 				if ($cfg['mute'] !== '') {
 					$t['cmdRingMute'] = $cfg['mute'];
 				}
-				$out[] = array('page' => $eqLogic->getId(), 'tile' => $t, 'opts' => array('size' => $cfg['size'], 'close' => $cfg['close'], 'muteVal' => $cfg['muteVal']));
+				$camT = null;
+				if (!empty($cfg['cam']) && strpos($cfg['cam'], '|') !== false) {
+					list($cp, $ct) = explode('|', $cfg['cam'], 2);
+					$ce = eqLogic::byId($cp);
+					if (is_object($ce) && $ce->getEqType_name() == 'tuiles') {
+						$cf = array();
+						self::collectType($ce->getLayout()['tiles'], 'camera', $cf);
+						foreach ($cf as $c) {
+							if (isset($c['id']) && (string) $c['id'] === $ct) {
+								$camT = array('page' => $ce->getId(), 'tile' => $c, 'pos' => isset($cfg['camPos']) ? $cfg['camPos'] : 'cote');
+								break;
+							}
+						}
+					}
+				}
+				$out[] = array('page' => $eqLogic->getId(), 'tile' => $t, 'cam' => $camT, 'opts' => array('size' => $cfg['size'], 'close' => $cfg['close'], 'muteVal' => $cfg['muteVal'],
+					'sound' => isset($cfg['sound']) ? $cfg['sound'] : '', 'url' => isset($cfg['soundUrl']) ? $cfg['soundUrl'] : '', 'vol' => isset($cfg['vol']) ? $cfg['vol'] : 80, 'repeat' => isset($cfg['repeat']) ? $cfg['repeat'] : 0));
 			}
 			return $out;
 		}
@@ -506,12 +528,13 @@ class tuiles extends eqLogic {
 	}
 
 	/** Liste des tuiles interphone de toutes les pages (réglage « Fenêtre portier »). */
-	public static function interphoneTiles() {
+	public static function interphoneTiles($type = 'interphone') {
+		$type = in_array($type, array('interphone', 'camera'), true) ? $type : 'interphone';
 		$out = array();
 		foreach (eqLogic::byType('tuiles') as $eqLogic) {
 			$layout = $eqLogic->getLayout();
 			$found = array();
-			self::collectType($layout['tiles'], 'interphone', $found);
+			self::collectType($layout['tiles'], $type, $found);
 			foreach ($found as $t) {
 				$out[] = array('page' => $eqLogic->getId(), 'pageName' => $eqLogic->getName(), 'device' => self::deviceOf($layout), 'tile' => isset($t['id']) ? (string) $t['id'] : '', 'title' => isset($t['title']) ? (string) $t['title'] : '');
 			}
@@ -561,6 +584,9 @@ class tuiles extends eqLogic {
 		$ringTiles = array();
 		foreach ($ring as $r) {
 			$ringTiles[] = $r['tile'];
+			if (!empty($r['cam']['tile'])) {
+				$ringTiles[] = $r['cam']['tile'];
+			}
 		}
 		$cmds = self::cmdMetas(self::collectCmdIds(array($layout['tiles'], isset($layout['grid']['alerts']) ? $layout['grid']['alerts'] : array(), $ringTiles)));
 		// infos liées aux actions (valeur de retour d'état), pour les sliders et selects

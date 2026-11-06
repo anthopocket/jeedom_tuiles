@@ -1051,7 +1051,7 @@
           veille: c.veille !== undefined ? c.veille : (nav.veille || 0), veilleDate: c.veilleDate !== undefined ? !!c.veilleDate : !!nav.veilleDate, veilleLogo: c.veilleLogo !== undefined ? c.veilleLogo : (nav.veilleLogo || ''),
           veilleColor: c.veilleColor || nav.veilleColor || '#8a8a8a', veilleLum: c.veilleLum || nav.veilleLum || 100, veilleSize: c.veilleSize || nav.veilleSize || 100, veilleBg: c.veilleBg || nav.veilleBg || '#000000',
           alerts: Object.assign({ on: false, bat: true, stale: 72, net: true, dm: true, to: false, every: 300, page: '', ignore: '', onPage: 'home' }, c.alerts || {}),
-          ring: Object.assign({ on: false, page: '', tile: '', size: 'grand', close: 4, mute: '', muteVal: '1' }, c.ring || {}),
+          ring: Object.assign({ on: false, page: '', tile: '', size: 'grand', close: 4, mute: '', muteVal: '1', sound: 'dingdong', soundUrl: '', vol: 80, repeat: 0, cam: '', camPos: 'cote' }, c.ring || {}),
           homeZone: c.homeZone !== undefined ? c.homeZone : (nav.homeZone || ''), homeZoneSize: c.homeZoneSize || nav.homeZoneSize || 70, homeZoneShow: c.homeZoneShow !== undefined ? !!c.homeZoneShow : !!nav.homeZoneShow,
           full: c.full !== undefined ? !!c.full : d[0] === 'mobile'
         };
@@ -1171,6 +1171,17 @@
           else rhint.text('C\'est cette tuile qui s\'affiche : pour changer les boutons, la caméra, le nom… modifiez-la sur sa page.');
         });
         rsel.on('change', function () { var v = String(rsel.val() || '').split('|'); rg.page = v[0] || ''; rg.tile = v[1] || ''; });
+        var rcam = $('<select class="form-control input-sm" style="width:auto;display:inline-block"></select>').append('<option value="">Aucune</option>');
+        var rcpos = $('<select class="form-control input-sm" style="width:auto;display:inline-block"></select>').append('<option value="cote">à côté de l\'image du portier</option><option value="remplace">à la place de l\'image du portier</option>').val(rg.camPos || 'cote').on('change', function () { rg.camPos = rcpos.val(); });
+        T.ajax('interphoneTiles', { type: 'camera' }).then(function (list) {
+          (list || []).filter(function (x) { return x.tile; }).forEach(function (x) {
+            rcam.append($('<option>').val(x.page + '|' + x.tile).text(x.pageName + ' › ' + (x.title || 'Caméra')));
+          });
+          rcam.val(rg.cam || '');
+        });
+        rcam.on('change', function () { rg.cam = rcam.val() || ''; });
+        rb.append($('<label class="tl-ed-inline"></label>').text('Caméra dans la fenêtre : ').append(rcam).append(' ').append(rcpos));
+        rb.append($('<div class="tl-ed-hint"></div>').text('Une tuile Caméra de vos pages (ex. Sécurité › Caméra Ouest), avec ses réglages : mode rapide / flux, relais Jeedom, pastilles. Arrêtée à la fermeture.'));
         var rsz = $('<select class="form-control input-sm" style="width:auto;display:inline-block"></select>').append('<option value="normal">Normale</option><option value="grand">Grande</option><option value="plein">Plein écran</option>').val(rg.size || 'grand').on('change', function () { rg.size = rsz.val(); });
         rb.append($('<label class="tl-ed-inline"></label>').text('Taille de la fenêtre : ').append(rsz));
         var rcl = $('<input type="number" min="0" max="120" step="1" class="form-control input-sm" style="width:70px">').val(rg.close).on('input', function () { var n = parseInt($(this).val(), 10); rg.close = isNaN(n) ? 4 : n; });
@@ -1182,6 +1193,29 @@
         var rmx = $('<a class="btn btn-default btn-sm"><i class="fas fa-times"></i></a>').on('click', function () { rg.mute = ''; paintMute(); });
         var rmv = $('<input type="text" class="form-control input-sm" style="width:60px;display:inline-block">').val(rg.muteVal || '1').on('input', function () { rg.muteVal = $(this).val(); });
         rb.append($('<label class="tl-ed-inline"></label>').text('Ne pas déranger : ').append(rmi).append(rmp).append(rmx).append(' → pas de fenêtre si = ').append(rmv));
+        var rsd = $('<select class="form-control input-sm" style="width:auto;display:inline-block"></select>').append('<option value="">Aucune</option><option value="dingdong">Ding-dong</option><option value="carillon">Carillon (4 notes)</option><option value="triton">Triton (3 notes)</option><option value="bip">Bips</option><option value="url">Fichier audio (adresse)</option>').val(rg.sound || '');
+        var rurl = $('<input type="text" class="form-control input-sm" style="width:300px;display:inline-block" placeholder="ex. /plugins/tuiles/data/sonnette.mp3">').val(rg.soundUrl || '').on('input', function () { rg.soundUrl = $(this).val().trim(); });
+        var rurlL = $('<label class="tl-ed-inline"></label>').text('Adresse du son : ').append(rurl);
+        var rvol = $('<input type="range" min="0" max="100" step="5" style="width:140px;display:inline-block;vertical-align:middle">').val(rg.vol);
+        var rvolT = $('<span></span>').text(rg.vol + ' %');
+        rvol.on('input', function () { rg.vol = parseInt(rvol.val(), 10); rvolT.text(rg.vol + ' %'); });
+        var rrep = $('<input type="number" min="0" max="600" class="form-control input-sm" style="width:70px">').val(rg.repeat).on('input', function () { var n = parseInt($(this).val(), 10); rg.repeat = isNaN(n) ? 0 : n; });
+        var rplay = $('<a class="btn btn-default btn-sm"><i class="fas fa-volume-up"></i> Écouter</a>'), rstop = null;
+        rplay.on('click', function () {
+          if (rstop) { rstop(); rstop = null; rplay.html('<i class="fas fa-volume-up"></i> Écouter'); return; }
+          if (!window.Tuiles || !Tuiles.ringSound) { fail('Rechargez la page (Ctrl+F5)'); return; }
+          rstop = Tuiles.ringSound({ sound: rg.sound, url: rg.soundUrl, vol: rg.vol, once: true });
+          rplay.html('<i class="fas fa-stop"></i> Stop');
+          setTimeout(function () { if (rstop) { rstop = null; rplay.html('<i class="fas fa-volume-up"></i> Écouter'); } }, 4000);
+        });
+        var paintSnd = function () { rurlL.toggle(rg.sound === 'url'); };
+        rsd.on('change', function () { rg.sound = rsd.val(); paintSnd(); });
+        rb.append($('<label class="tl-ed-inline"></label>').text('Sonnerie : ').append(rsd).append(' ').append(rplay));
+        rb.append(rurlL);
+        rb.append($('<label class="tl-ed-inline"></label>').text('Volume : ').append(rvol).append(' ').append(rvolT));
+        rb.append($('<label class="tl-ed-inline"></label>').text('Sonne tant que l\'info dit « on sonne » (s\'arrête quand on décroche, ouvre la porte ou ferme la fenêtre ; sinon jusqu\'au retour au repos). Sécurité : arrêter au bout de ').append(rrep).append(' s (0 = jamais)'));
+        rb.append($('<div class="tl-ed-hint"></div>').text('Fully Kiosk : activez « Autoplay audio » (Web Content Settings) et laissez le volume média de la tablette monté. Ailleurs, le son ne marche qu\'après un premier appui sur l\'écran depuis le chargement.'));
+        paintSnd();
         var rtest = $('<a class="btn btn-default btn-sm"><i class="fas fa-bell"></i> Tester la fenêtre</a>').on('click', function () {
           if (!rg.page || !rg.tile) { fail('Choisissez d\'abord la tuile'); return; }
           if (window.Tuiles && Tuiles.ringPreview) Tuiles.ringPreview(rg); else fail('Rechargez la page (Ctrl+F5)');

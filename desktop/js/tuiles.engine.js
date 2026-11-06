@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.77.1';
+  var VERSION = '1.79.0';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -711,7 +711,7 @@
       var src = r && r.tile;
       if (!src) return;
       if (!r.opts && here[cleanId(src.cmdEtat) + '|' + cleanId(src.cmdRing)]) return;   // ancien réglage : déjà sur cette page
-      var t = Object.assign({}, src, { ringPopup: true, ringAll: false, __pid: r.page, __ring: r.opts || {} });
+      var t = Object.assign({}, src, { ringPopup: true, ringAll: false, __pid: r.page, __ring: r.opts || {}, __cam: r.cam || null });
       var tileEl = el('div', 'tl-tile tl-t-interphone'), body = el('div', 'tl-body');
       tileEl.appendChild(body); host.appendChild(tileEl);
       var api = { t: t, el: tileEl, body: body, w: 1, h: 1, deps: collectIds(t), waiting: null, hidden: true };
@@ -3554,7 +3554,7 @@
     if (t.title && !t.hideTitle) api.el.classList.add('tl-has-title');
     var fb = String(t.frigateUrl || '').replace(/\/+$/, ''), cam = encodeURIComponent(t.frigateCam || '');
     var fm = t.frigateMode || 'mjpeg', hh = Math.round(num(t.frigateH, 720)), fps = Math.round(num(t.frigateFps, 5));
-    var pid = String((p.data && p.data.id) || '');
+    var pid = String(t.__pid || (p.data && p.data.id) || '');   // tuile d'une autre page (fenêtre portier)
     // Relais par Jeedom : le navigateur ne demande que « page + tuile », le serveur lit l'adresse enregistrée
     var proxy = (t.camProxy && !p.opts.edit && pid && t.id) ? PROXY_URL + '?page=' + encodeURIComponent(pid) + '&tile=' + encodeURIComponent(t.id) : '';
     var chips = el('div', 'tl-cam-chips');
@@ -3821,6 +3821,88 @@
     mic: '<svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" fill="currentColor"/><path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M6 11a6 6 0 0 0 12 0M12 17v4M9 21h6"/></svg>',
     door: '<svg viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" d="M4 21h16M6 21V4a1 1 0 0 1 1-1h7v18M14 3l4 2v16"/><circle cx="11.5" cy="12.5" r="1.2" fill="currentColor"/></svg>'
   };
+  /* ---- Sonnerie (portier) : sons synthétisés (aucun fichier) ou fichier audio ---- */
+  var SND = { ctx: null };
+  function sndCtx() {
+    var C = root.AudioContext || root.webkitAudioContext;
+    if (!C) return null;
+    if (!SND.ctx) { try { SND.ctx = new C(); } catch (e) { return null; } }
+    if (SND.ctx.state === 'suspended') { try { SND.ctx.resume(); } catch (e) {} }
+    return SND.ctx;
+  }
+  // le navigateur n'autorise le son qu'après un premier appui : on « déverrouille » au premier contact
+  if (root.document) {
+    var sndUnlock = function () {
+      var c = sndCtx();
+      if (c) { try { var b = c.createBuffer(1, 1, 22050), s0 = c.createBufferSource(); s0.buffer = b; s0.connect(c.destination); s0.start(0); } catch (e) {} }
+      if (c && c.state === 'running') ['pointerdown', 'touchstart', 'keydown'].forEach(function (ev) { document.removeEventListener(ev, sndUnlock, true); });
+    };
+    ['pointerdown', 'touchstart', 'keydown'].forEach(function (ev) { document.addEventListener(ev, sndUnlock, true); });
+  }
+  // une note « cloche » : fondamentale + harmoniques, attaque rapide, longue décroissance
+  function sndBell(c, out, f, t0, dur) {
+    [[1, 1], [2.01, 0.35], [3.02, 0.12]].forEach(function (h) {
+      var o = c.createOscillator(), g = c.createGain();
+      o.type = 'sine'; o.frequency.value = f * h[0];
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(h[1], t0 + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g); g.connect(out); o.start(t0); o.stop(t0 + dur + 0.05);
+    });
+  }
+  function sndBeep(c, out, f, t0, dur) {
+    var o = c.createOscillator(), g = c.createGain();
+    o.type = 'square'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.0001, t0); g.gain.exponentialRampToValueAtTime(0.35, t0 + 0.01);
+    g.gain.setValueAtTime(0.35, t0 + dur - 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g); g.connect(out); o.start(t0); o.stop(t0 + dur + 0.02);
+  }
+  var SND_TUNES = {
+    dingdong: { len: 1.9, play: function (c, o, t) { sndBell(c, o, 659, t, 1.2); sndBell(c, o, 523, t + 0.6, 1.3); } },
+    carillon: { len: 2.6, play: function (c, o, t) { [659, 523, 587, 392].forEach(function (f, i) { sndBell(c, o, f, t + i * 0.45, 1.4); }); } },
+    triton: { len: 1.4, play: function (c, o, t) { [523, 659, 784].forEach(function (f, i) { sndBell(c, o, f, t + i * 0.18, 0.9); }); } },
+    bip: { len: 1.2, play: function (c, o, t) { [0, 0.25, 0.5].forEach(function (d) { sndBeep(c, o, 880, t + d, 0.15); }); } }
+  };
+  /** Joue la sonnerie `cfg` ({ sound, url, vol, repeat, once }) ; renvoie stop(). Répète en boucle jusqu'à stop() (fin de la sonnerie), ou `repeat` s si > 0. */
+  function ringSound(cfg) {
+    if (SND.stop) { var prev = SND.stop; SND.stop = null; prev(); }
+    var stop = ringSound0(cfg || {});
+    SND.stop = stop;
+    return function () { if (SND.stop === stop) SND.stop = null; stop(); };
+  }
+  function ringSound0(cfg) {
+    var kind = cfg.sound || '', vol = Math.max(0, Math.min(100, isNum(cfg.vol) ? parseFloat(cfg.vol) : 80)) / 100;
+    if (!kind || vol <= 0) return function () {};
+    var lim = isNum(cfg.repeat) ? parseFloat(cfg.repeat) : 0;
+    var maxMs = cfg.once ? 0 : (lim > 0 ? lim * 1000 : Infinity),   /* 0 = tant que ça sonne (arrêt par stop()) */ t0 = Date.now(), timer = null, stopped = false, audio = null;
+    var once;
+    if (kind === 'url') {
+      if (!cfg.url) return function () {};
+      if (root.fully && typeof root.fully.playSound === 'function' && cfg.once) {   // Fully Kiosk : pas de blocage du son
+        try { root.fully.playSound(cfg.url, false); } catch (e) {}
+        return function () { try { root.fully.stopSound(); } catch (e) {} };
+      }
+      audio = new Audio(cfg.url);
+      audio.volume = vol;
+      once = function () { try { audio.currentTime = 0; var pr = audio.play(); if (pr && pr.catch) pr.catch(function () {}); } catch (e) {} };
+      var gap = 1000;
+      audio.addEventListener('ended', function () { if (!stopped && Date.now() - t0 < maxMs) timer = setTimeout(once, gap); });
+      once();
+    } else {
+      var tune = SND_TUNES[kind] || SND_TUNES.dingdong, c = sndCtx();
+      if (!c) return function () {};
+      var out = c.createGain(); out.gain.value = vol; out.connect(c.destination);
+      once = function () {
+        if (stopped) return;
+        try { tune.play(c, out, c.currentTime + 0.05); } catch (e) {}
+        if (Date.now() - t0 + (tune.len + 1.6) * 1000 <= maxMs) timer = setTimeout(once, (tune.len + 1.6) * 1000);
+      };
+      once();
+      return function () { stopped = true; clearTimeout(timer); try { out.gain.setTargetAtTime(0.0001, c.currentTime, 0.05); setTimeout(function () { out.disconnect(); }, 400); } catch (e) {} };
+    }
+    return function () { stopped = true; clearTimeout(timer); if (audio) { try { audio.pause(); } catch (e) {} } };
+  }
+
   R.interphone = function (p, t, api) {
     api.el.classList.add('tl-hk-tile');
     var box = el('div', 'tl-hk');
@@ -3841,6 +3923,7 @@
     api.body.appendChild(box);
     var q = function (x) { return box.querySelector(x); };
     var img = q('.tl-hk-img'), cur = null, callStart = 0, popup = null;
+    var camStop = null, stopSnd = null, sndOff = function () { if (stopSnd) { stopSnd(); stopSnd = null; } };
     var ro = t.__ring || {}, closeMs = isNum(ro.close) ? Math.max(0, parseFloat(ro.close)) * 1000 : 4000;
     var managed = !api.hidden && p.ringIds && p.ringIds[String(t.id)];   // la fenêtre portier s'en charge
     var muted = function () {
@@ -3895,6 +3978,7 @@
         if (!bt || p.opts.edit) return;
         bt.addEventListener('click', function (e) {
           e.stopPropagation();
+          sndOff();     // décrocher / refuser / raccrocher / ouvrir : on a vu l'appel → silence tout de suite
           if (b[1] === 'cmdAnswer' && t.talkOnAnswer && cleanId(t.cmdTalkUrl)) { act('cmdAnswer'); openTalk(); return; }
           if (b[1] === 'cmdOpen' && doorConfirm) { UI.confirm('Ouvrir la porte ?', function () { act('cmdOpen'); }); return; }
           act(b[1]);
@@ -3910,11 +3994,27 @@
       if (p.veilleOff) p.veilleOff();                                  // on sort de la veille
       var body = el('div', 'tl-hk tl-hk-pop');
       var stateHtml = '<div class="tl-hk-state"><i></i><span></span><em></em></div>';
-      body.innerHTML = (snap ? '<div class="tl-hk-view"><img class="tl-hk-img" alt="">' + stateHtml + '</div>' : '<div class="tl-hk-view"><div class="tl-hk-bell">' + iconHtml('svg:a-sonnette') + '</div>' + stateHtml + '</div>') + q('.tl-hk-btns').outerHTML;
+      var c2 = t.__cam && t.__cam.tile ? t.__cam : null, repl = c2 && c2.pos === 'remplace';
+      var viewHtml = repl ? '<div class="tl-hk-view tl-hk-cam2">' + stateHtml + '</div>'
+        : (snap ? '<div class="tl-hk-view"><img class="tl-hk-img" alt="">' + stateHtml + '</div>' : '<div class="tl-hk-view"><div class="tl-hk-bell">' + iconHtml('svg:a-sonnette') + '</div>' + stateHtml + '</div>');
+      if (c2 && !repl) viewHtml = '<div class="tl-hk-views">' + viewHtml + '<div class="tl-hk-view tl-hk-cam2"></div></div>';
+      body.innerHTML = viewHtml + q('.tl-hk-btns').outerHTML;
       var sz = ro.size === 'plein' ? 'tl-hk-modal-plein' : (ro.size === 'normal' ? '' : 'tl-hk-modal-grand');
-      popup = UI.modal({ title: t.title || 'Interphone', body: body, wide: true, cls: sz, buttons: [{ label: 'Fermer', click: function () { popup = null; } }], onClose: function () { popup = null; if (api.onPopClose) api.onPopClose(); } });
+      popup = UI.modal({ title: t.title || 'Interphone', body: body, wide: true, cls: sz, buttons: [{ label: 'Fermer', click: function () { popup = null; } }], onClose: function () { if (camStop) { camStop(); camStop = null; } popup = null; sndOff(); if (api.onPopClose) api.onPopClose(); } });   // fenêtre fermée → sonnerie coupée
+      sndOff();
+      stopSnd = ringSound(ro);
       popup.img = body.querySelector('.tl-hk-img');
       popup.root = body;
+      if (c2) {
+        // caméra choisie dans Navigation → Fenêtre portier, affichée dans la fenêtre (minuteries propres, coupées à la fermeture)
+        var hostC = body.querySelector('.tl-hk-cam2'), pc = Object.create(p);
+        pc.timers = [];
+        var ct = Object.assign({}, c2.tile, { __pid: c2.page, hideTitle: true });
+        var cEl = el('div', 'tl-tile tl-t-camera'), cBody = el('div', 'tl-body');
+        cEl.appendChild(cBody); hostC.insertBefore(cEl, hostC.firstChild);
+        try { R.camera(pc, ct, { t: ct, el: cEl, body: cBody, w: 1, h: 1, deps: [] }); } catch (e) { if (root.console) console.error('[tuiles]', e); }
+        camStop = function () { pc.timers.forEach(function (x) { clearInterval(x); clearTimeout(x); }); pc.timers = []; var im = cEl.querySelector('img'); if (im) im.src = ''; };
+      }
       body.classList.add('tl-run');
       loadImg(popup.img);
       bind(body);
@@ -3930,6 +4030,7 @@
       var st = hikState(p, t);
       if (st !== cur) {
         if (st === 'call') { callStart = Date.now(); clearInterval(tick); tick = setInterval(paintTime, 1000); p.timers.push(tick); } else { clearInterval(tick); callStart = 0; }
+        if (st !== 'ring') sndOff();                                   // décroché, raccroché… : la sonnerie s'arrête
         if (st === 'ring' && (t.ringPopup || t.ringAll) && !managed && !muted()) openPopup();
         if ((st === 'idle' || st === 'off') && popup && popup.root && closeMs > 0 && !p.opts.preview) setTimeout(function () { if (cur === 'idle' || cur === 'off') closePopup(); }, closeMs);
         cur = st;
@@ -6524,7 +6625,12 @@
 
   /** Aperçu de la fenêtre portier depuis l'éditeur : sonnerie simulée, aucune commande envoyée. */
   function ringPreview(rg) {
-    return ajax('getPage', { id: rg.page }).then(function (data) {
+    var camT = null, cp = String(rg.cam || '').split('|');
+    var camLoad = cp.length === 2 && cp[0] ? ajax('getPage', { id: cp[0] }).then(function (cd) {
+      var w = function (n) { if (camT || !n || typeof n !== 'object') return; if (n.type === 'camera' && String(n.id) === cp[1]) { camT = { page: cd.id, tile: n, pos: rg.camPos || 'cote' }; return; } Object.keys(n).forEach(function (k) { w(n[k]); }); };
+      w(cd.layout && cd.layout.tiles);
+    }, function () {}) : Promise.resolve();
+    return camLoad.then(function () { return ajax('getPage', { id: rg.page }); }).then(function (data) {
       var tile = null;
       var walk = function (n) { if (tile || !n || typeof n !== 'object') return; if (n.type === 'interphone' && String(n.id) === String(rg.tile)) { tile = n; return; } Object.keys(n).forEach(function (k) { walk(n[k]); }); };
       walk(data.layout && data.layout.tiles);
@@ -6532,7 +6638,7 @@
       var host = el('div'); host.style.display = 'none'; document.body.appendChild(host);
       var cmds = Object.assign({}, data.cmds || {});
       var pg = new Page(host, { id: data.id, device: data.device, nav: {}, layout: { grid: {}, tiles: [] }, cmds: cmds,
-        ringTiles: [{ page: data.id, tile: tile, opts: { size: rg.size, close: rg.close } }] }, { preview: true });
+        ringTiles: [{ page: data.id, tile: tile, cam: camT, opts: { size: rg.size, close: rg.close, sound: rg.sound, url: rg.soundUrl, vol: rg.vol, repeat: rg.repeat } }] }, { preview: true });
       var rid = cleanId(tile.cmdEtat) || cleanId(tile.cmdRing);
       if (!rid) { pg.destroy(); host.remove(); throw new Error('La tuile n\'a pas d\'info d\'état ou de sonnerie'); }
       if (!cmds[rid]) cmds[rid] = { id: rid, type: 'info' };
@@ -6551,6 +6657,7 @@
     icons: ICONS,
     iconHtml: iconHtml,
     veillePreview: veillePreview,
+    ringSound: ringSound,
     ringPreview: ringPreview,
     animIcons: ANIM_ICONS,
     coreIconClass: coreIconClass,
