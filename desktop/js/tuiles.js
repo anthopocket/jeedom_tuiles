@@ -363,6 +363,8 @@
       { k: 'cmdReject', l: 'Action refuser', f: 'cmd', filter: C_ACTION, half: true },
       { k: 'cmdOpen', l: 'Action ouvrir la porte', f: 'cmd', filter: C_ACTION, half: true },
       { k: 'openLabel', l: 'Texte du bouton porte', ph: 'Ouvrir', half: true },
+      { k: 'cmdOpen2', l: 'Action 2e sortie (option)', f: 'cmd', filter: C_ACTION, half: true, help: 'Deuxième relais du portier (ex. portail) : ajoute un 2e bouton.' },
+      { k: 'openLabel2', l: 'Texte du 2e bouton', ph: 'Ouvrir 2', half: true, show: function (t) { return !!t.cmdOpen2; } },
       { k: 'doorConfirm', l: 'Confirmer l\'ouverture', f: 'sel', o: { '': 'Oui', non: 'Non' }, keep: true },
       { k: 'cmdTalkUrl', l: 'Info lien Parler (two-way audio)', f: 'cmd', filter: C_INFO, help: 'Commande « Lien Parler » du plugin hikinterphone : ajoute un bouton Parler (micro de la tablette).' },
       { k: 'talkMode', l: 'Parler : mode', f: 'sel', o: { '': 'Appuyer pour parler', free: 'Mains libres' }, keep: true, show: function (t) { return !!t.cmdTalkUrl; } },
@@ -1934,6 +1936,10 @@
         var c = cmds.filter(function (x) { return x.logicalId === m[1]; })[0];
         if (c) { obj[m[0]] = String(c.id); ids.push(String(c.id)); } else delete obj[m[0]];
       });
+      // 2e sortie (relais 2) : logicalId ou nom contenant « 2 »
+      var o2 = cmds.filter(function (x) { return /^(ouvrir_porte_?2|ouvrir_?2|porte_?2|relais_?2|relay_?2|sortie_?2|door_?2|unlock_?2)$/i.test(x.logicalId || ''); })[0] ||
+        cmds.filter(function (x) { return x.type === 'action' && /(ouvr|porte|relais|sortie|door)/i.test(x.name || '') && /2/.test(x.name || '') && String(x.id) !== String(obj.cmdOpen); })[0];
+      if (o2) { obj.cmdOpen2 = String(o2.id); ids.push(String(o2.id)); }
       if (!obj.cmdEtat) toast('Commandes hikinterphone introuvables : choisissez-les à la main', 'error');
       return ensureMetas(ids);
     });

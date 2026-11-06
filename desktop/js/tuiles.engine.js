@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.79.0';
+  var VERSION = '1.79.1';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -3919,6 +3919,7 @@
       (cleanId(t.cmdHangup) ? '<button type="button" class="tl-hk-b tl-hk-hangup">' + HIK_ICO.hangup + '<span>Raccrocher</span></button>' : '') +
       (cleanId(t.cmdTalkUrl) ? '<button type="button" class="tl-hk-b tl-hk-talk">' + HIK_ICO.mic + '<span>Parler</span></button>' : '') +
       (cleanId(t.cmdOpen) ? '<button type="button" class="tl-hk-b tl-hk-open">' + HIK_ICO.door + '<span>' + esc(t.openLabel || 'Ouvrir') + '</span></button>' : '') +
+      (cleanId(t.cmdOpen2) ? '<button type="button" class="tl-hk-b tl-hk-open tl-hk-open2">' + HIK_ICO.door + '<span>' + esc(t.openLabel2 || 'Ouvrir 2') + '</span></button>' : '') +
       '</div><div class="tl-hk-ev"></div>';
     api.body.appendChild(box);
     var q = function (x) { return box.querySelector(x); };
@@ -3973,14 +3974,14 @@
     var bind = function (root2) {
       var tb = root2.querySelector('.tl-hk-talk');
       if (tb && !p.opts.edit) tb.addEventListener('click', function (e) { e.stopPropagation(); openTalk(); });
-      [['.tl-hk-answer', 'cmdAnswer'], ['.tl-hk-reject', 'cmdReject'], ['.tl-hk-hangup', 'cmdHangup'], ['.tl-hk-open', 'cmdOpen']].forEach(function (b) {
+      [['.tl-hk-answer', 'cmdAnswer'], ['.tl-hk-reject', 'cmdReject'], ['.tl-hk-hangup', 'cmdHangup'], ['.tl-hk-open:not(.tl-hk-open2)', 'cmdOpen'], ['.tl-hk-open2', 'cmdOpen2']].forEach(function (b) {
         var bt = root2.querySelector(b[0]);
         if (!bt || p.opts.edit) return;
         bt.addEventListener('click', function (e) {
           e.stopPropagation();
           sndOff();     // décrocher / refuser / raccrocher / ouvrir : on a vu l'appel → silence tout de suite
           if (b[1] === 'cmdAnswer' && t.talkOnAnswer && cleanId(t.cmdTalkUrl)) { act('cmdAnswer'); openTalk(); return; }
-          if (b[1] === 'cmdOpen' && doorConfirm) { UI.confirm('Ouvrir la porte ?', function () { act('cmdOpen'); }); return; }
+          if ((b[1] === 'cmdOpen' || b[1] === 'cmdOpen2') && doorConfirm) { var lb = b[1] === 'cmdOpen2' ? (t.openLabel2 || 'Ouvrir 2') : (t.openLabel || 'Ouvrir la porte'); UI.confirm(lb + ' ?', function () { act(b[1]); }); return; }
           act(b[1]);
         });
       });
@@ -4040,7 +4041,7 @@
       [box, popup && popup.root].forEach(function (b) {
         if (!b) return;
         b.classList.toggle('tl-hk-' + st, true);
-        var show = { '.tl-hk-answer': st === 'ring', '.tl-hk-reject': st === 'ring', '.tl-hk-hangup': st === 'call' || (st === 'ring' && !cleanId(t.cmdReject)), '.tl-hk-open': st !== 'off', '.tl-hk-talk': st === 'ring' || st === 'call' || (!!t.talkAlways && st !== 'off') };
+        var show = { '.tl-hk-answer': st === 'ring', '.tl-hk-reject': st === 'ring', '.tl-hk-hangup': st === 'call' || (st === 'ring' && !cleanId(t.cmdReject)), '.tl-hk-open': st !== 'off', '.tl-hk-open2': st !== 'off', '.tl-hk-talk': st === 'ring' || st === 'call' || (!!t.talkAlways && st !== 'off') };
         Object.keys(show).forEach(function (k) { var x = b.querySelector(k); if (x) x.style.display = show[k] ? '' : 'none'; });
       });
       if (popup && popup.root) popup.root.className = 'tl-hk tl-hk-pop tl-run tl-hk-' + st;

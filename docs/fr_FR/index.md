@@ -400,6 +400,9 @@ Le sélecteur « Tuiles » propose un groupe **Animées** : pompe piscine, pompe
 
 ## Interphone (plugin hikinterphone)
 
+- **2e sortie** (relais 2 du portier, ex. portail) : *Action 2e sortie* et *Texte du 2e bouton* → un 2e bouton Ouvrir sur la tuile et dans la fenêtre (même confirmation que le 1er). Retrouvée automatiquement si le plugin la fournit.
+- Dans la fenêtre, les images sont affichées entières en 16/9 (pas rognées).
+
 - Choisir l'**équipement interphone** : les commandes du plugin hikinterphone (état d'appel, sonnerie, en communication, en ligne, décrocher, raccrocher, refuser, ouvrir porte) sont reprises automatiquement.
 - États : **Au repos**, **On sonne !** (cadre orange qui clignote, cloche animée), **En communication** (avec la durée), **Hors ligne**.
 - Les boutons changent selon l'état : Décrocher + Refuser quand ça sonne, Raccrocher pendant l'appel, Ouvrir toujours (avec confirmation, désactivable).
