@@ -1,0 +1,23 @@
+{
+  "id": "tuiles",
+  "name": "Tuiles",
+  "description": {
+    "fr_FR": "Pages de tuiles simples et génériques (style Design) : vous choisissez vos commandes info/action, la mise en page, le centrage et les couleurs sont automatiques. Mise à jour en direct par le core, sans démon, sans toucher au dashboard. Tablette et mobile."
+  },
+  "licence": "AGPL",
+  "author": "Perso",
+  "require": "4.2",
+  "category": "organization",
+  "hasDependency": false,
+  "hasOwnDeamon": false,
+  "maxDependancyInstallTime": 0,
+  "display": "panel",
+  "mobile": "panel",
+  "pluginVersion": "1.79.3",
+  "changelog": "",
+  "documentation": "",
+  "specialAttributes": {
+    "object": {},
+    "cmd": {}
+  }
+}
