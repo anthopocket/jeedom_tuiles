@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.79.1';
+  var VERSION = '1.79.2';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -3958,9 +3958,15 @@
     // Parler : page « Parler » du plugin hikinterphone (two-way audio) dans une fenêtre
     var talk = null;
     var openTalk = function () {
-      var url = p.val(t.cmdTalkUrl);
-      if (!isSet(url) || !/^https?:\/\//.test(String(url))) { UI.toast('Lien Parler indisponible : enregistrez l\'équipement hikinterphone', 'error'); return; }
-      url = String(url);
+      var url = String(isSet(p.val(t.cmdTalkUrl)) ? p.val(t.cmdTalkUrl) : '').trim();
+      if (/^\/\//.test(url)) url = location.protocol + url;                       // //hôte/…
+      else if (/^\//.test(url)) url = location.origin + url;                     // /plugins/hikinterphone/…
+      else if (url && !/^[a-z]+:\/\//i.test(url) && /^[\w.-]+(:\d+)?\//.test(url)) url = location.protocol + '//' + url;   // 192.168.1.x/…
+      if (!/^https?:\/\//i.test(url)) {
+        if (root.console) console.warn('[tuiles] Lien Parler', t.cmdTalkUrl, '=', p.val(t.cmdTalkUrl));
+        UI.toast(cleanId(t.cmdTalkUrl) ? 'Lien Parler vide (commande ' + cleanId(t.cmdTalkUrl) + ') : ouvrez l\'équipement hikinterphone dans Jeedom et sauvegardez-le' : 'Commande « Lien Parler » non choisie dans la tuile interphone', 'error');
+        return;
+      }
       closePopup();
       if (talk) return;
       var full = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'embed=1&video=1&bg=transparent&mode=' + (t.talkMode === 'free' ? 'free' : 'ptt');
