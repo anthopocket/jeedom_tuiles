@@ -7,7 +7,7 @@
   'use strict';
   if (root.Tuiles && root.Tuiles.version) return;
 
-  var VERSION = '1.79.2';
+  var VERSION = '1.79.3';
   var AJAX_URL = 'plugins/tuiles/core/ajax/tuiles.ajax.php';
   var PROXY_URL = 'plugins/tuiles/core/php/camProxy.php';
   var TOKENS = ['ok', 'warn', 'alert', 'info', 'neutral', 'on', 'off', 'text', 'title'];
@@ -3969,6 +3969,14 @@
       }
       closePopup();
       if (talk) return;
+      // page Jeedom en http (réseau local) : le micro est interdit dans un cadre ; la page Parler (https) s'ouvre donc en plein écran
+      if (root.isSecureContext === false && /^https:/i.test(url) && t.talkFrame !== true) {
+        sndOff();
+        var top = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'video=1&mode=' + (t.talkMode === 'free' ? 'free' : 'ptt') + '&back=' + encodeURIComponent(location.href);
+        try { if (root.fully && typeof root.fully.loadUrl === 'function') { root.fully.loadUrl(top); return; } } catch (e) {}
+        location.href = top;
+        return;
+      }
       var full = url + (url.indexOf('?') >= 0 ? '&' : '?') + 'embed=1&video=1&bg=transparent&mode=' + (t.talkMode === 'free' ? 'free' : 'ptt');
       var body = el('div', 'tl-hk-talkbox');
       var warn = root.isSecureContext === false
